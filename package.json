@@ -13,9 +13,10 @@
     "@ant-design/icons": "^6.1.0",
     "@reduxjs/toolkit": "^2.9.2",
     "antd": "^5.28.0",
+    "antd-mobile": "^5.41.1",
     "axios": "^1.13.1",
-    "react": "^19.1.1",
-    "react-dom": "^19.1.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.9.5",
     "socket.io-client": "^4.8.1"
@@ -23,8 +24,8 @@
   "devDependencies": {
     "@eslint/js": "^9.36.0",
     "@types/node": "^24.9.2",
-    "@types/react": "^19.1.16",
-    "@types/react-dom": "^19.1.9",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.5",
     "@types/react-router-dom": "^5.3.3",
     "@vitejs/plugin-react": "^5.0.4",
     "eslint": "^9.36.0",

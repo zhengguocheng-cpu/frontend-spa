@@ -1,0 +1,638 @@
+/* 游戏房间 - Grid 布局（参照 frontend） */
+
+.game-room-container {
+  width: 100vw;
+  height: 100vh;
+  max-width: 100vw; /* 防止超出视口 */
+  max-height: 100vh; /* 防止超出视口 */
+  display: grid;
+  grid-template-rows: 48px 1fr; /* 2行：顶部信息栏 + 游戏区域 */
+  grid-template-columns: 1fr 0px; /* 2列：游戏区域 + 聊天侧边栏（默认隐藏） */
+  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+  overflow: hidden;
+  gap: 0;
+  position: fixed; /* 固定定位，确保全屏 */
+  top: 0;
+  left: 0;
+  min-height: 0; /* 允许子元素缩小 */
+  transition: grid-template-columns 0.3s ease;
+}
+
+.game-room-container:has(.chat-sidebar.visible) {
+  grid-template-columns: 1fr 300px; /* 聊天框显示时 */
+}
+
+/* 强制横屏提示 */
+@media screen and (orientation: portrait) {
+  .game-room-container::before {
+    content: '请将设备横屏以获得最佳体验 📱➡️';
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 20px 40px;
+    border-radius: 12px;
+    font-size: 18px;
+    z-index: 9999;
+    text-align: center;
+  }
+}
+
+/* 顶部信息栏 */
+.game-room-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.3);
+  color: white;
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.room-info {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.room-id {
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.connection-status {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.connection-status.connected {
+  color: #52c41a;
+}
+
+.connection-status.disconnected {
+  color: #ff4d4f;
+}
+
+/* 游戏桌面 - Grid 布局（参照 frontend） */
+.game-table {
+  grid-row: 2; /* 第2行 */
+  grid-column: 1; /* 第1列 */
+  display: grid;
+  grid-template-rows: 100px 1fr 150px; /* 三行：顶部玩家区、中央区域、底部玩家+手牌 */
+  grid-template-columns: 100px 1fr 100px; /* 三列：左侧、中央、右侧 */
+  gap: 5px;
+  padding: 20px;
+  position: relative;
+  background: linear-gradient(135deg, #2d5f3f 0%, #1e4d2b 100%);
+  border: 10px solid #8b7355;
+  margin: 8px;
+  border-radius: 20px;
+  overflow: hidden; /* 防止内容溢出桌面边界 */
+  min-height: 0; /* 允许子元素缩小 */
+}
+
+/* 上方玩家区域 - 使用 Grid 定位 */
+.top-players {
+  grid-row: 1; /* 第1行 */
+  grid-column: 1 / 4; /* 跨越所有列 */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0;
+  z-index: 10;
+}
+
+.player-slot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 8px 12px;
+  border-radius: 12px;
+  min-width: 120px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(8px);
+  transition: all 0.3s ease;
+}
+
+.player-slot:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.player-info {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 名字和张数的容器 */
+.player-info > div:not(.player-avatar) {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.player-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  border: 2px solid #fff;
+  flex-shrink: 0;
+}
+
+.player-name {
+  font-size: 13px;
+  color: white;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.card-count {
+  font-size: 12px;
+  color: #ffd700;
+  white-space: nowrap;
+}
+
+/* 玩家状态（准备状态或张数） */
+.player-status {
+  font-size: 12px;
+  color: #ffd700;
+  white-space: nowrap;
+}
+
+/* 上方玩家的状态不需要左边距 */
+.player-info .player-status {
+  margin-left: 0;
+}
+
+/* 中央区域 - 使用 Grid 定位 */
+.center-area {
+  grid-row: 2; /* 第2行 */
+  grid-column: 1 / 4; /* 跨越所有列 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px;
+  z-index: 5;
+}
+
+.bottom-cards,
+.played-cards {
+  background: rgba(0, 0, 0, 0.4);
+  padding: 12px 24px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.bottom-cards-label,
+.played-cards-label {
+  color: #ffd700;
+  font-size: 14px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.cards-list {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+}
+
+.card {
+  width: 40px;
+  height: 56px;
+  background: white;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+}
+
+/* 当前玩家信息 - 使用 Grid 定位（左下角） */
+.current-player-info {
+  grid-row: 3; /* 第3行 */
+  grid-column: 1; /* 第1列 */
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  width: 80px;
+  height: auto;
+  flex-direction: column;
+  justify-content: center;
+  z-index: 10;
+  backdrop-filter: blur(8px);
+  transition: all 0.3s ease;
+}
+
+.current-player-info:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.current-player-info .player-avatar {
+  width: 44px;
+  height: 44px;
+  font-size: 22px;
+}
+
+.current-player-info .player-name {
+  font-size: 11px;
+  text-align: center;
+  word-break: break-all;
+  max-width: 100%;
+}
+
+.current-player-info .card-count {
+  font-size: 11px;
+  margin-left: 0;
+}
+
+.current-player-info .player-status {
+  font-size: 11px;
+  margin-left: 0;
+  text-align: center;
+}
+
+/* 手牌区域 - 使用 Grid 定位（底部中央和右侧） */
+.player-hand {
+  grid-row: 3; /* 第3行 */
+  grid-column: 2 / 4; /* 第2-3列 */
+  background: rgba(0, 0, 0, 0.2);
+  padding: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-radius: 8px;
+  z-index: 10;
+  min-height: 0; /* 允许缩小 */
+}
+
+.cards-container {
+  display: flex;
+  gap: 8px;
+  height: 100%;
+  padding: 0 16px;
+}
+
+.player-hand .card {
+  width: 60px;
+  height: 90px;
+  background: white;
+  border-radius: 6px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.player-hand .card.selected {
+  transform: translateY(-20px);
+  box-shadow: 0 6px 12px rgba(255, 215, 0, 0.6);
+  border: 2px solid #ffd700;
+}
+
+.card-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 4px;
+}
+
+.card-rank {
+  font-size: 24px;
+  font-weight: bold;
+  color: #333;
+}
+
+.card-suit {
+  font-size: 20px;
+}
+
+/* 控制按钮覆盖层 - 使用 Grid 定位（中央区域） */
+.game-controls {
+  grid-row: 2; /* 第2行（中央） */
+  grid-column: 1 / 4; /* 跨越所有列 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  z-index: 100;
+  pointer-events: none; /* 不阻挡鼠标事件 */
+}
+
+.game-controls > * {
+  pointer-events: auto; /* 按钮可点击 */
+}
+
+/* 确保按钮在桌面正中间 */
+.waiting-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+.waiting-controls button {
+  min-width: 140px;
+}
+
+.bidding-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.bidding-controls button {
+  min-width: 80px;
+}
+
+.playing-controls {
+  display: flex;
+  gap: 16px;
+}
+
+/* 结算弹窗 */
+.settlement-content {
+  padding: 24px;
+  text-align: center;
+}
+
+.settlement-content h2 {
+  margin: 0 0 16px 0;
+  color: #333;
+  font-size: 24px;
+}
+
+.settlement-content p {
+  margin: 0 0 24px 0;
+  font-size: 18px;
+  color: #666;
+}
+
+/* 聊天遮罩层 */
+.chat-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  animation: fadeIn 0.3s ease;
+  cursor: pointer;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 聊天侧边栏 */
+.chat-sidebar {
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 300px;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  border-left: 2px solid #ddd;
+  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.15);
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+  z-index: 1000;
+}
+
+.chat-sidebar.visible {
+  transform: translateX(0);
+}
+
+.chat-sidebar.hidden {
+  transform: translateX(100%);
+}
+
+.chat-header {
+  padding: 12px 16px;
+  background: #f5f5f5;
+  border-bottom: 1px solid #ddd;
+  font-weight: bold;
+  font-size: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chat-header h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  background: #fafafa;
+}
+
+.chat-message {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: white;
+  border-radius: 8px;
+  font-size: 13px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.chat-message-sender {
+  font-weight: bold;
+  color: #1890ff;
+  margin-bottom: 4px;
+}
+
+.chat-input-area {
+  padding: 12px;
+  background: white;
+  border-top: 1px solid #ddd;
+}
+
+.chat-input-container {
+  display: flex;
+  gap: 8px;
+}
+
+.chat-input-container input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.chat-input-container button {
+  flex-shrink: 0;
+}
+
+/* 横屏优化 */
+@media screen and (orientation: landscape) {
+  /* 横屏时聊天框仍然可折叠 */
+  .chat-toggle-btn {
+    right: 16px;
+  }
+}
+
+/* 平板和桌面适配 */
+@media (min-width: 768px) {
+  .game-room-header {
+    height: 56px;
+    padding: 12px 24px;
+  }
+
+  .room-id {
+    font-size: 16px;
+  }
+
+  .player-hand {
+    height: 140px;
+  }
+
+  .player-hand .card {
+    width: 70px;
+    height: 105px;
+  }
+
+  .card-rank {
+    font-size: 28px;
+  }
+
+  .card-suit {
+    font-size: 24px;
+  }
+  
+  /* 平板和桌面上聊天框更宽 */
+  .chat-sidebar {
+    width: 350px;
+  }
+  
+  .chat-toggle-btn {
+    width: 56px;
+    height: 56px;
+    font-size: 28px;
+  }
+}
+
+/* 移动端优化 */
+@media (max-width: 767px) {
+  /* 移动端聊天框全屏 */
+  .chat-sidebar {
+    width: 100vw;
+  }
+  
+  .chat-toggle-btn {
+    right: 12px;
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+  }
+}
+
+/* 动画 */
+@keyframes cardDeal {
+  from {
+    opacity: 0;
+    transform: translateY(-100px) rotate(-10deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(0);
+  }
+}
+
+.card {
+  animation: cardDeal 0.3s ease-out;
+}
+
+/* 滚动条样式 */
+.player-hand::-webkit-scrollbar {
+  height: 6px;
+}
+
+.player-hand::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+}
+
+.player-hand::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+.player-hand::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* 聊天切换按钮 */
+.chat-toggle-btn {
+  position: fixed;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  transition: all 0.3s ease;
+}
+
+.chat-toggle-btn:hover {
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.chat-toggle-btn:active {
+  transform: translateY(-50%) scale(0.95);
+}
