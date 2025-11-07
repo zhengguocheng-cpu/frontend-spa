@@ -11,6 +11,7 @@ export default defineConfig({
     },
   },
   server: {
+    allowedHosts:['www.games365.fun'],
     port: 5173,
     open: true,
   },
