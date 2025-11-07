@@ -16,8 +16,8 @@ import {
   resetGame,
   setLandlord,
   setCurrentPlayer,
-  addBid,
-  clearSelection,
+  // addBid,
+  // clearSelection,
   pass as passAction,
 } from '@/store/slices/gameSlice'
 import './style.css'
@@ -47,7 +47,7 @@ export default function GameRoom() {
   const [chatMessage, setChatMessage] = useState('')
   const [chatMessages, setChatMessages] = useState<Array<{ sender: string; message: string }>>([])
   const [showSettlement, setShowSettlement] = useState(false)
-  const [showDealingAnimation, setShowDealingAnimation] = useState(false)
+  // const [showDealingAnimation, setShowDealingAnimation] = useState(false)
   const [biddingTimer, setBiddingTimer] = useState(0)
   const [showBiddingUI, setShowBiddingUI] = useState(false)
   const biddingTimerRef = useRef<NodeJS.Timeout | null>(null)

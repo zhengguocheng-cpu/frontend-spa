@@ -139,34 +139,37 @@ export default function RoomList() {
         <Empty description="暂时没有可加入的房间" />
       ) : (
         <List>
-          {rooms.map((room) => (
-            <List.Item key={room.id}>
-              <Card className="room-card">
-                <div className="room-card-content">
-                  <div className="room-info">
-                    <span className="room-name">{room.name}</span>
-                    <span className="room-status">
-                      {room.players === room.maxPlayers ? '游戏中' : '等待中'}
-                    </span>
+          {rooms.map((room) => {
+            const playerCount = Array.isArray(room.players) ? room.players.length : room.players
+            const isFull = playerCount >= room.maxPlayers
+
+            return (
+              <List.Item key={room.id}>
+                <Card className="room-card">
+                  <div className="room-card-content">
+                    <div className="room-info">
+                      <span className="room-name">{room.name}</span>
+                      <span className="room-status">{isFull ? '游戏中' : '等待中'}</span>
+                    </div>
+                    <div className="room-players">
+                      玩家: {playerCount}/{room.maxPlayers}
+                    </div>
+                    <Button
+                      color="primary"
+                      size="small"
+                      block
+                      onClick={() => handleJoin(room.id)}
+                      loading={joiningRoomId === room.id}
+                      disabled={isFull}
+                      style={{ marginTop: '12px' }}
+                    >
+                      {isFull ? '房间已满' : '加入游戏'}
+                    </Button>
                   </div>
-                  <div className="room-players">
-                    玩家: {room.players}/{room.maxPlayers}
-                  </div>
-                  <Button
-                    color="primary"
-                    size="small"
-                    block
-                    onClick={() => handleJoin(room.id)}
-                    loading={joiningRoomId === room.id}
-                    disabled={room.players >= room.maxPlayers}
-                    style={{ marginTop: '12px' }}
-                  >
-                    {room.players >= room.maxPlayers ? '房间已满' : '加入游戏'}
-                  </Button>
-                </div>
-              </Card>
-            </List.Item>
-          ))}
+                </Card>
+              </List.Item>
+            )
+          })}
         </List>
       )}
     </div>

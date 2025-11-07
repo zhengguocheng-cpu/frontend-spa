@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Card, List, Button, PullToRefresh, Toast, Empty, Tag, SpinLoading } from 'antd-mobile'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Button, Card, Empty, SpinLoading, Tag, Toast } from 'antd-mobile'
 import { AddOutline, RedoOutline } from 'antd-mobile-icons'
 import { useNavigate } from 'react-router-dom'
 import { globalSocket, type RoomSummary } from '@/services/socket'
@@ -55,7 +55,7 @@ export default function RoomList() {
       setRooms(list);
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : '获取房间列表失败';
-      message.error(errMsg);
+      Toast.show({ content: errMsg, icon: 'fail' });
     } finally {
       setLoading(false);
     }
@@ -85,11 +85,11 @@ export default function RoomList() {
         },
         true
       );
-      message.success('成功加入房间');
+      Toast.show({ content: '成功加入房间', icon: 'success' });
       navigate(`/game/${roomId}`);
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : '加入房间失败';
-      message.error(errMsg);
+      Toast.show({ content: errMsg, icon: 'fail' });
     } finally {
       setJoiningRoomId(null);
     }
@@ -98,60 +98,74 @@ export default function RoomList() {
   const roomList = useMemo(() => rooms, [rooms]);
 
   return (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, width: '100%' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
         <div>
-          <Title level={3}>游戏房间</Title>
-          <Paragraph type="secondary">
-            实时查看游戏大厅中的房间状态，选择一个加入或等待新房间。
-          </Paragraph>
+          <h2 style={{ margin: '0 0 8px' }}>游戏房间</h2>
+          <p style={{ margin: 0, color: '#999' }}>实时查看大厅房间状态，选择加入或等待新房间。</p>
         </div>
-        <Space>
-          <Tag color={connected ? 'green' : 'red'}>{connected ? '连接正常' : '未连接'}</Tag>
-          <Button icon={<ReloadOutlined />} onClick={loadRooms} disabled={!connected} loading={loading}>
-            刷新
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Tag color={connected ? 'success' : 'danger'}>{connected ? '已连接' : '未连接'}</Tag>
+          <Button
+            size="small"
+            color="primary"
+            fill="outline"
+            onClick={loadRooms}
+            disabled={!connected}
+            loading={loading}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <RedoOutline />
+              刷新
+            </span>
           </Button>
-          <Button type="primary" icon={<PlusOutlined />} disabled>
-            创建房间
+          <Button size="small" color="primary" disabled>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <AddOutline />
+              创建房间
+            </span>
           </Button>
-        </Space>
-      </Space>
+        </div>
+      </div>
+
       {loading && roomList.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '40px 0' }}>
-          <Spin tip="正在加载房间列表..." />
+          <SpinLoading style={{ '--size': '48px' }} />
+          <p style={{ marginTop: 16, color: '#999' }}>正在加载房间列表...</p>
         </div>
       ) : roomList.length === 0 ? (
         <Empty description="暂时没有可加入的房间" />
       ) : (
-        <List
-          grid={{ gutter: 16, column: 3 }}
-          dataSource={roomList}
-          renderItem={(room) => (
-            <List.Item>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+          {roomList.map((room) => {
+            const playerCount = Array.isArray(room.players) ? room.players.length : room.players
+            const isFull = playerCount >= room.maxPlayers
+
+            return (
               <Card
+                key={room.id}
+                style={{ width: 260 }}
                 title={room.name}
-                actions={[
-                  <Button
-                    type="link"
-                    key={`join-${room.id}`}
-                    onClick={() => handleJoin(room.id)}
-                    loading={joiningRoomId === room.id}
-                  >
-                    加入游戏
-                  </Button>,
-                ]}
+                extra={<Tag color={isFull ? 'danger' : 'success'}>{isFull ? '游戏中' : '等待中'}</Tag>}
               >
-                <Space direction="vertical">
-                  <div>
-                    玩家: {room.players}/{room.maxPlayers}
-                  </div>
-                  <div>状态: {room.players === room.maxPlayers ? '游戏中' : '等待中'}</div>
-                </Space>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div>玩家: {playerCount}/{room.maxPlayers}</div>
+                  <Button
+                    color="primary"
+                    size="small"
+                    block
+                    loading={joiningRoomId === room.id}
+                    onClick={() => handleJoin(room.id)}
+                    disabled={isFull}
+                  >
+                    {isFull ? '房间已满' : '加入游戏'}
+                  </Button>
+                </div>
               </Card>
-            </List.Item>
-          )}
-        />
+            )
+          })}
+        </div>
       )}
-    </Space>
+    </div>
   );
 }
