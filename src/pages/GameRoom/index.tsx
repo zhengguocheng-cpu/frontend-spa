@@ -984,7 +984,16 @@ export default function GameRoom() {
       return
     }
 
-    if (selectedCards.length === 0) {
+    // 如果玩家没有主动选牌且整手牌本身就是一个完整牌型，自动全出
+    let cardsToPlay = selectedCards
+    if (cardsToPlay.length === 0) {
+      const autoFullHand = CardHintHelper.getFullHandIfSinglePattern(myCards)
+      if (autoFullHand && autoFullHand.length === myCards.length) {
+        cardsToPlay = autoFullHand
+      }
+    }
+
+    if (cardsToPlay.length === 0) {
       Toast.show({ content: '请选择要出的牌', icon: 'fail' })
       return
     }
@@ -999,7 +1008,7 @@ export default function GameRoom() {
       return
     }
 
-    console.log('🎴 发送出牌请求:', selectedCards)
+    console.log('🎴 发送出牌请求:', cardsToPlay)
 
     playPendingRef.current = true
     setPlayPending(true)
@@ -1008,7 +1017,7 @@ export default function GameRoom() {
     socket.emit('play_cards', {
       roomId,
       userId: user.id || user.name,
-      cards: selectedCards,
+      cards: cardsToPlay,
     })
 
     // 添加超时机制：如果3秒内没有收到响应，重置状态
@@ -1114,13 +1123,18 @@ export default function GameRoom() {
 
     // 根据当前是否允许“不要”，决定是否参考上家牌型
     // canPass === false 视为新一轮首家出牌，不参考 lastPlayedCards
-    const lastCards: string[] | null = !lastPlayedCards || !lastPlayedCards.cards || lastPlayedCards.cards.length === 0 || !canPass
-      ? null
-      : lastPlayedCards.cards
+    const isFollowPlay = !!lastPlayedCards && !!lastPlayedCards.cards && lastPlayedCards.cards.length > 0 && canPass
+    const lastCards: string[] | null = isFollowPlay ? lastPlayedCards!.cards : null
 
     const hint = CardHintHelper.getHint(myCards, lastCards)
 
     if (!hint || hint.length === 0) {
+      // 跟牌场景下，如果没有任何可以压过上家的牌，自动选择“不出”
+      if (isFollowPlay && canPass) {
+        handlePass()
+        return
+      }
+
       Toast.show({ content: '💡 当前没有可供提示的出牌方案', icon: 'fail' })
       return
     }

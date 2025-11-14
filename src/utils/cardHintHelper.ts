@@ -11,6 +11,9 @@ export type SimplePatternType =
   | 'bomb'
   | 'straight'
   | 'pair_sequence'
+  | 'triple_with_single'
+  | 'triple_with_pair'
+  | 'four_with_two'
 
 export interface SimplePattern {
   type: SimplePatternType
@@ -124,8 +127,62 @@ const detectSimplePattern = (cards: Card[]): SimplePattern | null => {
     return { type: 'triple', value: first, length }
   }
 
-  if (length === 4 && allSame) {
-    return { type: 'bomb', value: first, length }
+  // 三带一
+  if (length === 4) {
+    const groups = groupByValue(sorted)
+    const entries = Array.from(groups.entries())
+    if (entries.length === 2) {
+      const [v1, g1] = entries[0]
+      const [v2, g2] = entries[1]
+      const c1 = g1.length
+      const c2 = g2.length
+      if ((c1 === 3 && c2 === 1) || (c1 === 1 && c2 === 3)) {
+        const tripleValue = c1 === 3 ? v1 : v2
+        return { type: 'triple_with_single', value: tripleValue, length }
+      }
+    }
+
+    if (allSame) {
+      return { type: 'bomb', value: first, length }
+    }
+  }
+
+  // 三带二
+  if (length === 5) {
+    const groups = groupByValue(sorted)
+    const entries = Array.from(groups.entries())
+    if (entries.length === 2) {
+      const [v1, g1] = entries[0]
+      const [v2, g2] = entries[1]
+      const c1 = g1.length
+      const c2 = g2.length
+      if ((c1 === 3 && c2 === 2) || (c1 === 2 && c2 === 3)) {
+        const tripleValue = c1 === 3 ? v1 : v2
+        return { type: 'triple_with_pair', value: tripleValue, length }
+      }
+    }
+  }
+
+  // 四带二（4+1+1 或 4+2 或 4+2+2）
+  if (length === 6 || length === 8) {
+    const groups = groupByValue(sorted)
+    const entries = Array.from(groups.entries())
+    const fourEntry = entries.find(([, groupCards]) => groupCards.length === 4)
+    if (fourEntry) {
+      const fourValue = fourEntry[0]
+      if (length === 6) {
+        // 6 张：4+1+1 或 4+2，附属牌数量满足即可
+        return { type: 'four_with_two', value: fourValue, length }
+      } else {
+        // 8 张：需要 4+2+2
+        const otherCounts = entries
+          .filter(([value]) => value !== fourValue)
+          .map(([, groupCards]) => groupCards.length)
+        if (otherCounts.length === 2 && otherCounts.every((c) => c === 2)) {
+          return { type: 'four_with_two', value: fourValue, length }
+        }
+      }
+    }
   }
 
   if (length >= 5) {
@@ -221,29 +278,160 @@ const findAllSingles = (hand: Card[]): Card[][] => {
   return sorted.map((c) => [c])
 }
 
-const findBiggerSingles = (hand: Card[], minValue: number): Card[][] => {
-  const result: Card[][] = []
-  const sorted = sortCardsAsc(hand)
-  for (const card of sorted) {
-    const v = getCardValue(card)
-    if (v > minValue) {
-      result.push([card])
+const findAllTripleWithSingles = (hand: Card[]): Card[][] => {
+  const triples = findAllTriples(hand)
+  const sortedHand = sortCardsAsc(hand)
+  const results: Card[][] = []
+
+  for (const triple of triples) {
+    const tripleValue = getCardValue(triple[0])
+    for (const card of sortedHand) {
+      if (getCardValue(card) !== tripleValue) {
+        results.push([...triple, card])
+      }
     }
   }
-  return result
+
+  return results
+}
+
+const findAllTripleWithPairs = (hand: Card[]): Card[][] => {
+  const groups = groupByValue(hand)
+  const entries = Array.from(groups.entries())
+  const results: Card[][] = []
+
+  for (const [value, cardsOfValue] of entries) {
+    if (cardsOfValue.length >= 3) {
+      const triple = sortCardsAsc(cardsOfValue).slice(0, 3)
+
+      for (const [pairValue, pairCards] of entries) {
+        if (pairValue === value) continue
+        if (pairCards.length >= 2) {
+          const sortedPair = sortCardsAsc(pairCards)
+          results.push([...triple, sortedPair[0], sortedPair[1]])
+        }
+      }
+    }
+  }
+
+  return results
+}
+
+const findAllFourWithTwo = (hand: Card[]): Card[][] => {
+  const groups = groupByValue(hand)
+  const results: Card[][] = []
+
+  for (const [value, cardsOfValue] of groups.entries()) {
+    if (cardsOfValue.length === 4) {
+      const four = sortCardsAsc(cardsOfValue)
+      const remaining = sortCardsAsc(hand).filter((c) => getCardValue(c) !== value)
+
+      // 6 张：4+1+1 或 4+2，取当前能组成的最小两张牌
+      if (remaining.length >= 2) {
+        results.push([...four, remaining[0], remaining[1]])
+      }
+
+      // 8 张：4+2+2，取当前能组成的最小两对
+      const remainingGroups = groupByValue(remaining)
+      const pairs: Card[][] = []
+      for (const cards of remainingGroups.values()) {
+        if (cards.length >= 2) {
+          const sortedPair = sortCardsAsc(cards)
+          pairs.push([sortedPair[0], sortedPair[1]])
+        }
+      }
+      if (pairs.length >= 2) {
+        const firstPair = pairs[0]
+        const secondPair = pairs[1]
+        results.push([...four, ...firstPair, ...secondPair])
+      }
+    }
+  }
+
+  return results
+}
+
+const findBiggerSingles = (hand: Card[], minValue: number): Card[][] => {
+  const groups = groupByValue(hand)
+  const values = Array.from(groups.keys()).sort((a, b) => a - b)
+
+  // 计算当前手牌中所有可能顺子涉及到的点数（用于判断某张单牌是否是顺子关键点）
+  const straights = findAllStraights(hand)
+  const straightValueSet = new Set<number>()
+  for (const straight of straights) {
+    for (const card of straight) {
+      straightValueSet.add(getCardValue(card))
+    }
+  }
+
+  type SingleCandidate = { card: Card; value: number; cost: number }
+  const candidates: SingleCandidate[] = []
+
+  for (const value of values) {
+    if (value <= minValue) continue
+    const cardsOfValue = sortCardsAsc(groups.get(value) || [])
+    const groupSize = cardsOfValue.length
+    if (groupSize === 0) continue
+
+    const isCriticalSingle = groupSize === 1 && straightValueSet.has(value)
+
+    const baseCost =
+      groupSize === 1 ? 0 : groupSize === 2 ? 1 : groupSize === 3 ? 2 : 3
+    const fullCost = baseCost + (isCriticalSingle ? 100 : 0)
+
+    for (const card of cardsOfValue) {
+      candidates.push({ card, value, cost: fullCost })
+    }
+  }
+
+  candidates.sort((a, b) => {
+    if (a.cost !== b.cost) return a.cost - b.cost
+    if (a.value !== b.value) return a.value - b.value
+    return getCardValue(a.card) - getCardValue(b.card)
+  })
+
+  return candidates.map((c) => [c.card])
 }
 
 const findBiggerPairs = (hand: Card[], minValue: number): Card[][] => {
-  const result: Card[][] = []
   const groups = groupByValue(hand)
-  for (const [value, cards] of groups.entries()) {
-    if (value > minValue && cards.length >= 2) {
-      const sorted = sortCardsAsc(cards)
-      result.push([sorted[0], sorted[1]])
+
+  // 计算手牌中所有可能顺子涉及到的点数，用于判断拆掉某对是否会破坏顺子
+  const straights = findAllStraights(hand)
+  const straightValueSet = new Set<number>()
+  for (const straight of straights) {
+    for (const card of straight) {
+      straightValueSet.add(getCardValue(card))
     }
   }
-  result.sort((a, b) => getCardValue(a[0]) - getCardValue(b[0]))
-  return result
+
+  type PairCandidate = { cards: Card[]; value: number; cost: number }
+  const candidates: PairCandidate[] = []
+
+  for (const [value, cards] of groups.entries()) {
+    if (value <= minValue || cards.length < 2) continue
+
+    const sorted = sortCardsAsc(cards)
+    const pair: Card[] = [sorted[0], sorted[1]]
+    const groupSize = cards.length
+
+    // 如果这一点数只有两张牌，并且在某个顺子中出现，则拆这对会破坏顺子
+    const remainingAfterPair = groupSize - 2
+    const breaksStraight = remainingAfterPair <= 0 && straightValueSet.has(value)
+
+    const baseCost = groupSize === 2 ? 1 : groupSize === 3 ? 2 : 3
+    const fullCost = baseCost + (breaksStraight ? 100 : 0)
+
+    candidates.push({ cards: pair, value, cost: fullCost })
+  }
+
+  candidates.sort((a, b) => {
+    if (a.cost !== b.cost) return a.cost - b.cost
+    if (a.value !== b.value) return a.value - b.value
+    return getCardValue(a.cards[0]) - getCardValue(b.cards[0])
+  })
+
+  return candidates.map((c) => c.cards)
 }
 
 const findAllStraights = (hand: Card[]): Card[][] => {
@@ -462,6 +650,203 @@ const findBiggerTriples = (hand: Card[], minValue: number): Card[][] => {
   return result
 }
 
+const findBiggerTripleWithSingles = (hand: Card[], minTripleValue: number): Card[][] => {
+  const results: Card[][] = []
+  const groups = groupByValue(hand)
+  const entries = Array.from(groups.entries()).sort(([a], [b]) => a - b)
+
+  // 预先计算所有可能顺子涉及到的点数，用于判断某个单牌是否是顺子关键牌
+  const straights = findAllStraights(hand)
+  const straightValueSet = new Set<number>()
+  for (const straight of straights) {
+    for (const card of straight) {
+      straightValueSet.add(getCardValue(card))
+    }
+  }
+
+  type KickCandidate = { card: Card; value: number; cost: number }
+
+  for (const [value, cardsOfValue] of entries) {
+    if (value <= minTripleValue || cardsOfValue.length < 3) continue
+
+    const triple = sortCardsAsc(cardsOfValue).slice(0, 3)
+
+    // 计算所有可作为三带一“单牌”的候选，并按代价排序
+    const remaining = sortCardsAsc(hand).filter((c) => getCardValue(c) !== value)
+    const kicks: KickCandidate[] = []
+
+    for (const card of remaining) {
+      const v = getCardValue(card)
+      const groupSize = groups.get(v)?.length ?? 0
+
+      const isCriticalSingle = groupSize === 1 && straightValueSet.has(v)
+      const baseCost =
+        groupSize === 1 ? 0 : groupSize === 2 ? 1 : groupSize === 3 ? 2 : 3
+      const fullCost = baseCost + (isCriticalSingle ? 100 : 0)
+
+      kicks.push({ card, value: v, cost: fullCost })
+    }
+
+    kicks.sort((a, b) => {
+      if (a.cost !== b.cost) return a.cost - b.cost
+      if (a.value !== b.value) return a.value - b.value
+      return getCardValue(a.card) - getCardValue(b.card)
+    })
+
+    for (const k of kicks) {
+      results.push([...triple, k.card])
+    }
+  }
+
+  return results
+}
+
+const findBiggerTripleWithPairs = (hand: Card[], minTripleValue: number): Card[][] => {
+  const results: Card[][] = []
+  const groups = groupByValue(hand)
+  const entries = Array.from(groups.entries()).sort(([a], [b]) => a - b)
+
+  for (const [value, cardsOfValue] of entries) {
+    if (value <= minTripleValue || cardsOfValue.length < 3) continue
+    const triple = sortCardsAsc(cardsOfValue).slice(0, 3)
+
+    // 选择作为三带二“对子”的候选时，使用与 findBiggerPairs 类似的代价模型
+    // 预先计算所有可能顺子涉及到的点数
+    const straights = findAllStraights(hand)
+    const straightValueSet = new Set<number>()
+    for (const straight of straights) {
+      for (const card of straight) {
+        straightValueSet.add(getCardValue(card))
+      }
+    }
+
+    type PairKickCandidate = { cards: Card[]; value: number; cost: number }
+    const pairKicks: PairKickCandidate[] = []
+
+    for (const [pairValue, pairCards] of entries) {
+      if (pairValue === value || pairCards.length < 2) continue
+
+      const sortedPair = sortCardsAsc(pairCards)
+      const pair: Card[] = [sortedPair[0], sortedPair[1]]
+      const groupSize = pairCards.length
+
+      // 拆掉这一对后剩余张数
+      const remainingAfterPair = groupSize - 2
+      const breaksStraight = remainingAfterPair <= 0 && straightValueSet.has(pairValue)
+
+      const baseCost = groupSize === 2 ? 1 : groupSize === 3 ? 2 : 3
+      const fullCost = baseCost + (breaksStraight ? 100 : 0)
+
+      pairKicks.push({ cards: pair, value: pairValue, cost: fullCost })
+    }
+
+    pairKicks.sort((a, b) => {
+      if (a.cost !== b.cost) return a.cost - b.cost
+      if (a.value !== b.value) return a.value - b.value
+      return getCardValue(a.cards[0]) - getCardValue(b.cards[0])
+    })
+
+    for (const k of pairKicks) {
+      results.push([...triple, ...k.cards])
+    }
+  }
+
+  return results
+}
+
+const findBiggerFourWithTwo = (hand: Card[], minFourValue: number, length: number): Card[][] => {
+  if (length !== 6 && length !== 8) return []
+
+  const results: Card[][] = []
+  const groups = groupByValue(hand)
+  const entries = Array.from(groups.entries()).sort(([a], [b]) => a - b)
+
+  // 预先计算所有可能顺子涉及到的点数
+  const straights = findAllStraights(hand)
+  const straightValueSet = new Set<number>()
+  for (const straight of straights) {
+    for (const card of straight) {
+      straightValueSet.add(getCardValue(card))
+    }
+  }
+
+  for (const [value, cardsOfValue] of entries) {
+    if (value <= minFourValue || cardsOfValue.length < 4) continue
+
+    const four = sortCardsAsc(cardsOfValue).slice(0, 4)
+    const remaining = sortCardsAsc(hand).filter((c) => getCardValue(c) !== value)
+
+    if (length === 6) {
+      if (remaining.length >= 2) {
+        // 选择两张“带牌”单牌，使用与 findBiggerSingles 类似的代价模型
+        type SingleKickCandidate = { card: Card; value: number; cost: number }
+        const kicks: SingleKickCandidate[] = []
+
+        const remainingGroups = groupByValue(remaining)
+        const remainingValues = Array.from(remainingGroups.keys()).sort((a, b) => a - b)
+
+        for (const v of remainingValues) {
+          const cardsOfV = sortCardsAsc(remainingGroups.get(v) || [])
+          const groupSize = cardsOfV.length
+          if (groupSize === 0) continue
+
+          const isCriticalSingle = groupSize === 1 && straightValueSet.has(v)
+          const baseCost =
+            groupSize === 1 ? 0 : groupSize === 2 ? 1 : groupSize === 3 ? 2 : 3
+          const fullCost = baseCost + (isCriticalSingle ? 100 : 0)
+
+          for (const c of cardsOfV) {
+            kicks.push({ card: c, value: v, cost: fullCost })
+          }
+        }
+
+        kicks.sort((a, b) => {
+          if (a.cost !== b.cost) return a.cost - b.cost
+          if (a.value !== b.value) return a.value - b.value
+          return getCardValue(a.card) - getCardValue(b.card)
+        })
+
+        if (kicks.length >= 2) {
+          results.push([...four, kicks[0].card, kicks[1].card])
+        }
+      }
+    } else {
+      const remainingGroups = groupByValue(remaining)
+      type PairCandidate = { cards: Card[]; value: number; cost: number }
+      const pairCandidates: PairCandidate[] = []
+
+      for (const [v, cards] of remainingGroups.entries()) {
+        if (cards.length < 2) continue
+        const sortedPair = sortCardsAsc(cards)
+        const pair: Card[] = [sortedPair[0], sortedPair[1]]
+        const groupSize = cards.length
+
+        const remainingAfterPair = groupSize - 2
+        const breaksStraight = remainingAfterPair <= 0 && straightValueSet.has(v)
+
+        const baseCost = groupSize === 2 ? 1 : groupSize === 3 ? 2 : 3
+        const fullCost = baseCost + (breaksStraight ? 100 : 0)
+
+        pairCandidates.push({ cards: pair, value: v, cost: fullCost })
+      }
+
+      pairCandidates.sort((a, b) => {
+        if (a.cost !== b.cost) return a.cost - b.cost
+        if (a.value !== b.value) return a.value - b.value
+        return getCardValue(a.cards[0]) - getCardValue(b.cards[0])
+      })
+
+      if (pairCandidates.length >= 2) {
+        const firstPair = pairCandidates[0]
+        const secondPair = pairCandidates[1]
+        results.push([...four, ...firstPair.cards, ...secondPair.cards])
+      }
+    }
+  }
+
+  return results
+}
+
 const findBiggerBombs = (hand: Card[], minValue: number): Card[][] => {
   const result: Card[][] = []
   const groups = groupByValue(hand)
@@ -480,6 +865,20 @@ export class CardHintHelper {
 
   static resetHintIndex() {
     this.hintIndex = 0
+  }
+
+  /**
+   * 如果整手牌本身就是一个完整牌型，返回这手牌（按排序后的顺序）
+   * 用于只剩一手牌时的自动出牌
+   */
+  static getFullHandIfSinglePattern(playerHand: Card[]): Card[] | null {
+    if (!playerHand || playerHand.length === 0) return null
+
+    const pattern = detectSimplePattern(playerHand)
+    if (!pattern) return null
+    if (pattern.length !== playerHand.length) return null
+
+    return sortCardsAsc(playerHand)
   }
 
   /**
@@ -519,38 +918,70 @@ export class CardHintHelper {
 
   // 首次出牌：优先提示张数多的牌型，其次是小牌
   private static getAllFirstPlayHints(hand: Card[]): Card[][] {
-    const hints: Card[][] = []
+    const nonPower: Card[][] = []
+    const power: Card[][] = []
 
     const straights = findAllStraights(hand)
     const pairSequences = findAllPairSequences(hand)
+    const tripleWithSingles = findAllTripleWithSingles(hand)
+    const tripleWithPairs = findAllTripleWithPairs(hand)
     const triples = findAllTriples(hand)
     const pairs = findAllPairs(hand)
     const singles = findAllSingles(hand)
+    const fourWithTwo = findAllFourWithTwo(hand)
     const bombs = findAllBombs(hand)
     const rocket = detectRocketInHand(hand)
 
-    hints.push(...straights)
-    hints.push(...pairSequences)
-    hints.push(...triples)
-    hints.push(...pairs)
-    hints.push(...singles)
-    hints.push(...bombs)
+    nonPower.push(...straights)
+    nonPower.push(...pairSequences)
+    nonPower.push(...tripleWithSingles)
+    nonPower.push(...tripleWithPairs)
+    nonPower.push(...triples)
+    nonPower.push(...pairs)
+    nonPower.push(...singles)
 
+    power.push(...fourWithTwo)
+    power.push(...bombs)
     if (rocket.hasRocket) {
-      hints.push(rocket.cards)
+      power.push(rocket.cards)
     }
 
-    const unique: Card[][] = []
-    const seen = new Set<string>()
-    for (const combo of hints) {
-      const key = sortCardsAsc(combo).join(',')
-      if (!seen.has(key)) {
-        seen.add(key)
-        unique.push(combo)
+    const dedupe = (combos: Card[][]): Card[][] => {
+      const unique: Card[][] = []
+      const seen = new Set<string>()
+      for (const combo of combos) {
+        const key = sortCardsAsc(combo).join(',')
+        if (!seen.has(key)) {
+          seen.add(key)
+          unique.push(combo)
+        }
       }
+      return unique
     }
 
-    return unique
+    const getMinValue = (combo: Card[]): number => {
+      let min = Infinity
+      for (const c of combo) {
+        const v = getCardValue(c)
+        if (v < min) min = v
+      }
+      return min === Infinity ? 0 : min
+    }
+
+    const sortByPriority = (combos: Card[][]): Card[][] => {
+      return combos.sort((a, b) => {
+        const minA = getMinValue(a)
+        const minB = getMinValue(b)
+        if (minA !== minB) return minA - minB
+        if (a.length !== b.length) return b.length - a.length
+        return getCardValue(a[0]) - getCardValue(b[0])
+      })
+    }
+
+    const uniqueNonPower = sortByPriority(dedupe(nonPower))
+    const uniquePower = sortByPriority(dedupe(power))
+
+    return [...uniqueNonPower, ...uniquePower]
   }
 
   // 跟牌：根据简单牌型查找所有能压过的组合
@@ -570,6 +1001,14 @@ export class CardHintHelper {
         sameTypeHints.push(...findBiggerTriples(hand, pattern.value))
         break
       }
+      case 'triple_with_single': {
+        sameTypeHints.push(...findBiggerTripleWithSingles(hand, pattern.value))
+        break
+      }
+      case 'triple_with_pair': {
+        sameTypeHints.push(...findBiggerTripleWithPairs(hand, pattern.value))
+        break
+      }
       case 'bomb': {
         sameTypeHints.push(...findBiggerBombs(hand, pattern.value))
         break
@@ -580,6 +1019,10 @@ export class CardHintHelper {
       }
       case 'pair_sequence': {
         sameTypeHints.push(...findBiggerPairSequences(hand, pattern.value, pattern.length))
+        break
+      }
+      case 'four_with_two': {
+        sameTypeHints.push(...findBiggerFourWithTwo(hand, pattern.value, pattern.length))
         break
       }
     }
@@ -598,7 +1041,8 @@ export class CardHintHelper {
 
     sameTypeHints.sort((a, b) => {
       if (a.length !== b.length) return b.length - a.length
-      return getCardValue(a[0]) - getCardValue(b[0])
+      // 对于长度相同的组合，保留原有顺序，以尊重各 findBigger* 函数内部的代价排序
+      return 0
     })
 
     bombsAndRocket.sort((a, b) => {
