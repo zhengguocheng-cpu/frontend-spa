@@ -27,7 +27,7 @@ export default function Login() {
       const authUser = await login({
         userName: username.trim(),
         playerAvatar: avatar,
-        htmlName: 'login',
+        htmlName: 'spa',
       })
       console.log('✅ 登录成功:', authUser)
       Toast.show({ content: `欢迎回来，${authUser.name}`, icon: 'success' })

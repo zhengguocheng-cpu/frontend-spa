@@ -21,14 +21,13 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 // 从 sessionStorage 恢复用户信息（标签页隔离）
 function getStoredUser(): AuthUser | null {
   try {
-    const userId = sessionStorage.getItem('userId')
     const userName = sessionStorage.getItem('userName')
     const playerAvatar = sessionStorage.getItem('playerAvatar')
     
-    if (userId && userName) {
-      console.log('🔄 从 sessionStorage 恢复用户信息:', { userId, userName })
+    if (userName) {
+      console.log('🔄 从 sessionStorage 恢复用户信息:', { userName })
       return {
-        id: userId,
+        id: userName,  // 使用 userName 作为 id
         name: userName,
         avatar: playerAvatar || '👑',
       }
@@ -49,7 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (storedUser) {
       console.log('🔄 检测到用户信息，尝试重连 Socket...')
       globalSocket.connectAndWait({
-        userId: storedUser.id,
+        userId: storedUser.name,
         userName: storedUser.name,
         playerAvatar: storedUser.avatar,
       }).then(() => {
@@ -70,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await globalSocket.connectAndWait(options)
       const authUser: AuthUser = {
-        id: options.userId ?? options.userName,
+        id: options.userName,
         name: options.userName,
         avatar: options.playerAvatar ?? '👑',
       }

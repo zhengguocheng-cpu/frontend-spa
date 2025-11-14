@@ -4,25 +4,27 @@
 .player-hand-section {
   position: absolute;
   bottom: 20px; /* 距离底部 */
-  left: 20px; /* 距离左边 */
-  right: 20px; /* 距离右边 */
-  height: 180px; /* 增加高度以容纳更多牌 */
+  left: 150px; /* 距离左边 */
+  right: 10px; /* 距离右边 */
+  height: 130px; /* 增加高度以容纳更多牌 */
   display: flex;
   justify-content: center; /* 水平居中 */
   align-items: flex-end;
-  overflow-x: hidden; /* 水平方向不允许溢出 */
+  overflow-x: visible; /* 水平方向不允许溢出 */
   overflow-y: visible; /* 垂直方向允许溢出（选中的牌向上） */
   padding: 0;
   z-index: 50;
 }
 
 .player-hand {
-  display: inline-flex; /* 改为 inline-flex，自适应内容宽度 */
+  display: flex;
   flex-wrap: nowrap;
   align-items: flex-end;
+  justify-content: center;
+  width: 100%;
   height: 100%;
   position: relative;
-  max-width: 100%; /* 不超过父容器 */
+  overflow: visible;
 }
 
 /* 手牌遮挡由 JS 动态计算，不使用固定值 */
@@ -41,7 +43,7 @@
   flex-direction: column;
   align-items: flex-start;
   justify-content: flex-start;
-  padding: 5px 0 0 5px;
+  padding: 5px 5px 5px 5px;
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 2px 4px rgba(0,0,0,0.2);

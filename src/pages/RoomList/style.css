@@ -3,7 +3,7 @@
 .room-list-container {
   min-height: 100vh;
   background: #f5f5f5;
-  padding: 16px;
+  padding: 12px 16px 24px;
   overflow-y: auto; /* 允许垂直滚动 */
 }
 
@@ -27,39 +27,107 @@
 .room-list-actions {
   display: flex;
   gap: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.room-status-tag,
+.room-action-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.room-status-tag {
+  font-size: 14px;
+  padding: 4px 10px;
+  border-radius: 16px;
+}
+
+.room-action-button {
+  --height: 36px;
+  --border-radius: 28px;
+  --padding-inline: 24px;
+  font-size: 24px;
+}
+
+.action-icon {
+  font-size: 16px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
 }
 
 .room-card {
-  margin-bottom: 12px;
-  border-radius: 12px;
+  margin-bottom: 8px;
+  border-radius: 10px;
 }
 
 .room-card-content {
-  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.room-card-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  gap: 6px;
 }
 
 .room-info {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
 }
 
 .room-name {
+  grid-row: 1 / 2;
+  grid-column: 1 / 2;
   font-size: 16px;
   font-weight: 500;
   color: #333;
 }
 
 .room-status {
-  font-size: 14px;
+  font-size: 24px;
   color: #666;
 }
 
 .room-players {
-  font-size: 14px;
-  color: #999;
+  grid-row: 2 / 3;
+  grid-column: 1 / 2;
+  font-size: 13px;
+  color: #777;
+}
+
+.join-room-button {
+  align-self: stretch;
+  justify-content: center;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.room-list-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+@media (min-width: 640px) {
+  .room-list-grid {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  }
+}
+
+@media (min-width: 960px) {
+  .room-list-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
 }
 
 .empty-state {

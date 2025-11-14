@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Card, List, Button, Toast, Empty, Tag, SpinLoading } from 'antd-mobile'
+import { Card, Button, Toast, Empty, Tag, SpinLoading } from 'antd-mobile'
 import { useNavigate } from 'react-router-dom'
 import { globalSocket, type RoomSummary } from '@/services/socket'
 import { useAuth } from '@/context/AuthContext'
 import './style.css'
 
 export default function RoomList() {
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [rooms, setRooms] = useState<RoomSummary[]>([])
   const [loading, setLoading] = useState(false)
@@ -115,8 +115,8 @@ export default function RoomList() {
   }
 
   const handleLogout = () => {
-    globalSocket.clearAuth()
-    navigate('/login')
+    logout()
+    navigate('/')
   }
 
   return (
@@ -129,23 +129,33 @@ export default function RoomList() {
       </div>
 
       <div className="room-list-actions">
-        <Tag color={connected ? 'success' : 'danger'}>
-          {connected ? '✅ 已连接' : '❌ 未连接'}
+        <Tag
+          color={connected ? 'success' : 'danger'}
+          className="room-status-tag"
+        >
+          <span className="action-icon" aria-hidden>
+            {connected ? '✅' : '❌'}
+          </span>
+          <span>{connected ? '已连接' : '未连接'}</span>
         </Tag>
         <Button
           size="small"
+          className="room-action-button"
           onClick={loadRooms}
           disabled={!connected}
           loading={loading}
         >
-          🔄 刷新
+          <span className="action-icon" aria-hidden>🔄</span>
+          <span>刷新</span>
         </Button>
         <Button
           size="small"
           color="danger"
+          className="room-action-button"
           onClick={handleLogout}
         >
-          🚪 退出
+          <span className="action-icon" aria-hidden>🚪</span>
+          <span>退出</span>
         </Button>
       </div>
 
@@ -162,16 +172,16 @@ export default function RoomList() {
           </p>
         </div>
       ) : (
-        <List>
+        <div className="room-list-grid">
           {rooms.map((room) => {
             // 处理 players 可能是数组或数字的情况
             const playerCount = Array.isArray(room.players) ? room.players.length : room.players
             const isFull = playerCount >= room.maxPlayers
             
             return (
-              <List.Item key={room.id}>
-                <Card className="room-card">
-                  <div className="room-card-content">
+              <Card className="room-card" key={room.id}>
+                <div className="room-card-content">
+                  <div className="room-card-main">
                     <div className="room-info">
                       <span className="room-name">🏠 {room.name}</span>
                       <Tag color={isFull ? 'danger' : 'success'}>
@@ -181,23 +191,22 @@ export default function RoomList() {
                     <div className="room-players">
                       👥 玩家: {playerCount}/{room.maxPlayers}
                     </div>
-                    <Button
-                      color="primary"
-                      size="small"
-                      block
-                      onClick={() => handleJoin(room.id)}
-                      loading={joiningRoomId === room.id}
-                      disabled={isFull}
-                      style={{ marginTop: '12px' }}
-                    >
-                      {isFull ? '房间已满' : '🎮 加入游戏'}
-                    </Button>
                   </div>
-                </Card>
-              </List.Item>
+                  <Button
+                    className="join-room-button"
+                    color="primary"
+                    size="small"
+                    onClick={() => handleJoin(room.id)}
+                    loading={joiningRoomId === room.id}
+                    disabled={isFull}
+                  >
+                    {isFull ? '房间已满' : '🎮 加入游戏'}
+                  </Button>
+                </div>
+              </Card>
             )
           })}
-        </List>
+        </div>
       )}
     </div>
   )

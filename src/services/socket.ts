@@ -80,8 +80,8 @@ class GlobalSocketManager {
       // 生成唯一的会话 ID（时间戳 + 随机字符串）
       this.sessionId = `${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
       this.userName = options.userName
-      // userId 使用 sessionId 作为唯一标识
-      this.userId = options.userId ?? this.sessionId
+      // userId 使用 userName 作为唯一标识
+      this.userId =  options.userName
       this.playerAvatar = options.playerAvatar ?? this.playerAvatar ?? '👑'
       
       // 仅存储当前会话信息，不用于自动登录
@@ -190,6 +190,9 @@ class GlobalSocketManager {
 
     socket.on('disconnect', () => {
       this.isConnected = false
+      this.isReconnecting = false
+      this.reconnectAttempts = 0
+      this.socket = null
       this.notifyStatus()
     })
 
