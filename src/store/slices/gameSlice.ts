@@ -374,6 +374,11 @@ const gameSlice = createSlice({
       
       state.canPass = true
     },
+
+    // 从服务器恢复最近一手出牌（断线重连用，不修改手牌和牌数）
+    setLastPlayedFromState: (state, action: PayloadAction<PlayedCards | null>) => {
+      state.lastPlayedCards = action.payload
+    },
     
     // 不要（过）
     pass: (state, action: PayloadAction<string>) => {
@@ -473,6 +478,7 @@ export const {
   setSoundEnabled,
   setAnimationEnabled,
   restoreGameState,
+  setLastPlayedFromState,
 } = gameSlice.actions
 
 export default gameSlice.reducer

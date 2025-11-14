@@ -18,6 +18,7 @@ import {
   setCurrentPlayer,
   pass as passAction,
   prepareNextGame,
+  setLastPlayedFromState,
   type SettlementPlayerScore,
   type SettlementAchievements,
 } from '@/store/slices/gameSlice'
@@ -342,11 +343,33 @@ export default function GameRoom() {
         }))
         console.log('✅ 恢复地主信息')
       }
+
+      // 恢复最近一手出牌（用于桌面显示）
+      if (data.lastPlay && data.lastPlay.playerId && Array.isArray(data.lastPlay.cards)) {
+        const lastPlay = {
+          playerId: data.lastPlay.playerId,
+          playerName: data.lastPlay.playerName || data.lastPlay.playerId,
+          cards: data.lastPlay.cards,
+          type: data.lastPlay.type,
+        }
+        console.log('✅ [恢复游戏状态] 最近一手出牌:', lastPlay)
+        dispatch(setLastPlayedFromState(lastPlay))
+      } else {
+        console.log('ℹ️ [恢复游戏状态] 没有可恢复的最近一手出牌')
+      }
       
-      // 恢复当前回合
+      // 恢复当前回合（复用 handleTurnToPlay 逻辑来设置倒计时等）
       if (data.currentPlayerId) {
-        dispatch(setCurrentPlayer(data.currentPlayerId))
-        console.log('✅ 恢复当前回合')
+        console.log('✅ [恢复游戏状态] 当前应出牌玩家:', data.currentPlayerId)
+        const currentPlayerInfo = data.players?.find((p: any) => 
+          p.id === data.currentPlayerId || p.name === data.currentPlayerId
+        )
+        handleTurnToPlay({
+          playerId: data.currentPlayerId,
+          playerName: currentPlayerInfo?.name || data.currentPlayerId,
+          isFirst: data.isNewRound,
+          lastPattern: data.lastPlayedCards,
+        })
       }
       
       console.log(`📋 当前阶段: ${data.phase || '未知'}`)
@@ -663,21 +686,9 @@ export default function GameRoom() {
           }
           turnTimerRef.current = setInterval(() => {
             setTurnTimer(prev => {
-              // if (playPendingRef.current) {
-              //   return prev
-              // }
-
               if (prev <= 1) {
                 clearInterval(turnTimerRef.current!)
                 turnTimerRef.current = null
-                // 自动不出（如果可以不出）
-                if (canPass) {
-                  handlePass()
-                } else {
-                  // 必须出牌时，提示用户
-                  Toast.show({ content: '⏰ 时间到！请出牌', icon: 'fail' })
-                  //handlePlayCards([])
-                }
                 return 0
               }
               return prev - 1
@@ -885,6 +896,22 @@ export default function GameRoom() {
       }
     }
   }, [])
+
+  useEffect(() => {
+    if (!isMyTurn) return
+    if (turnTimer !== 0) return
+
+    if (turnTimerRef.current) {
+      clearInterval(turnTimerRef.current)
+      turnTimerRef.current = null
+    }
+
+    if (canPass) {
+      handlePass()
+    } else {
+      Toast.show({ content: '⏰ 时间到！请出牌', icon: 'fail' })
+    }
+  }, [turnTimer, isMyTurn, canPass])
 
   // 离开房间 - 退出游戏回到首页
   const handleLeaveRoom = () => {
