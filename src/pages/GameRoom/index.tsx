@@ -255,6 +255,8 @@ export default function GameRoom() {
 
     const socket = globalSocket.getSocket()
     if (!socket) return
+    
+    console.log('🔍 [前端调试] 注册 Socket 事件监听器, Socket ID:', socket.id)
 
     // 房间加入成功
     const handleRoomJoined = (data: any) => {
@@ -695,7 +697,7 @@ export default function GameRoom() {
     }
 
     const handlePlayCardsFailed = (data: { error?: string }) => {
-      
+      console.log('🔍 [前端调试] 收到 play_cards_failed 事件')
       console.warn('❌ 出牌失败:', data)
       playPendingRef.current = false
       setPlayPending(false)
@@ -711,6 +713,7 @@ export default function GameRoom() {
         setPlayPending(false)
       }
 
+      console.log('🔍 [前端调试] 显示错误提示:', message)
       Toast.show({ content: message, icon: 'fail' })
     }
 
