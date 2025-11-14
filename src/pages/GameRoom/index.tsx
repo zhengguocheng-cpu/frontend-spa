@@ -976,6 +976,16 @@ export default function GameRoom() {
       cards: selectedCards,
     })
 
+    // 添加超时机制：如果3秒内没有收到响应，重置状态
+    setTimeout(() => {
+      if (playPendingRef.current) {
+        console.warn('⚠️ 出牌请求超时，重置状态')
+        playPendingRef.current = false
+        setPlayPending(false)
+        // 保持 isMyTurn 为 true，让玩家可以重新出牌
+      }
+    }, 3000)
+
     // 停止倒计时
     // 暂时锁定出牌，等待服务器校验结果
     //setIsMyTurn(false)
