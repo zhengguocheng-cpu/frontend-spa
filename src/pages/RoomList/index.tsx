@@ -13,18 +13,18 @@ export default function RoomList() {
   const [connected, setConnected] = useState(false)
   const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null)
 
-  // 初始化 Socket 连接
+  // 使用已有的 Socket 连接（登录时已建立）
   useEffect(() => {
     if (!user) return
 
-    console.log('🔵 初始化 Socket 连接...')
+    console.log('🔵 使用已有 Socket 连接')
     
-    const socket = globalSocket.connect({
-      userName: user.name,
-      userId: user.id,
-      playerAvatar: user.avatar,
-      htmlName: 'rooms',
-    })
+    const socket = globalSocket.getSocket()
+    if (!socket) {
+      console.error('❌ Socket 未连接，请重新登录')
+      Toast.show({ content: 'Socket 未连接，请重新登录', icon: 'fail' })
+      return
+    }
 
     // 监听连接状态
     const handleConnect = () => {

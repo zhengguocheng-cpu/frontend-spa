@@ -98,15 +98,19 @@ class GlobalSocketManager {
   connect(options?: ConnectOptions) {
     this.ensureUser(options)
 
-    if (options?.userName && this.socket) {
+    // SPA 架构：如果已有连接，直接返回（不重复连接）
+    if (this.socket && this.socket.connected) {
+      console.log('🔄 Socket 已连接，复用现有连接')
+      return this.socket
+    }
+
+    // 如果有旧连接但未连接，清理后重新连接
+    if (this.socket) {
+      console.log('🔄 清理旧的 Socket 连接')
       this.socket.removeAllListeners()
       this.socket.disconnect()
       this.socket = null
       this.isConnected = false
-    }
-
-    if (this.socket) {
-      return this.socket
     }
 
     const baseUrl =
@@ -117,6 +121,7 @@ class GlobalSocketManager {
     const pageNavigationToken = `${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
 
     this.socket = io(baseUrl, {
+      path: '/api/socket.io',
       auth: {
         userId: this.userId, // 使用 sessionId 作为唯一标识
         userName: this.userName,

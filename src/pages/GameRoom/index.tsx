@@ -134,13 +134,13 @@ export default function GameRoom() {
     sessionStorage.setItem('lastRoomId', roomId)
     sessionStorage.setItem('lastRoomTime', Date.now().toString())
 
-    // 连接 Socket（如果未连接）
-    const socket = globalSocket.connect({
-      userName: user.name,
-      userId: user.id,
-      playerAvatar: user.avatar,
-      htmlName: 'room',
-    })
+    // 使用已有的 Socket 连接（登录时已建立）
+    const socket = globalSocket.getSocket()
+    if (!socket) {
+      console.error('❌ Socket 未连接，请重新登录')
+      navigate('/login', { replace: true })
+      return
+    }
 
     // 监听连接状态
     const handleConnect = () => {
