@@ -18,10 +18,12 @@ import {
   setCurrentPlayer,
   pass as passAction,
   prepareNextGame,
+  clearSelection,
   setLastPlayedFromState,
   type SettlementPlayerScore,
   type SettlementAchievements,
 } from '@/store/slices/gameSlice'
+import { CardHintHelper } from '@/utils/cardHintHelper'
 import { motion, AnimatePresence } from 'framer-motion'
 import './style.css'
 import './game.css'
@@ -664,6 +666,9 @@ export default function GameRoom() {
           setIsMyTurn(true)
           playPendingRef.current = false
           setPlayPending(false)
+
+          // 每次轮到自己出牌时，重置提示索引，保证提示序列从头开始
+          CardHintHelper.resetHintIndex()
           
           // 判断是否可以不出
           // 如果是首次出牌或新一轮开始，不能不出
@@ -1090,7 +1095,7 @@ export default function GameRoom() {
     Toast.show({ content: `您选择：${bidText}`, icon: 'success' })
   }
 
-  // 提示 - 参考 frontend 实现
+  // 提示 - 参考 frontend 实现（接入简化版 CardHintHelper）
   const handleHint = () => {
     // 播放提示音效
     if (window.SoundManager) {
@@ -1107,17 +1112,26 @@ export default function GameRoom() {
       return
     }
 
-    // 简单提示：选择最小的可出牌
-    // TODO: 实现完整的提示算法
-    if (!lastPlayedCards || !lastPlayedCards.cards || lastPlayedCards.cards.length === 0) {
-      // 首次出牌，提示最小的单牌
-      const smallestCard = myCards[0]
-      dispatch(toggleCardSelection(smallestCard))
-      Toast.show({ content: '💡 建议出最小的牌', icon: 'success' })
-    } else {
-      // 有上家出牌，简单提示
-      Toast.show({ content: '💡 提示功能开发中，请手动选择', icon: 'fail' })
+    // 根据当前是否允许“不要”，决定是否参考上家牌型
+    // canPass === false 视为新一轮首家出牌，不参考 lastPlayedCards
+    const lastCards: string[] | null = !lastPlayedCards || !lastPlayedCards.cards || lastPlayedCards.cards.length === 0 || !canPass
+      ? null
+      : lastPlayedCards.cards
+
+    const hint = CardHintHelper.getHint(myCards, lastCards)
+
+    if (!hint || hint.length === 0) {
+      Toast.show({ content: '💡 当前没有可供提示的出牌方案', icon: 'fail' })
+      return
     }
+
+    // 清空之前的选牌，只选中提示中的牌
+    dispatch(clearSelection())
+    hint.forEach((card) => {
+      dispatch(toggleCardSelection(card))
+    })
+
+    Toast.show({ content: '💡 已为你选择一手推荐出牌', icon: 'success' })
   }
 
   // 选中/取消选中手牌
