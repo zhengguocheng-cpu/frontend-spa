@@ -216,6 +216,8 @@ export default function GameRoom() {
       return
     }
 
+    soundManager.playBackgroundMusic()
+
     // 监听连接状态
     const handleConnect = () => {
       console.log('✅ Socket 已连接，准备加入房间')
@@ -260,6 +262,7 @@ export default function GameRoom() {
     return () => {
       socket.off('connect', handleConnect)
       socket.off('disconnect', handleDisconnect)
+      soundManager.stopBackgroundMusic()
     }
   }, [user, roomId, dispatch])
 

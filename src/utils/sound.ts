@@ -6,6 +6,7 @@ class SoundManager {
   private audioContext: AudioContext | null = null
   private soundEnabled: boolean = true
   private initialized: boolean = false
+  private backgroundAudio: HTMLAudioElement | null = null
 
   /**
    * 初始化音频系统
@@ -177,11 +178,45 @@ class SoundManager {
     this.playSound('click')
   }
 
+  playBackgroundMusic() {
+    if (!this.soundEnabled) {
+      return
+    }
+
+    try {
+      if (!this.backgroundAudio) {
+        this.backgroundAudio = new Audio('/sounds/background.wav')
+        this.backgroundAudio.loop = true
+        this.backgroundAudio.volume = 0.4
+      }
+
+      this.backgroundAudio.currentTime = 0
+      this.backgroundAudio
+        .play()
+        .catch((error) => {
+          console.error('❌ 播放背景音乐失败:', error)
+        })
+    } catch (error) {
+      console.error('❌ 初始化背景音乐失败:', error)
+    }
+  }
+
+  stopBackgroundMusic() {
+    if (this.backgroundAudio) {
+      this.backgroundAudio.pause()
+      this.backgroundAudio.currentTime = 0
+    }
+  }
+
   /**
    * 设置音效开关
    */
   setSoundEnabled(enabled: boolean) {
     this.soundEnabled = enabled
+
+    if (!enabled) {
+      this.stopBackgroundMusic()
+    }
   }
 
   /**
