@@ -9,16 +9,20 @@ export type SimplePatternType =
   | 'pair'
   | 'triple'
   | 'bomb'
+  | 'rocket'
   | 'straight'
   | 'pair_sequence'
   | 'triple_with_single'
   | 'triple_with_pair'
   | 'four_with_two'
+  | 'airplane'
+  | 'airplane_with_wings'
 
 export interface SimplePattern {
   type: SimplePatternType
   value: number
   length: number
+  wingsType?: 'single' | 'pair'
 }
 
 // 牌面值映射，与后端 / 旧前端保持一致
@@ -85,6 +89,71 @@ const groupByValue = (cards: Card[]): Map<number, Card[]> => {
   return map
 }
 
+interface StructureValueSets {
+  straight: Set<number>
+  pairSequence: Set<number>
+  airplaneTriple: Set<number>
+}
+
+// 计算当前手牌中各类“结构牌型”（顺子、连对、飞机）的核心点数集合
+const getStructureValueSets = (hand: Card[]): StructureValueSets => {
+  const groups = groupByValue(hand)
+
+  const straight = new Set<number>()
+  const pairSequence = new Set<number>()
+  const airplaneTriple = new Set<number>()
+
+  const allValues = Array.from(groups.keys())
+    .filter((v) => v >= 3 && v <= 14)
+    .sort((a, b) => a - b)
+
+  // 顺子：任意长度>=5的连续点数段中的所有点数
+  let start = 0
+  for (let i = 1; i <= allValues.length; i++) {
+    if (i === allValues.length || allValues[i] !== allValues[i - 1] + 1) {
+      const run = allValues.slice(start, i)
+      if (run.length >= 5) {
+        for (const v of run) {
+          straight.add(v)
+        }
+      }
+      start = i
+    }
+  }
+
+  // 连对：每个点数至少2张，且连续对数>=3
+  const pairValues = allValues.filter((v) => (groups.get(v) || []).length >= 2)
+  start = 0
+  for (let i = 1; i <= pairValues.length; i++) {
+    if (i === pairValues.length || pairValues[i] !== pairValues[i - 1] + 1) {
+      const run = pairValues.slice(start, i)
+      if (run.length >= 3) {
+        for (const v of run) {
+          pairSequence.add(v)
+        }
+      }
+      start = i
+    }
+  }
+
+  // 飞机：每个点数至少3张，且连续三张的组数>=2
+  const tripleValues = allValues.filter((v) => (groups.get(v) || []).length >= 3)
+  start = 0
+  for (let i = 1; i <= tripleValues.length; i++) {
+    if (i === tripleValues.length || tripleValues[i] !== tripleValues[i - 1] + 1) {
+      const run = tripleValues.slice(start, i)
+      if (run.length >= 2) {
+        for (const v of run) {
+          airplaneTriple.add(v)
+        }
+      }
+      start = i
+    }
+  }
+
+  return { straight, pairSequence, airplaneTriple }
+}
+
 interface RocketInfo {
   hasRocket: boolean
   cards: Card[]
@@ -121,6 +190,17 @@ const detectSimplePattern = (cards: Card[]): SimplePattern | null => {
 
   if (length === 2 && allSame) {
     return { type: 'pair', value: first, length }
+  }
+
+  // 王炸（大王 + 小王）：两张牌，点数分别是 16 和 17
+  if (length === 2) {
+    const rocket = detectRocketInHand(cards)
+    if (rocket.hasRocket && rocket.cards.length === 2) {
+      const valuesSet = new Set(values)
+      if (valuesSet.has(RANK_VALUES['小王']) && valuesSet.has(RANK_VALUES['大王'])) {
+        return { type: 'rocket', value: RANK_VALUES['大王'], length }
+      }
+    }
   }
 
   if (length === 3 && allSame) {
@@ -180,6 +260,104 @@ const detectSimplePattern = (cards: Card[]): SimplePattern | null => {
           .map(([, groupCards]) => groupCards.length)
         if (otherCounts.length === 2 && otherCounts.every((c) => c === 2)) {
           return { type: 'four_with_two', value: fourValue, length }
+        }
+      }
+    }
+  }
+
+  // 飞机（连续三张）及飞机带翅膀
+  if (length >= 6) {
+    const groups = groupByValue(sorted)
+    const entries = Array.from(groups.entries())
+
+    // 找出所有三张以上且不含 2 / 王 的点数
+    const tripleEntries = entries.filter(([value, groupCards]) => {
+      const count = groupCards.length
+      return count >= 3 && value >= 3 && value <= 14
+    })
+
+    if (tripleEntries.length >= 2) {
+      const tripleValues = tripleEntries
+        .map(([value]) => value)
+        .sort((a, b) => a - b)
+
+      // 检查三张是否连续
+      let consecutive = true
+      for (let i = 1; i < tripleValues.length; i++) {
+        if (tripleValues[i] !== tripleValues[i - 1] + 1) {
+          consecutive = false
+          break
+        }
+      }
+
+      if (consecutive) {
+        const planeCount = tripleValues.length
+        const bodyCardsCount = planeCount * 3
+        const wingsCount = length - bodyCardsCount
+
+        // 纯飞机：仅由连续三张组成
+        if (wingsCount === 0 && bodyCardsCount === length) {
+          const minTripleValue = tripleValues[0]
+          // length 使用总牌数，便于后续根据牌数推断飞机结构
+          return { type: 'airplane', value: minTripleValue, length }
+        }
+
+        // 飞机带翅膀：三张部分 + 单牌 / 对子
+        if (wingsCount > 0 && wingsCount % planeCount === 0) {
+          const minTripleValue = tripleValues[0]
+          const wingsPerPlane = wingsCount / planeCount
+
+          // 检查翅膀结构是否符合：
+          // wingsPerPlane === 1 -> 每个三张带1张单牌
+          // wingsPerPlane === 2 -> 每个三张带1对
+          if (wingsPerPlane === 1 || wingsPerPlane === 2) {
+            // 校验各点数的张数分布是否只由三张 + 单牌/对子构成
+            let valid = true
+            let singleRanks = 0
+            let pairRanks = 0
+
+            const tripleValueSet = new Set(tripleValues)
+
+            for (const [value, groupCards] of entries) {
+              const count = groupCards.length
+              if (tripleValueSet.has(value)) {
+                // 三张点数必须正好是 3 张
+                if (count !== 3) {
+                  valid = false
+                  break
+                }
+              } else {
+                if (count === 1) {
+                  singleRanks++
+                } else if (count === 2) {
+                  pairRanks++
+                } else {
+                  // 出现了 3/4 张等其他数量，不符合飞机带翅膀
+                  valid = false
+                  break
+                }
+              }
+            }
+
+            if (valid) {
+              if (wingsPerPlane === 1 && singleRanks === planeCount) {
+                return {
+                  type: 'airplane_with_wings',
+                  value: minTripleValue,
+                  length,
+                  wingsType: 'single',
+                }
+              }
+              if (wingsPerPlane === 2 && pairRanks === planeCount) {
+                return {
+                  type: 'airplane_with_wings',
+                  value: minTripleValue,
+                  length,
+                  wingsType: 'pair',
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -252,8 +430,9 @@ const findAllTriples = (hand: Card[]): Card[][] => {
   const groups = groupByValue(hand)
   const triples: Card[][] = []
   for (const cards of groups.values()) {
-    if (cards.length === 3 || cards.length > 3) {
-      triples.push(sortCardsAsc(cards).slice(0, 3))
+    // 只使用恰好三张的点数，不从炸弹中拆三张
+    if (cards.length === 3) {
+      triples.push(sortCardsAsc(cards))
     }
   }
   triples.sort((a, b) => getCardValue(a[0]) - getCardValue(b[0]))
@@ -264,7 +443,8 @@ const findAllPairs = (hand: Card[]): Card[][] => {
   const groups = groupByValue(hand)
   const pairs: Card[][] = []
   for (const cards of groups.values()) {
-    if (cards.length >= 2) {
+    // 只从2张或3张中取对子，避免从炸弹中拆对子
+    if (cards.length === 2 || cards.length === 3) {
       const sorted = sortCardsAsc(cards)
       pairs.push([sorted[0], sorted[1]])
     }
@@ -274,8 +454,12 @@ const findAllPairs = (hand: Card[]): Card[][] => {
 }
 
 const findAllSingles = (hand: Card[]): Card[][] => {
+  const groups = groupByValue(hand)
   const sorted = sortCardsAsc(hand)
-  return sorted.map((c) => [c])
+  // 首轮提示中不从炸弹拆单牌
+  return sorted
+    .filter((c) => (groups.get(getCardValue(c)) || []).length < 4)
+    .map((c) => [c])
 }
 
 const findAllTripleWithSingles = (hand: Card[]): Card[][] => {
@@ -301,12 +485,14 @@ const findAllTripleWithPairs = (hand: Card[]): Card[][] => {
   const results: Card[][] = []
 
   for (const [value, cardsOfValue] of entries) {
-    if (cardsOfValue.length >= 3) {
+    // 三张部分只使用恰好三张的点数，避免从炸弹中拆三张
+    if (cardsOfValue.length === 3) {
       const triple = sortCardsAsc(cardsOfValue).slice(0, 3)
 
       for (const [pairValue, pairCards] of entries) {
         if (pairValue === value) continue
-        if (pairCards.length >= 2) {
+        // 带的对子只从2张或3张中取，避免从炸弹拆对子
+        if (pairCards.length === 2 || pairCards.length === 3) {
           const sortedPair = sortCardsAsc(pairCards)
           results.push([...triple, sortedPair[0], sortedPair[1]])
         }
@@ -356,13 +542,7 @@ const findBiggerSingles = (hand: Card[], minValue: number): Card[][] => {
   const values = Array.from(groups.keys()).sort((a, b) => a - b)
 
   // 计算当前手牌中所有可能顺子涉及到的点数（用于判断某张单牌是否是顺子关键点）
-  const straights = findAllStraights(hand)
-  const straightValueSet = new Set<number>()
-  for (const straight of straights) {
-    for (const card of straight) {
-      straightValueSet.add(getCardValue(card))
-    }
-  }
+  const { straight, pairSequence, airplaneTriple } = getStructureValueSets(hand)
 
   type SingleCandidate = { card: Card; value: number; cost: number }
   const candidates: SingleCandidate[] = []
@@ -372,8 +552,13 @@ const findBiggerSingles = (hand: Card[], minValue: number): Card[][] => {
     const cardsOfValue = sortCardsAsc(groups.get(value) || [])
     const groupSize = cardsOfValue.length
     if (groupSize === 0) continue
+    // 不从炸弹中拆单牌
+    if (groupSize === 4) continue
 
-    const isCriticalSingle = groupSize === 1 && straightValueSet.has(value)
+    const isStraightCritical = groupSize === 1 && straight.has(value)
+    const isPairSeqCritical = groupSize === 2 && pairSequence.has(value)
+    const isAirplaneCritical = groupSize === 3 && airplaneTriple.has(value)
+    const isCriticalSingle = isStraightCritical || isPairSeqCritical || isAirplaneCritical
 
     const baseCost =
       groupSize === 1 ? 0 : groupSize === 2 ? 1 : groupSize === 3 ? 2 : 3
@@ -397,19 +582,15 @@ const findBiggerPairs = (hand: Card[], minValue: number): Card[][] => {
   const groups = groupByValue(hand)
 
   // 计算手牌中所有可能顺子涉及到的点数，用于判断拆掉某对是否会破坏顺子
-  const straights = findAllStraights(hand)
-  const straightValueSet = new Set<number>()
-  for (const straight of straights) {
-    for (const card of straight) {
-      straightValueSet.add(getCardValue(card))
-    }
-  }
+  const { straight, pairSequence, airplaneTriple } = getStructureValueSets(hand)
 
   type PairCandidate = { cards: Card[]; value: number; cost: number }
   const candidates: PairCandidate[] = []
 
   for (const [value, cards] of groups.entries()) {
     if (value <= minValue || cards.length < 2) continue
+    // 不从炸弹中拆对子
+    if (cards.length === 4) continue
 
     const sorted = sortCardsAsc(cards)
     const pair: Card[] = [sorted[0], sorted[1]]
@@ -417,10 +598,12 @@ const findBiggerPairs = (hand: Card[], minValue: number): Card[][] => {
 
     // 如果这一点数只有两张牌，并且在某个顺子中出现，则拆这对会破坏顺子
     const remainingAfterPair = groupSize - 2
-    const breaksStraight = remainingAfterPair <= 0 && straightValueSet.has(value)
+    const breaksStraight = remainingAfterPair <= 0 && straight.has(value)
+    const breaksPairSequence = remainingAfterPair < 2 && pairSequence.has(value)
+    const breaksAirplane = airplaneTriple.has(value) && groupSize === 3
 
     const baseCost = groupSize === 2 ? 1 : groupSize === 3 ? 2 : 3
-    const fullCost = baseCost + (breaksStraight ? 100 : 0)
+    const fullCost = baseCost + (breaksStraight || breaksPairSequence || breaksAirplane ? 100 : 0)
 
     candidates.push({ cards: pair, value, cost: fullCost })
   }
@@ -489,6 +672,122 @@ const findAllStraights = (hand: Card[]): Card[][] => {
   })
 
   return unique
+}
+
+// 所有纯飞机（不带翅膀）：至少 2 组连续三张
+const findAllPlanes = (hand: Card[]): Card[][] => {
+  const groups = groupByValue(hand)
+  const tripleValues = Array.from(groups.entries())
+    .filter(([, cards]) => cards.length >= 3)
+    .map(([value]) => value)
+    .filter((v) => v >= 3 && v <= 14)
+    .sort((a, b) => a - b)
+
+  const candidateValueRuns: number[][] = []
+  let start = 0
+  for (let i = 1; i <= tripleValues.length; i++) {
+    if (i === tripleValues.length || tripleValues[i] !== tripleValues[i - 1] + 1) {
+      const run = tripleValues.slice(start, i)
+      if (run.length >= 2) {
+        for (let len = run.length; len >= 2; len--) {
+          for (let s = 0; s + len <= run.length; s++) {
+            candidateValueRuns.push(run.slice(s, s + len))
+          }
+        }
+      }
+      start = i
+    }
+  }
+
+  const combos: Card[][] = []
+  for (const seq of candidateValueRuns) {
+    const combo: Card[] = []
+    let ok = true
+    for (const v of seq) {
+      const cardsOfValue = sortCardsAsc(groups.get(v) || [])
+      if (cardsOfValue.length < 3) {
+        ok = false
+        break
+      }
+      combo.push(cardsOfValue[0], cardsOfValue[1], cardsOfValue[2])
+    }
+    if (ok) {
+      combos.push(combo)
+    }
+  }
+
+  const unique: Card[][] = []
+  const seen = new Set<string>()
+  for (const combo of combos) {
+    const key = sortCardsAsc(combo).join(',')
+    if (!seen.has(key)) {
+      seen.add(key)
+      unique.push(combo)
+    }
+  }
+
+  unique.sort((a, b) => {
+    if (a.length !== b.length) return b.length - a.length
+    return getCardValue(a[0]) - getCardValue(b[0])
+  })
+
+  return unique
+}
+
+// 飞机带对子：每个三张带一个对子（总牌数 = 5 * planeCount）
+const findAllPlanesWithPairs = (hand: Card[]): Card[][] => {
+  const planes = findAllPlanes(hand)
+  const results: Card[][] = []
+
+  for (const plane of planes) {
+    const planeCount = plane.length / 3
+    if (planeCount < 2) continue
+
+    const remaining = sortCardsAsc(hand).filter((c) => !plane.includes(c))
+    const remainingGroups = groupByValue(remaining)
+    const pairValues = Array.from(remainingGroups.entries())
+      .filter(([, cards]) => cards.length >= 2)
+      .map(([value]) => value)
+      .sort((a, b) => a - b)
+
+    if (pairValues.length < planeCount) continue
+
+    const wings: Card[] = []
+    for (let i = 0; i < planeCount; i++) {
+      const v = pairValues[i]
+      const cardsOfValue = sortCardsAsc(remainingGroups.get(v) || [])
+      if (cardsOfValue.length < 2) {
+        wings.length = 0
+        break
+      }
+      wings.push(cardsOfValue[0], cardsOfValue[1])
+    }
+
+    if (wings.length === planeCount * 2) {
+      results.push([...plane, ...wings])
+    }
+  }
+
+  return results
+}
+
+// 飞机带单牌：每个三张带一张单牌（总牌数 = 4 * planeCount）
+const findAllPlanesWithSingles = (hand: Card[]): Card[][] => {
+  const planes = findAllPlanes(hand)
+  const results: Card[][] = []
+
+  for (const plane of planes) {
+    const planeCount = plane.length / 3
+    if (planeCount < 2) continue
+
+    const remaining = sortCardsAsc(hand).filter((c) => !plane.includes(c))
+    if (remaining.length < planeCount) continue
+
+    const wings = remaining.slice(0, planeCount)
+    results.push([...plane, ...wings])
+  }
+
+  return results
 }
 
 const findAllPairSequences = (hand: Card[]): Card[][] => {
@@ -592,6 +891,153 @@ const findBiggerStraights = (hand: Card[], minStartValue: number, length: number
   return combos
 }
 
+// 纯飞机（不带翅膀）跟牌：同组数、起点更大的连续三张
+const findBiggerAirplanes = (hand: Card[], minStartValue: number, planeCount: number): Card[][] => {
+  if (planeCount < 2) return []
+
+  const groups = groupByValue(hand)
+  const values = Array.from(groups.entries())
+    .filter(([v, cards]) => v >= 3 && v <= 14 && cards.length >= 3)
+    .map(([v]) => v)
+    .sort((a, b) => a - b)
+
+  const combos: Card[][] = []
+  let start = 0
+
+  for (let i = 1; i <= values.length; i++) {
+    if (i === values.length || values[i] !== values[i - 1] + 1) {
+      const run = values.slice(start, i)
+      if (run.length >= planeCount) {
+        for (let s = 0; s + planeCount <= run.length; s++) {
+          const seq = run.slice(s, s + planeCount)
+          const seqStart = seq[0]
+          if (seqStart > minStartValue) {
+            const combo: Card[] = []
+            let ok = true
+            for (const v of seq) {
+              const cardsOfValue = sortCardsAsc(groups.get(v) || [])
+              if (cardsOfValue.length < 3) {
+                ok = false
+                break
+              }
+              combo.push(cardsOfValue[0], cardsOfValue[1], cardsOfValue[2])
+            }
+            if (ok) {
+              combos.push(combo)
+            }
+          }
+        }
+      }
+      start = i
+    }
+  }
+
+  combos.sort((a, b) => getCardValue(a[0]) - getCardValue(b[0]))
+  return combos
+}
+
+// 飞机带翅膀跟牌：同组数、起点更大的飞机 + 同类型翅膀（单牌或对子）
+const findBiggerAirplanesWithWings = (
+  hand: Card[],
+  minStartValue: number,
+  planeCount: number,
+  wingsType: 'single' | 'pair',
+): Card[][] => {
+  if (planeCount < 2) return []
+
+  const groups = groupByValue(hand)
+  const tripleValues = Array.from(groups.entries())
+    .filter(([v, cards]) => v >= 3 && v <= 14 && cards.length >= 3)
+    .map(([v]) => v)
+    .sort((a, b) => a - b)
+
+  const combos: Card[][] = []
+  let start = 0
+
+  for (let i = 1; i <= tripleValues.length; i++) {
+    if (i === tripleValues.length || tripleValues[i] !== tripleValues[i - 1] + 1) {
+      const run = tripleValues.slice(start, i)
+      if (run.length >= planeCount) {
+        for (let s = 0; s + planeCount <= run.length; s++) {
+          const seq = run.slice(s, s + planeCount)
+          const seqStart = seq[0]
+          if (seqStart <= minStartValue) continue
+
+          // 构造飞机主体
+          const plane: Card[] = []
+          let ok = true
+          for (const v of seq) {
+            const cardsOfValue = sortCardsAsc(groups.get(v) || [])
+            if (cardsOfValue.length < 3) {
+              ok = false
+              break
+            }
+            plane.push(cardsOfValue[0], cardsOfValue[1], cardsOfValue[2])
+          }
+          if (!ok) continue
+
+          const remaining = sortCardsAsc(hand).filter((c) => !plane.includes(c))
+          const remainingGroups = groupByValue(remaining)
+          const tripleValueSet = new Set(seq)
+
+          if (wingsType === 'single') {
+            // 每个三张带 1 张单牌：所有翅膀点数在组合中计数必须为 1，且不能与三张点数重复
+            const wingValues = Array.from(remainingGroups.entries())
+              .filter(([v, cards]) => !tripleValueSet.has(v) && cards.length >= 1)
+              .map(([v]) => v)
+              .sort((a, b) => a - b)
+
+            if (wingValues.length < planeCount) continue
+
+            const wings: Card[] = []
+            for (let k = 0; k < planeCount; k++) {
+              const v = wingValues[k]
+              const cardsOfValue = sortCardsAsc(remainingGroups.get(v) || [])
+              if (cardsOfValue.length === 0) {
+                wings.length = 0
+                break
+              }
+              // 只取一张，保证该点数在组合中计数为 1
+              wings.push(cardsOfValue[0])
+            }
+
+            if (wings.length === planeCount) {
+              combos.push([...plane, ...wings])
+            }
+          } else {
+            // wingsType === 'pair'：每个三张带 1 对，翅膀点数不能与三张点数重复
+            const wingValues = Array.from(remainingGroups.entries())
+              .filter(([v, cards]) => !tripleValueSet.has(v) && cards.length >= 2)
+              .map(([v]) => v)
+              .sort((a, b) => a - b)
+
+            if (wingValues.length < planeCount) continue
+
+            const wings: Card[] = []
+            for (let k = 0; k < planeCount; k++) {
+              const v = wingValues[k]
+              const cardsOfValue = sortCardsAsc(remainingGroups.get(v) || [])
+              if (cardsOfValue.length < 2) {
+                wings.length = 0
+                break
+              }
+              wings.push(cardsOfValue[0], cardsOfValue[1])
+            }
+
+            if (wings.length === planeCount * 2) {
+              combos.push([...plane, ...wings])
+            }
+          }
+        }
+      }
+      start = i
+    }
+  }
+
+  combos.sort((a, b) => getCardValue(a[0]) - getCardValue(b[0]))
+  return combos
+}
+
 const findBiggerPairSequences = (hand: Card[], minStartValue: number, length: number): Card[][] => {
   if (length < 6 || length % 2 !== 0) return []
 
@@ -641,9 +1087,10 @@ const findBiggerTriples = (hand: Card[], minValue: number): Card[][] => {
   const result: Card[][] = []
   const groups = groupByValue(hand)
   for (const [value, cards] of groups.entries()) {
-    if (value > minValue && (cards.length === 3 || cards.length > 3)) {
+    // 只使用恰好三张的点数，不从炸弹中拆三张
+    if (value > minValue && cards.length === 3) {
       const sorted = sortCardsAsc(cards)
-      result.push(sorted.slice(0, 3))
+      result.push(sorted)
     }
   }
   result.sort((a, b) => getCardValue(a[0]) - getCardValue(b[0]))
@@ -656,18 +1103,13 @@ const findBiggerTripleWithSingles = (hand: Card[], minTripleValue: number): Card
   const entries = Array.from(groups.entries()).sort(([a], [b]) => a - b)
 
   // 预先计算所有可能顺子涉及到的点数，用于判断某个单牌是否是顺子关键牌
-  const straights = findAllStraights(hand)
-  const straightValueSet = new Set<number>()
-  for (const straight of straights) {
-    for (const card of straight) {
-      straightValueSet.add(getCardValue(card))
-    }
-  }
+  const { straight, pairSequence, airplaneTriple } = getStructureValueSets(hand)
 
   type KickCandidate = { card: Card; value: number; cost: number }
 
   for (const [value, cardsOfValue] of entries) {
-    if (value <= minTripleValue || cardsOfValue.length < 3) continue
+    // 三张部分只使用恰好三张的点数，避免从炸弹拆三张
+    if (value <= minTripleValue || cardsOfValue.length !== 3) continue
 
     const triple = sortCardsAsc(cardsOfValue).slice(0, 3)
 
@@ -679,7 +1121,10 @@ const findBiggerTripleWithSingles = (hand: Card[], minTripleValue: number): Card
       const v = getCardValue(card)
       const groupSize = groups.get(v)?.length ?? 0
 
-      const isCriticalSingle = groupSize === 1 && straightValueSet.has(v)
+      const isStraightCritical = groupSize === 1 && straight.has(v)
+      const isPairSeqCritical = groupSize === 2 && pairSequence.has(v)
+      const isAirplaneCritical = groupSize === 3 && airplaneTriple.has(v)
+      const isCriticalSingle = isStraightCritical || isPairSeqCritical || isAirplaneCritical
       const baseCost =
         groupSize === 1 ? 0 : groupSize === 2 ? 1 : groupSize === 3 ? 2 : 3
       const fullCost = baseCost + (isCriticalSingle ? 100 : 0)
@@ -706,19 +1151,12 @@ const findBiggerTripleWithPairs = (hand: Card[], minTripleValue: number): Card[]
   const groups = groupByValue(hand)
   const entries = Array.from(groups.entries()).sort(([a], [b]) => a - b)
 
-  for (const [value, cardsOfValue] of entries) {
-    if (value <= minTripleValue || cardsOfValue.length < 3) continue
-    const triple = sortCardsAsc(cardsOfValue).slice(0, 3)
+  const { straight, pairSequence, airplaneTriple } = getStructureValueSets(hand)
 
-    // 选择作为三带二“对子”的候选时，使用与 findBiggerPairs 类似的代价模型
-    // 预先计算所有可能顺子涉及到的点数
-    const straights = findAllStraights(hand)
-    const straightValueSet = new Set<number>()
-    for (const straight of straights) {
-      for (const card of straight) {
-        straightValueSet.add(getCardValue(card))
-      }
-    }
+  for (const [value, cardsOfValue] of entries) {
+    // 三张部分只使用恰好三张的点数，避免从炸弹拆三张
+    if (value <= minTripleValue || cardsOfValue.length !== 3) continue
+    const triple = sortCardsAsc(cardsOfValue).slice(0, 3)
 
     type PairKickCandidate = { cards: Card[]; value: number; cost: number }
     const pairKicks: PairKickCandidate[] = []
@@ -732,10 +1170,12 @@ const findBiggerTripleWithPairs = (hand: Card[], minTripleValue: number): Card[]
 
       // 拆掉这一对后剩余张数
       const remainingAfterPair = groupSize - 2
-      const breaksStraight = remainingAfterPair <= 0 && straightValueSet.has(pairValue)
+      const breaksStraight = remainingAfterPair <= 0 && straight.has(pairValue)
+      const breaksPairSequence = remainingAfterPair < 2 && pairSequence.has(pairValue)
+      const breaksAirplane = airplaneTriple.has(pairValue) && groupSize === 3
 
       const baseCost = groupSize === 2 ? 1 : groupSize === 3 ? 2 : 3
-      const fullCost = baseCost + (breaksStraight ? 100 : 0)
+      const fullCost = baseCost + (breaksStraight || breaksPairSequence || breaksAirplane ? 100 : 0)
 
       pairKicks.push({ cards: pair, value: pairValue, cost: fullCost })
     }
@@ -762,13 +1202,7 @@ const findBiggerFourWithTwo = (hand: Card[], minFourValue: number, length: numbe
   const entries = Array.from(groups.entries()).sort(([a], [b]) => a - b)
 
   // 预先计算所有可能顺子涉及到的点数
-  const straights = findAllStraights(hand)
-  const straightValueSet = new Set<number>()
-  for (const straight of straights) {
-    for (const card of straight) {
-      straightValueSet.add(getCardValue(card))
-    }
-  }
+  const { straight, pairSequence, airplaneTriple } = getStructureValueSets(hand)
 
   for (const [value, cardsOfValue] of entries) {
     if (value <= minFourValue || cardsOfValue.length < 4) continue
@@ -790,7 +1224,10 @@ const findBiggerFourWithTwo = (hand: Card[], minFourValue: number, length: numbe
           const groupSize = cardsOfV.length
           if (groupSize === 0) continue
 
-          const isCriticalSingle = groupSize === 1 && straightValueSet.has(v)
+          const isStraightCritical = groupSize === 1 && straight.has(v)
+          const isPairSeqCritical = groupSize === 2 && pairSequence.has(v)
+          const isAirplaneCritical = groupSize === 3 && airplaneTriple.has(v)
+          const isCriticalSingle = isStraightCritical || isPairSeqCritical || isAirplaneCritical
           const baseCost =
             groupSize === 1 ? 0 : groupSize === 2 ? 1 : groupSize === 3 ? 2 : 3
           const fullCost = baseCost + (isCriticalSingle ? 100 : 0)
@@ -822,10 +1259,12 @@ const findBiggerFourWithTwo = (hand: Card[], minFourValue: number, length: numbe
         const groupSize = cards.length
 
         const remainingAfterPair = groupSize - 2
-        const breaksStraight = remainingAfterPair <= 0 && straightValueSet.has(v)
+        const breaksStraight = remainingAfterPair <= 0 && straight.has(v)
+        const breaksPairSequence = remainingAfterPair < 2 && pairSequence.has(v)
+        const breaksAirplane = airplaneTriple.has(v) && groupSize === 3
 
         const baseCost = groupSize === 2 ? 1 : groupSize === 3 ? 2 : 3
-        const fullCost = baseCost + (breaksStraight ? 100 : 0)
+        const fullCost = baseCost + (breaksStraight || breaksPairSequence || breaksAirplane ? 100 : 0)
 
         pairCandidates.push({ cards: pair, value: v, cost: fullCost })
       }
@@ -882,6 +1321,35 @@ export class CardHintHelper {
   }
 
   /**
+   * 判断整手牌在“牌型相同”的前提下，是否能够压过上家的牌
+   * - 如果 lastPlayed 为空，视为可以出（首家 / 新一轮）
+   * - 仅当牌型相同、长度相同且 fullHand 的主牌值大于 lastPlayed 时返回 true
+   */
+  static canFullHandBeatLast(fullHand: Card[], lastPlayed: Card[] | null): boolean {
+    if (!fullHand || fullHand.length === 0) return false
+
+    const selfPattern = detectSimplePattern(fullHand)
+    if (!selfPattern) return false
+
+    if (!lastPlayed || lastPlayed.length === 0) {
+      // 无上家牌：首家/新一轮，默认允许整手牌出
+      return true
+    }
+
+    const lastPattern = detectSimplePattern(lastPlayed)
+    if (!lastPattern) return false
+
+    // 只在“牌型相同”的前提下自动出牌
+    if (selfPattern.type !== lastPattern.type) return false
+
+    // 长度（牌张数）必须一致
+    if (selfPattern.length !== lastPattern.length) return false
+
+    // 主牌值更大才算能压过
+    return selfPattern.value > lastPattern.value
+  }
+
+  /**
    * 获取一手提示牌
    * @param playerHand 当前玩家手牌（字符串格式）
    * @param lastPlayed 上家出的牌（只用 cards 来推断简单牌型），为空表示新一轮/首次出牌
@@ -923,6 +1391,9 @@ export class CardHintHelper {
 
     const straights = findAllStraights(hand)
     const pairSequences = findAllPairSequences(hand)
+    const planes = findAllPlanes(hand)
+    const planesWithPairs = findAllPlanesWithPairs(hand)
+    const planesWithSingles = findAllPlanesWithSingles(hand)
     const tripleWithSingles = findAllTripleWithSingles(hand)
     const tripleWithPairs = findAllTripleWithPairs(hand)
     const triples = findAllTriples(hand)
@@ -934,6 +1405,9 @@ export class CardHintHelper {
 
     nonPower.push(...straights)
     nonPower.push(...pairSequences)
+    nonPower.push(...planes)
+    nonPower.push(...planesWithPairs)
+    nonPower.push(...planesWithSingles)
     nonPower.push(...tripleWithSingles)
     nonPower.push(...tripleWithPairs)
     nonPower.push(...triples)
@@ -988,6 +1462,11 @@ export class CardHintHelper {
   private static getAllBeatingHints(hand: Card[], pattern: SimplePattern): Card[][] {
     const sameTypeHints: Card[][] = []
 
+    // 王炸是绝对最大牌，后家无法压过，提示系统不提供任何出牌建议
+    if (pattern.type === 'rocket') {
+      return []
+    }
+
     switch (pattern.type) {
       case 'single': {
         sameTypeHints.push(...findBiggerSingles(hand, pattern.value))
@@ -1023,6 +1502,30 @@ export class CardHintHelper {
       }
       case 'four_with_two': {
         sameTypeHints.push(...findBiggerFourWithTwo(hand, pattern.value, pattern.length))
+        break
+      }
+      case 'airplane': {
+        // 纯飞机：pattern.length 为总牌数，planeCount = length / 3
+        if (pattern.length % 3 === 0) {
+          const planeCount = pattern.length / 3
+          if (planeCount >= 2) {
+            sameTypeHints.push(...findBiggerAirplanes(hand, pattern.value, planeCount))
+          }
+        }
+        break
+      }
+      case 'airplane_with_wings': {
+        if (!pattern.wingsType) break
+
+        const divisor = pattern.wingsType === 'single' ? 4 : 5
+        if (pattern.length % divisor !== 0) break
+
+        const planeCount = pattern.length / divisor
+        if (planeCount >= 2) {
+          sameTypeHints.push(
+            ...findBiggerAirplanesWithWings(hand, pattern.value, planeCount, pattern.wingsType),
+          )
+        }
         break
       }
     }

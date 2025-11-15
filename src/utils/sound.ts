@@ -28,6 +28,11 @@ class SoundManager {
    * 播放音效
    */
   playSound(soundName: string) {
+    // 懒初始化，避免调用方重复手动 init
+    if (!this.initialized) {
+      this.init()
+    }
+
     if (!this.initialized || !this.soundEnabled || !this.audioContext) {
       return
     }
@@ -71,6 +76,15 @@ class SoundManager {
           gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.1)
           oscillator.start()
           oscillator.stop(this.audioContext.currentTime + 0.1)
+          break
+
+        case 'bid':
+          // 抢地主音效 - 明显但不刺耳
+          oscillator.frequency.value = 900
+          gainNode.gain.setValueAtTime(0.25, this.audioContext.currentTime)
+          gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.2)
+          oscillator.start()
+          oscillator.stop(this.audioContext.currentTime + 0.2)
           break
 
         case 'bomb':
@@ -141,6 +155,26 @@ class SoundManager {
       default:
         this.playSound('play')
     }
+  }
+
+  /** 简单封装：提示音 */
+  playHint() {
+    this.playSound('hint')
+  }
+
+  /** 简单封装：不出音效 */
+  playPass() {
+    this.playSound('pass')
+  }
+
+  /** 简单封装：抢地主音效 */
+  playBid() {
+    this.playSound('bid')
+  }
+
+  /** 简单封装：轮到你出牌等通用点击音 */
+  playTurnStart() {
+    this.playSound('click')
   }
 
   /**

@@ -24,17 +24,10 @@ import {
   type SettlementAchievements,
 } from '@/store/slices/gameSlice'
 import { CardHintHelper } from '@/utils/cardHintHelper'
+import { soundManager } from '@/utils/sound'
 import { motion, AnimatePresence } from 'framer-motion'
 import './style.css'
 import './game.css'
-
-// 声明全局 SoundManager
-declare global {
-  interface Window {
-    SoundManager: any
-    TempSoundGenerator: any
-  }
-}
 
 export default function GameRoom() {
   const { roomId } = useParams<{ roomId: string }>()
@@ -74,6 +67,8 @@ export default function GameRoom() {
   const dealAnimationTimeoutRef = useRef<number | null>(null)
   const playPendingRef = useRef(false)
   const [playPending, setPlayPending] = useState(false)
+  const [isDragSelecting, setIsDragSelecting] = useState(false)
+  const [dragSelectMode, setDragSelectMode] = useState<'select' | 'deselect' | null>(null)
 
   // 计算玩家位置（逆时针排列）
   const getPlayerPositions = () => {
@@ -177,6 +172,22 @@ export default function GameRoom() {
     }
     
     return { rank, suit, isJoker: null }
+  }
+
+  const STRAIGHT_RANKS = ['3','4','5','6','7','8','9','10','J','Q','K','A']
+  const ALL_RANKS_FOR_ORDER = [...STRAIGHT_RANKS, '2']
+
+  const isStraightRanks = (ranks: string[]): boolean => {
+    if (!ranks || ranks.length < 5) return false
+    const indices = ranks
+      .map((r) => STRAIGHT_RANKS.indexOf(r))
+      .filter((idx) => idx >= 0)
+      .sort((a, b) => a - b)
+    if (indices.length !== ranks.length) return false
+    for (let i = 1; i < indices.length; i++) {
+      if (indices[i] !== indices[i - 1] + 1) return false
+    }
+    return true
   }
 
 
@@ -682,6 +693,9 @@ export default function GameRoom() {
           console.log('🎯 [轮到出牌] 上家出牌:', lastPlayedCards)
           console.log('🎯 [轮到出牌] isMyTurn 已设置为 true')
           
+          // 播放轮到出牌提示音
+          soundManager.playTurnStart()
+
           Toast.show({ content: '🎯 轮到你出牌了！', icon: 'success' })
           
           // 开始倒计时（30秒）
@@ -750,9 +764,7 @@ export default function GameRoom() {
       
       if (data.playerId && data.cards) {
         // 播放出牌音效
-        if (window.SoundManager) {
-          window.SoundManager.playCardType(data.cardType)
-        }
+        soundManager.playCardTypeSound(data.cardType)
         
         // 更新 Redux 状态
         dispatch(playCardsAction({
@@ -794,9 +806,7 @@ export default function GameRoom() {
       console.log('⏭️ 玩家不出:', data)
       if (data.playerId) {
         // 播放不出音效
-        if (window.SoundManager) {
-          window.SoundManager.playPass()
-        }
+        soundManager.playPass()
         
         dispatch(passAction(data.playerId))
         Toast.show({ content: `${data.playerName || '玩家'} 不出`, icon: 'success' })
@@ -914,9 +924,45 @@ export default function GameRoom() {
     if (canPass) {
       handlePass()
     } else {
-      Toast.show({ content: '⏰ 时间到！请出牌', icon: 'fail' })
+      // 必须出牌且超时：尝试自动按提示出一手牌（参考上家牌型）
+      if (myCards.length === 0) return
+      if (playPendingRef.current) return
+
+      const lastCards: string[] | null =
+        lastPlayedCards && lastPlayedCards.cards && lastPlayedCards.cards.length > 0
+          ? lastPlayedCards.cards
+          : null
+
+      const autoHint = CardHintHelper.getHint(myCards, lastCards)
+      if (autoHint && autoHint.length > 0) {
+        doPlayCards(autoHint)
+        Toast.show({ content: '⏰ 时间到，已为你自动出牌', icon: 'success' })
+      } else {
+        Toast.show({ content: '⏰ 时间到，但没有可出的牌', icon: 'fail' })
+      }
     }
   }, [turnTimer, isMyTurn, canPass])
+
+  // 当轮到自己出牌且整手牌本身就是一个完整牌型，并且在同牌型前提下能压过上家时，自动立刻出牌
+  useEffect(() => {
+    if (!isMyTurn) return
+    if (playPendingRef.current) return
+    if (!myCards || myCards.length === 0) return
+
+    const autoFullHand = CardHintHelper.getFullHandIfSinglePattern(myCards)
+    if (!autoFullHand || autoFullHand.length !== myCards.length) return
+
+    const lastCards: string[] | null =
+      lastPlayedCards && lastPlayedCards.cards && lastPlayedCards.cards.length > 0
+        ? lastPlayedCards.cards
+        : null
+
+    const canBeat = CardHintHelper.canFullHandBeatLast(autoFullHand, lastCards)
+    if (!canBeat) return
+
+    console.log('🤖 [自动出牌] 整手牌是完整牌型且可压过上家，自动全出:', autoFullHand)
+    doPlayCards(autoFullHand)
+  }, [isMyTurn, myCards, lastPlayedCards])
 
   // 离开房间 - 退出游戏回到首页
   const handleLeaveRoom = () => {
@@ -976,21 +1022,12 @@ export default function GameRoom() {
     })
   }
 
-  // 出牌 - 照抄 frontend 逻辑
-  const handlePlayCards = () => {
+  // 实际出牌请求发送逻辑
+  const doPlayCards = (cardsToPlay: string[]) => {
     const socket = globalSocket.getSocket()
     if (!socket || !roomId || !user) {
       Toast.show({ content: 'Socket 未连接', icon: 'fail' })
       return
-    }
-
-    // 如果玩家没有主动选牌且整手牌本身就是一个完整牌型，自动全出
-    let cardsToPlay = selectedCards
-    if (cardsToPlay.length === 0) {
-      const autoFullHand = CardHintHelper.getFullHandIfSinglePattern(myCards)
-      if (autoFullHand && autoFullHand.length === myCards.length) {
-        cardsToPlay = autoFullHand
-      }
     }
 
     if (cardsToPlay.length === 0) {
@@ -1029,10 +1066,20 @@ export default function GameRoom() {
         // 保持 isMyTurn 为 true，让玩家可以重新出牌
       }
     }, 3000)
+  }
 
-    // 停止倒计时
-    // 暂时锁定出牌，等待服务器校验结果
-    //setIsMyTurn(false)
+  // 出牌 - 照抄 frontend 逻辑，结合本地选牌/整手牌自动全出
+  const handlePlayCards = () => {
+    // 如果玩家没有主动选牌且整手牌本身就是一个完整牌型，自动全出
+    let cardsToPlay = selectedCards
+    if (cardsToPlay.length === 0) {
+      const autoFullHand = CardHintHelper.getFullHandIfSinglePattern(myCards)
+      if (autoFullHand && autoFullHand.length === myCards.length) {
+        cardsToPlay = autoFullHand
+      }
+    }
+
+    doPlayCards(cardsToPlay)
   }
 
   // 不出 - 照抄 frontend 逻辑
@@ -1088,8 +1135,8 @@ export default function GameRoom() {
     setBiddingTimer(0)
 
     // 只有抢地主时才播放音效
-    if (bid && window.SoundManager) {
-      window.SoundManager.playBid()
+    if (bid) {
+      soundManager.playBid()
     }
 
     // 发送抢地主请求
@@ -1107,9 +1154,7 @@ export default function GameRoom() {
   // 提示 - 参考 frontend 实现（接入简化版 CardHintHelper）
   const handleHint = () => {
     // 播放提示音效
-    if (window.SoundManager) {
-      window.SoundManager.playHint()
-    }
+    soundManager.playHint()
     
     if (!isMyTurn) {
       Toast.show({ content: '还没轮到你出牌', icon: 'fail' })
@@ -1148,22 +1193,211 @@ export default function GameRoom() {
     Toast.show({ content: '💡 已为你选择一手推荐出牌', icon: 'success' })
   }
 
-  // 选中/取消选中手牌
-  const handleCardClick = (cardStr: string) => {
-    console.log('🎴 点击手牌:', cardStr)
-    
-    // 检查是否已选中
+  // 根据目标状态更新某张牌是否选中（避免重复 toggle）
+  const updateCardSelection = (cardStr: string, shouldSelect: boolean) => {
     const isSelected = selectedCards.includes(cardStr)
-    
-    if (isSelected) {
-      // 取消选中
-      dispatch(toggleCardSelection(cardStr))
-      console.log('❌ 取消选中:', cardStr)
-    } else {
-      // 选中
+    if (shouldSelect && !isSelected) {
       dispatch(toggleCardSelection(cardStr))
       console.log('✅ 选中:', cardStr)
+    } else if (!shouldSelect && isSelected) {
+      dispatch(toggleCardSelection(cardStr))
+      console.log('❌ 取消选中:', cardStr)
     }
+  }
+
+  // 指针按下：开始拖选或单选
+  const handleCardPointerDown = (cardStr: string, ev: any) => {
+    ev.preventDefault()
+    console.log('🎴 PointerDown 手牌:', cardStr)
+
+    // 是否在跟牌阶段：参考 handleHint 的逻辑
+    const isFollowPlay = !!lastPlayedCards && !!lastPlayedCards.cards && lastPlayedCards.cards.length > 0 && canPass
+
+    if (isFollowPlay) {
+      const lastCards = lastPlayedCards.cards as string[]
+      const lastRanks = lastCards.map((c) => parseCard(c).rank)
+
+      const isLastPair = lastCards.length === 2 && lastRanks[0] === lastRanks[1]
+      const isLastStraight = isStraightRanks(lastRanks)
+      const rankCountMap: Record<string, number> = {}
+      lastRanks.forEach((r) => {
+        rankCountMap[r] = (rankCountMap[r] || 0) + 1
+      })
+      const countValues = Object.values(rankCountMap).sort((a, b) => a - b)
+      const isLastTripleWithSingle =
+        lastCards.length === 4 && countValues.length === 2 && countValues[0] === 1 && countValues[1] === 3
+      const isLastTripleWithPair =
+        lastCards.length === 5 && countValues.length === 2 && countValues[0] === 2 && countValues[1] === 3
+
+      // 1) 上家是对子：点一张牌时整对选中/取消
+      if (isLastPair) {
+        const { rank } = parseCard(cardStr)
+        const groupCards = myCards.filter((c: string) => parseCard(c).rank === rank)
+        if (groupCards.length >= 2) {
+          const allSelected = groupCards.every((c: string) => selectedCards.includes(c))
+          const mode: 'select' | 'deselect' = allSelected ? 'deselect' : 'select'
+
+          setIsDragSelecting(true)
+          setDragSelectMode(mode)
+          if (mode === 'select') {
+            // 选择新的一对时，先清空之前的选牌，再只选中当前这一对
+            dispatch(clearSelection())
+            groupCards.forEach((c: string) => dispatch(toggleCardSelection(c)))
+          } else {
+            // 取消当前这一对的选中状态，保持其它牌的选中状态不变
+            groupCards.forEach((c: string) => updateCardSelection(c, false))
+          }
+          return
+        }
+      }
+
+      // 2) 上家是顺子：点中某张牌时，尝试从该点数开始选出同长度顺子
+      if (isLastStraight) {
+        const { rank } = parseCard(cardStr)
+        const startIdx = STRAIGHT_RANKS.indexOf(rank)
+        const needLen = lastCards.length
+
+        if (startIdx >= 0 && startIdx + needLen <= STRAIGHT_RANKS.length) {
+          const needRanks = STRAIGHT_RANKS.slice(startIdx, startIdx + needLen)
+          const comboCards: string[] = []
+
+          for (const r of needRanks) {
+            const candidates = myCards.filter((c: string) => parseCard(c).rank === r)
+            if (candidates.length === 0) {
+              comboCards.length = 0
+              break
+            }
+            // 优先使用尚未选中的牌，避免干扰其它结构
+            const notSelected = candidates.find((c) => !selectedCards.includes(c))
+            comboCards.push(notSelected || candidates[0])
+          }
+
+          if (comboCards.length === needLen) {
+            const allSelected = comboCards.every((c: string) => selectedCards.includes(c))
+            const mode: 'select' | 'deselect' = allSelected ? 'deselect' : 'select'
+
+            setIsDragSelecting(true)
+            setDragSelectMode(mode)
+
+            comboCards.forEach((c: string) => updateCardSelection(c, mode === 'select'))
+            return
+          }
+        }
+      }
+
+      // 3) 上家是三带一：点击三张点数时，自动选择“三张+最小一张单牌”
+      if (isLastTripleWithSingle) {
+        const { rank } = parseCard(cardStr)
+        const sameRankCards = myCards.filter((c: string) => parseCard(c).rank === rank)
+        if (sameRankCards.length >= 3) {
+          const tripleCards = sameRankCards.slice(0, 3)
+          const remaining = myCards.filter((c: string) => !tripleCards.includes(c))
+
+          const remainingGroups: Record<string, string[]> = {}
+          remaining.forEach((c: string) => {
+            const r = parseCard(c).rank
+            if (r === rank) return
+            if (!remainingGroups[r]) remainingGroups[r] = []
+            remainingGroups[r].push(c)
+          })
+
+          const singleRanks = Object.entries(remainingGroups)
+            .filter(([, cards]) => cards.length >= 1)
+            .map(([r]) => r)
+            .sort((a, b) => {
+              const ia = ALL_RANKS_FOR_ORDER.indexOf(a)
+              const ib = ALL_RANKS_FOR_ORDER.indexOf(b)
+              if (ia === -1 && ib === -1) return a.localeCompare(b)
+              if (ia === -1) return 1
+              if (ib === -1) return -1
+              return ia - ib
+            })
+
+          if (singleRanks.length > 0) {
+            const singleRank = singleRanks[0]
+            const singleCard = remainingGroups[singleRank][0]
+            const comboCards = [...tripleCards, singleCard]
+
+            const allSelected = comboCards.every((c: string) => selectedCards.includes(c))
+            const mode: 'select' | 'deselect' = allSelected ? 'deselect' : 'select'
+
+            setIsDragSelecting(true)
+            setDragSelectMode(mode)
+
+            comboCards.forEach((c: string) => updateCardSelection(c, mode === 'select'))
+            comboCards.forEach((c) => updateCardSelection(c, mode === 'select'))
+            return
+          }
+        }
+      }
+
+      // 4) 上家是三带二：点击三张点数时，自动选择“三张+最小一对”
+      if (isLastTripleWithPair) {
+        const { rank } = parseCard(cardStr)
+        const sameRankCards = myCards.filter((c) => parseCard(c).rank === rank)
+        if (sameRankCards.length >= 3) {
+          const tripleCards = sameRankCards.slice(0, 3)
+          // 剩余牌中找最小的一对，点数不能与三张相同
+          const remaining = myCards.filter((c) => !tripleCards.includes(c))
+          const remainingGroups: Record<string, string[]> = {}
+          remaining.forEach((c) => {
+            const r = parseCard(c).rank
+            if (r === rank) return
+            if (!remainingGroups[r]) remainingGroups[r] = []
+            remainingGroups[r].push(c)
+          })
+
+          const pairRanks = Object.entries(remainingGroups)
+            .filter(([, cards]) => cards.length >= 2)
+            .map(([r]) => r)
+            .sort((a, b) => {
+              const ia = ALL_RANKS_FOR_ORDER.indexOf(a)
+              const ib = ALL_RANKS_FOR_ORDER.indexOf(b)
+              if (ia === -1 && ib === -1) return a.localeCompare(b)
+              if (ia === -1) return 1
+              if (ib === -1) return -1
+              return ia - ib
+            })
+
+          if (pairRanks.length > 0) {
+            const pairRank = pairRanks[0]
+            const pairCards = remainingGroups[pairRank].slice(0, 2)
+            const comboCards = [...tripleCards, ...pairCards]
+
+            const allSelected = comboCards.every((c: string) => selectedCards.includes(c))
+            const mode: 'select' | 'deselect' = allSelected ? 'deselect' : 'select'
+
+            setIsDragSelecting(true)
+            setDragSelectMode(mode)
+
+            comboCards.forEach((c) => updateCardSelection(c, mode === 'select'))
+            return
+          }
+        }
+      }
+    }
+
+    // 默认：按单张牌进行选中/取消，并可继续拖选
+    const isSelected = selectedCards.includes(cardStr)
+    const mode: 'select' | 'deselect' = isSelected ? 'deselect' : 'select'
+
+    setIsDragSelecting(true)
+    setDragSelectMode(mode)
+    updateCardSelection(cardStr, mode === 'select')
+  }
+
+  // 指针滑过其它牌：根据当前模式批量选中/取消
+  const handleCardPointerEnter = (cardStr: string, ev: any) => {
+    if (!isDragSelecting || !dragSelectMode) return
+    ev.preventDefault()
+    updateCardSelection(cardStr, dragSelectMode === 'select')
+  }
+
+  // 指针抬起或离开手牌区域：结束拖选
+  const handleHandPointerUp = () => {
+    if (!isDragSelecting) return
+    setIsDragSelecting(false)
+    setDragSelectMode(null)
   }
 
   // 发送聊天消息
@@ -1442,7 +1676,11 @@ export default function GameRoom() {
 
         {/* 手牌区域 - 照抄 frontend 结构 */}
         {myCards.length > 0 && (
-          <div className="player-hand-section">
+          <div
+            className="player-hand-section"
+            onPointerUp={handleHandPointerUp}
+            onPointerLeave={handleHandPointerUp}
+          >
             <div className="player-hand">
               <AnimatePresence initial={false}>
                 {myCards.map((cardStr: string, index: number) => {
@@ -1456,7 +1694,8 @@ export default function GameRoom() {
                       key={`${cardStr}-${index}`}
                       className={`card ${isRed ? 'red' : 'black'} ${isSelected ? 'selected' : ''}`}
                       style={{ zIndex: index + 1 }}
-                      onClick={() => handleCardClick(cardStr)}
+                      onPointerDown={(ev) => handleCardPointerDown(cardStr, ev)}
+                      onPointerEnter={(ev) => handleCardPointerEnter(cardStr, ev)}
                       layout
                       initial={isDealingAnimation ? { opacity: 0, y: -160, scale: 0.6, rotate: -6 } : false}
                       animate={{ opacity: 1, y: targetY, scale: 1, rotate: 0 }}
