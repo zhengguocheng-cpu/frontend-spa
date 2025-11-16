@@ -11,6 +11,7 @@ const RoomList = lazy(() => import('../pages/RoomList'))
 const Profile = lazy(() => import('../pages/Profile'))
 const Leaderboard = lazy(() => import('../pages/Leaderboard'))
 const Feedback = lazy(() => import('../pages/Feedback'))
+const InstallGuide = lazy(() => import('../pages/InstallGuide'))
 const NotFound = lazy(() => import('../pages/NotFound'))
 
 const RequireAuth = lazy(() => import('../components/RequireAuth'))
@@ -94,6 +95,16 @@ export const router = createBrowserRouter([
       <Suspense fallback={<Loading />}>
         <RequireAuth>
           <Feedback />
+        </RequireAuth>
+      </Suspense>
+    ),
+  },
+  {
+    path: '/install',
+    element: (
+      <Suspense fallback={<Loading />}>
+        <RequireAuth>
+          <InstallGuide />
         </RequireAuth>
       </Suspense>
     ),

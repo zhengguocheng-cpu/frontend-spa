@@ -12,6 +12,25 @@ export default function RoomList() {
   const [loading, setLoading] = useState(false)
   const [connected, setConnected] = useState(false)
   const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null)
+  const [isStandalone, setIsStandalone] = useState(false)
+
+  useEffect(() => {
+    const checkStandalone = () => {
+      if (typeof window === 'undefined') return
+      const isDisplayStandalone = window.matchMedia?.('(display-mode: standalone)').matches
+      const isNavigatorStandalone = (window.navigator as any)?.standalone === true
+      setIsStandalone(Boolean(isDisplayStandalone || isNavigatorStandalone))
+    }
+
+    checkStandalone()
+
+    const media = window.matchMedia?.('(display-mode: standalone)')
+    media?.addEventListener('change', checkStandalone)
+
+    return () => {
+      media?.removeEventListener('change', checkStandalone)
+    }
+  }, [])
 
   // 使用已有的 Socket 连接（登录时已建立）
   useEffect(() => {
@@ -121,6 +140,21 @@ export default function RoomList() {
 
   return (
     <div className="room-list-container">
+      {!isStandalone && (
+        <div className="install-banner">
+          <div className="install-banner-text">
+            为了下次可以从桌面一键打开，建议先将「欢乐斗地主」安装到桌面。
+          </div>
+          <Button
+            size="small"
+            color="primary"
+            className="install-banner-button"
+            onClick={() => navigate('/install')}
+          >
+            安装到桌面
+          </Button>
+        </div>
+      )}
       <div className="room-list-header">
         <h1 className="room-list-title">🎮 游戏大厅</h1>
         <p className="room-list-subtitle">

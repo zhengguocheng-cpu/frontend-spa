@@ -7,6 +7,28 @@
   overflow-y: auto; /* 滚动限制在容器内部 */
 }
 
+.install-banner {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: #f9fafb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.4);
+}
+
+.install-banner-text {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.install-banner-button {
+  white-space: nowrap;
+}
+
 .room-list-header {
   margin-bottom: 16px;
 }
