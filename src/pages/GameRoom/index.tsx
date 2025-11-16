@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Button, Dialog, Toast } from 'antd-mobile'
+import { Button, Toast } from 'antd-mobile'
 import { useAuth } from '@/context/AuthContext'
 import { useAppDispatch, useAppSelector } from '@/hooks/useAppDispatch'
 import { globalSocket } from '@/services/socket'
@@ -40,6 +40,7 @@ export default function GameRoom() {
   const {
     players = [],
     gameStatus = 'waiting',
+    currentPlayerId = null,
     myCards = [],
     selectedCards = [],
     lastPlayedCards = null,
@@ -111,6 +112,21 @@ export default function GameRoom() {
 
   const { leftPlayer, rightPlayer, currentPlayer } = getPlayerPositions()
 
+  const currentUserId = user?.id || user?.name
+  const isLeftTurn =
+    !!currentPlayerId &&
+    !!leftPlayer &&
+    (leftPlayer.id === currentPlayerId || leftPlayer.name === currentPlayerId)
+  const isRightTurn =
+    !!currentPlayerId &&
+    !!rightPlayer &&
+    (rightPlayer.id === currentPlayerId || rightPlayer.name === currentPlayerId)
+  const isBottomTurn =
+    !!currentPlayerId &&
+    (currentPlayer?.id === currentPlayerId ||
+      currentPlayer?.name === currentPlayerId ||
+      currentUserId === currentPlayerId)
+
   const settlementScore = useMemo(() => gameState.gameResult?.score, [gameState.gameResult])
   const settlementPlayerScores = settlementScore?.playerScores ?? []
   const settlementAchievements = useMemo<SettlementAchievements>(
@@ -145,7 +161,7 @@ export default function GameRoom() {
   }, [settlementScore])
 
   const handleViewProfile = () => {
-    Toast.show({ content: '战绩功能开发中', icon: 'fail' })
+    navigate('/profile')
   }
 
   // 解析卡牌 - 照抄 frontend/public/room/js/room-simple.js 第 2065-2093 行
@@ -665,7 +681,7 @@ export default function GameRoom() {
       console.log('🔄 游戏状态更新:', data)
     }
 
-    // 轮到出牌 - 照抄 frontend 逻辑
+    // 轮到出牌 - 照抄 frontend 逻辑，并增加“任意玩家头像倒计时”
     const handleTurnToPlay = (data: any) => {
       console.log('🎯 [轮到出牌] 收到事件:', data)
       console.log('🎯 [轮到出牌] 当前玩家ID:', user?.id)
@@ -674,8 +690,10 @@ export default function GameRoom() {
       
       if (data.playerId) {
         dispatch(setCurrentPlayer(data.playerId))
-        
-        if (data.playerId === (user?.id || user?.name)) {
+
+        const isMe = data.playerId === (user?.id || user?.name)
+
+        if (isMe) {
           // 轮到我出牌
           setIsMyTurn(true)
           playPendingRef.current = false
@@ -700,32 +718,32 @@ export default function GameRoom() {
           soundManager.playTurnStart()
 
           Toast.show({ content: '🎯 轮到你出牌了！', icon: 'success' })
-          
-          // 开始倒计时（30秒）
-          setTurnTimer(30)
-          if (turnTimerRef.current) {
-            clearInterval(turnTimerRef.current)
-          }
-          turnTimerRef.current = setInterval(() => {
-            setTurnTimer(prev => {
-              if (prev <= 1) {
-                clearInterval(turnTimerRef.current!)
-                turnTimerRef.current = null
-                return 0
-              }
-              return prev - 1
-            })
-          }, 1000)
         } else {
           // 不是我的回合
           setIsMyTurn(false)
           setCanPass(false)
-          if (turnTimerRef.current) {
-            clearInterval(turnTimerRef.current)
-            turnTimerRef.current = null
-          }
           Toast.show({ content: `等待 ${data.playerName || '玩家'} 出牌...`, icon: 'loading' })
         }
+
+        // 无论轮到谁，都启动头像上的倒计时
+        const initialTime =
+          typeof data.remainingTime === 'number' && data.remainingTime > 0
+            ? data.remainingTime
+            : 30
+        setTurnTimer(initialTime)
+        if (turnTimerRef.current) {
+          clearInterval(turnTimerRef.current)
+        }
+        turnTimerRef.current = setInterval(() => {
+          setTurnTimer((prev) => {
+            if (prev <= 1) {
+              clearInterval(turnTimerRef.current!)
+              turnTimerRef.current = null
+              return 0
+            }
+            return prev - 1
+          })
+        }, 1000)
       }
     }
 
@@ -879,7 +897,7 @@ export default function GameRoom() {
     socket.on('play_cards_failed', handlePlayCardsFailed)
     socket.on('game_over', handleGameEnded)  // 后端发送的是 game_over
     socket.on('game_ended', handleGameEnded)  // 兼容旧事件名
-    socket.on('chat_message', handleChatMessage)
+    socket.on('message_received', handleChatMessage)
 
     return () => {
       socket.off('room_joined', handleRoomJoined)
@@ -902,7 +920,7 @@ export default function GameRoom() {
       socket.off('play_cards_failed', handlePlayCardsFailed)
       socket.off('game_ended', handleGameEnded)
       socket.off('game_over', handleGameEnded)
-      socket.off('chat_message', handleChatMessage)
+      socket.off('message_received', handleChatMessage)
     }
   }, [connected, dispatch])
 
@@ -1160,12 +1178,12 @@ export default function GameRoom() {
     soundManager.playHint()
     
     if (!isMyTurn) {
-      Toast.show({ content: '还没轮到你出牌', icon: 'fail' })
+      console.log('💡 [提示] 还没轮到你出牌，忽略提示操作')
       return
     }
 
     if (myCards.length === 0) {
-      Toast.show({ content: '没有手牌', icon: 'fail' })
+      console.log('💡 [提示] 当前没有手牌')
       return
     }
 
@@ -1183,7 +1201,7 @@ export default function GameRoom() {
         return
       }
 
-      Toast.show({ content: '💡 当前没有可供提示的出牌方案', icon: 'fail' })
+      console.log('💡 [提示] 当前没有可供提示的出牌方案')
       return
     }
 
@@ -1192,8 +1210,7 @@ export default function GameRoom() {
     hint.forEach((card) => {
       dispatch(toggleCardSelection(card))
     })
-
-    Toast.show({ content: '💡 已为你选择一手推荐出牌', icon: 'success' })
+    console.log('💡 [提示] 已为你选择一手推荐出牌:', hint)
   }
 
   // 根据目标状态更新某张牌是否选中（避免重复 toggle）
@@ -1271,7 +1288,7 @@ export default function GameRoom() {
               break
             }
             // 优先使用尚未选中的牌，避免干扰其它结构
-            const notSelected = candidates.find((c) => !selectedCards.includes(c))
+            const notSelected = candidates.find((c: string) => !selectedCards.includes(c))
             comboCards.push(notSelected || candidates[0])
           }
 
@@ -1328,7 +1345,6 @@ export default function GameRoom() {
             setDragSelectMode(mode)
 
             comboCards.forEach((c: string) => updateCardSelection(c, mode === 'select'))
-            comboCards.forEach((c) => updateCardSelection(c, mode === 'select'))
             return
           }
         }
@@ -1337,13 +1353,13 @@ export default function GameRoom() {
       // 4) 上家是三带二：点击三张点数时，自动选择“三张+最小一对”
       if (isLastTripleWithPair) {
         const { rank } = parseCard(cardStr)
-        const sameRankCards = myCards.filter((c) => parseCard(c).rank === rank)
+        const sameRankCards = myCards.filter((c: string) => parseCard(c).rank === rank)
         if (sameRankCards.length >= 3) {
           const tripleCards = sameRankCards.slice(0, 3)
           // 剩余牌中找最小的一对，点数不能与三张相同
-          const remaining = myCards.filter((c) => !tripleCards.includes(c))
+          const remaining = myCards.filter((c: string) => !tripleCards.includes(c))
           const remainingGroups: Record<string, string[]> = {}
-          remaining.forEach((c) => {
+          remaining.forEach((c: string) => {
             const r = parseCard(c).rank
             if (r === rank) return
             if (!remainingGroups[r]) remainingGroups[r] = []
@@ -1412,6 +1428,7 @@ export default function GameRoom() {
       socket.emit('send_message', {
         roomId,
         userId: user.id,
+        userName: user.name,
         playerName: user.name,
         message: chatMessage,
       })
@@ -1444,76 +1461,65 @@ export default function GameRoom() {
     })
   }, [players])
 
-  // 动态计算手牌遮挡宽度
+  // 动态计算手牌遮挡宽度（根据手牌区宽度自动计算）
   useEffect(() => {
     const calculateCardOverlap = () => {
-      const handSection = document.querySelector('.player-hand-section')
+      const handSection = document.querySelector('.player-hand-section') as HTMLElement | null
       const cards = document.querySelectorAll('.player-hand .card')
       
       if (!handSection || cards.length === 0) return
       
-      const containerWidth = handSection.clientWidth  // 容器宽度 x
-      const n = cards.length                          // 牌数 n
-      const cardWidth = cards[0].clientWidth          // 单张牌宽度 w
-      
-      if (n <= 1) {
-        // 只有一张牌，不需要遮挡
+      // 使用外层 .player-hand-section 的宽度作为手牌区域宽度 W，保证始终以完整可见区域为基准
+      const containerWidth = handSection.clientWidth // 手牌区宽度 W
+      const n = myCards.length || cards.length       // 牌数 n（优先使用状态中的手牌数）
+      const cardWidth = (cards[0] as HTMLElement).offsetWidth         // 单张牌真实宽度（含边框） w
+
+      if (n <= 1 || cardWidth <= 0 || containerWidth <= cardWidth) {
         return
       }
-      
-      // 计算理想的遮挡宽度
-      // 总宽度 = 第一张牌宽度 + (n-1) × 每张牌露出宽度
-      // containerWidth = cardWidth + (n-1) × visibleWidth
-      // visibleWidth = (containerWidth - cardWidth) / (n-1)
-      // overlap = visibleWidth - cardWidth
-      
-      const visibleWidth = (containerWidth -cardWidth ) / (n - 1)
-      //往左遮挡的宽度，负值表示往左偏移，正值表示往右偏移，×1.4是遮挡更多
-      let overlap = (visibleWidth - cardWidth) * 1.15
-      
-      // 限制遮挡范围：最多遮挡 80%，最少遮挡 20%
-      const minOverlap = -cardWidth * 0.8  // 最多遮挡 80%
-      const maxOverlap = -cardWidth * 0.2  // 最少遮挡 20%
-      
-      // 如果计算出的遮挡超出限制，需要重新计算
-      if (overlap < minOverlap) {
-        // 遮挡太多，使用最大遮挡
-        overlap = minOverlap
-      } else if (overlap > maxOverlap) {
-        // 遮挡太少，使用最小遮挡
-        overlap = maxOverlap
+
+      // 你的思路：总宽度固定为 W，先算出一套重叠规则，之后出牌就把释放出来的空间均匀摊给剩余牌
+      // 这里直接用数学形式实现：
+      //  M = W - w（第一张牌完全显示，剩余 M 给后面 n-1 张牌）
+      //  每张后续牌可见空间 visibleWidth = M / (n-1)
+      //  overlap = visibleWidth - w（负值表示重叠）
+      const availableWidth = containerWidth - cardWidth
+      const visibleWidth = availableWidth / (n - 1)
+
+      // overlap = 每张牌可见空间 - 实际牌宽度
+      // 当 n 减少时，visibleWidth 变大，overlap 变得没那么负 ⇒ 重叠自然减小、看起来更舒展
+      let overlap = visibleWidth - cardWidth
+
+      // 限制遮挡范围：
+      // 1）最多遮挡 85%，防止牌很多时挤成一条线
+      // 2）最少遮挡 20%，防止牌全部铺开（overlap 接近 0 或为正数）
+      const maxOverlapAbs = cardWidth * 0.85   // 上限：85%
+      const minOverlapAbs = cardWidth * 0.2    // 下限：20%
+
+      if (overlap < -maxOverlapAbs) {
+        overlap = -maxOverlapAbs
+      } else if (overlap > -minOverlapAbs) {
+        overlap = -minOverlapAbs
       }
-      
-      // 计算实际总宽度
-      const actualTotalWidth = cardWidth + (n - 1) * (cardWidth + overlap)
-      console.log('容器宽度，实际总宽度:', containerWidth, actualTotalWidth)
-      
-      // 如果实际总宽度超过容器，强制调整遮挡
-      if (actualTotalWidth >= containerWidth) {
-        const present = containerWidth/actualTotalWidth;
-        overlap = ((containerWidth -cardWidth ) / (n-1) - cardWidth) * 1.2 * present;
-        console.warn('⚠️ 总宽度超出容器，强制调整遮挡:', overlap)
-      }
-      
-      // 应用到所有牌（第一张不偏移，后续牌正常遮挡）
+
       cards.forEach((card, index) => {
+        const el = card as HTMLElement
         if (index === 0) {
-          // 第一张牌：不偏移
-          (card as HTMLElement).style.marginLeft = '0'
+          el.style.marginLeft = '0'
         } else {
-          // 后续牌：正常遮挡
-          (card as HTMLElement).style.marginLeft = `${overlap}px`
+          el.style.marginLeft = `${overlap}px`
         }
       })
-      
+
+      const actualTotalWidth = cardWidth + (n - 1) * (cardWidth + overlap)
       console.log('🎴 手牌遮挡计算:', {
         容器宽度: containerWidth,
         牌数: n,
+        DOM牌数: cards.length,
         牌宽: cardWidth,
-        每张露出宽度: visibleWidth,
+        每张可见空间: visibleWidth,
         遮挡宽度: overlap,
         实际总宽度: actualTotalWidth,
-        是否超出: actualTotalWidth > containerWidth ? '❌ 是' : '✅ 否'
       })
     }
     
@@ -1577,7 +1583,10 @@ export default function GameRoom() {
         {/* 上方玩家区域 */}
         <div className="top-players">
           {leftPlayer && (
-            <div className="player-slot left">
+            <div className={`player-slot left ${isLeftTurn ? 'turn-active' : ''}`}>
+              {isLeftTurn && turnTimer > 0 && (
+                <div className="turn-indicator">{turnTimer}</div>
+              )}
               <div className={`player-info ${landlordId === leftPlayer.id ? 'landlord' : ''}`}>
                 {landlordId === leftPlayer.id && (
                   <div className="landlord-badge" title="地主">👑</div>
@@ -1586,10 +1595,9 @@ export default function GameRoom() {
                 <div>
                   <div className="player-name">{leftPlayer.name}</div>
                   <div className="player-status">
-                    {gameStatus === 'waiting' 
+                    {gameStatus === 'waiting'
                       ? (leftPlayer.isReady ? '✅ 已准备' : '⏳ 未准备')
-                      : `${leftPlayer.cardCount || 0} 张`
-                    }
+                      : `${leftPlayer.cardCount || 0} 张`}
                   </div>
                 </div>
               </div>
@@ -1597,7 +1605,10 @@ export default function GameRoom() {
           )}
 
           {rightPlayer && (
-            <div className="player-slot right">
+            <div className={`player-slot right ${isRightTurn ? 'turn-active' : ''}`}>
+              {isRightTurn && turnTimer > 0 && (
+                <div className="turn-indicator">{turnTimer}</div>
+              )}
               <div className={`player-info ${landlordId === rightPlayer.id ? 'landlord' : ''}`}>
                 {landlordId === rightPlayer.id && (
                   <div className="landlord-badge" title="地主">👑</div>
@@ -1606,10 +1617,9 @@ export default function GameRoom() {
                 <div>
                   <div className="player-name">{rightPlayer.name}</div>
                   <div className="player-status">
-                    {gameStatus === 'waiting' 
+                    {gameStatus === 'waiting'
                       ? (rightPlayer.isReady ? '✅ 已准备' : '⏳ 未准备')
-                      : `${rightPlayer.cardCount || 0} 张`
-                    }
+                      : `${rightPlayer.cardCount || 0} 张`}
                   </div>
                 </div>
               </div>
@@ -1617,43 +1627,42 @@ export default function GameRoom() {
           )}
         </div>
 
-        {/* 中央出牌区 - 照抄 frontend */}
+        {/* 中央出牌区 - 仅展示已出牌牌面，提示迁移到头像倒计时 */}
         <div className="center-area">
           {lastPlayedCards && lastPlayedCards.cards && lastPlayedCards.cards.length > 0 && (
             <div className="played-cards-area">
-              <div className="played-cards-label">
-                {lastPlayedCards.playerName || '玩家'} 出牌
-              </div>
               <div className="played-cards-container">
                 {lastPlayedCards.cards.map((cardStr: string, index: number) => {
                   const { rank, suit, isJoker } = parseCard(cardStr)
                   const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
-                
-                return (
-                  <motion.div
-                    key={index}
-                    className={`card ${isRed ? 'red' : 'black'}`}
-                    initial={{ opacity: 0, y: -160, scale: 0.6, rotate: -6 }}
-                    animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }}
-                    exit={{ opacity: 0, y: 40, scale: 0.9, rotate: 6, transition: { duration: 0.2 } }}
-                    transition={{
-                      delay: index * 0.05,
-                      type: 'spring',
-                      stiffness: 280,
-                      damping: 20,
-                    }}
-                  >
-                    <div
-                      className={`card-value ${isJoker ? 'joker-text' : ''}`}
-                      style={isJoker ? { color: isJoker === 'big' ? '#d32f2f' : '#000' } : undefined}
+
+                  return (
+                    <motion.div
+                      key={index}
+                      className={`card ${isRed ? 'red' : 'black'}`}
+                      initial={{ opacity: 0, y: -160, scale: 0.6, rotate: -6 }}
+                      animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }}
+                      exit={{
+                        opacity: 0,
+                        y: 40,
+                        scale: 0.9,
+                        rotate: 6,
+                        transition: { duration: 0.2 },
+                      }}
+                      transition={{
+                        delay: index * 0.05,
+                        type: 'spring',
+                        stiffness: 280,
+                        damping: 20,
+                      }}
                     >
-                      {isJoker ? 'JOKER' : rank}
-                    </div>
-                    {!isJoker && (
-                        <div className="card-suit">
-                          {suit}
-                        </div>
-                      )}
+                      <div
+                        className={`card-value ${isJoker ? 'joker-text' : ''}`}
+                        style={isJoker ? { color: isJoker === 'big' ? '#d32f2f' : '#000' } : undefined}
+                      >
+                        {isJoker ? 'JOKER' : rank}
+                      </div>
+                      {!isJoker && <div className="card-suit">{suit}</div>}
                     </motion.div>
                   )
                 })}
@@ -1663,7 +1672,14 @@ export default function GameRoom() {
         </div>
 
         {/* 当前玩家信息 */}
-        <div className={`current-player-info ${landlordId === (user?.id || user?.name) ? 'landlord' : ''}`}>
+        <div
+          className={`current-player-info ${
+            landlordId === (user?.id || user?.name) ? 'landlord' : ''
+          } ${isBottomTurn ? 'turn-active' : ''}`}
+        >
+          {isBottomTurn && turnTimer > 0 && (
+            <div className="turn-indicator">{turnTimer}</div>
+          )}
           {landlordId === (user?.id || user?.name) && (
             <div className="landlord-badge" title="地主">👑</div>
           )}
@@ -1905,138 +1921,133 @@ export default function GameRoom() {
         </button>
       )}
 
-      {/* 结算弹窗 - 横屏布局 */}
+      {/* 结算界面 - 全屏覆盖层 */}
       {showSettlement && gameState.gameResult && (
-        <Dialog
-          visible={showSettlement}
-          content={
-            <div className="settlement-content">
-              <div className="settlement-layout">
-                <div className="settlement-panel settlement-panel-left">
-                  <h2 className="settlement-title">
-                    {gameState.gameResult.landlordWin ? '🎊 地主获胜！' : '🎊 农民获胜！'}
-                  </h2>
+        <div className="settlement-overlay">
+          <div className="settlement-root">
+            <div className="settlement-layout">
+              <div className="settlement-panel settlement-panel-left">
+                <h2 className="settlement-title">
+                  {gameState.gameResult.landlordWin ? '🎊 地主获胜！' : '🎊 农民获胜！'}
+                </h2>
 
-                  <div className="winner-info">
-                    <div className="winner-avatar">👑</div>
-                    <div className="winner-meta">
-                      <div className="winner-name">{gameState.gameResult.winnerName || '未知玩家'}</div>
-                      <div className="winner-role">
-                        {gameState.gameResult.winnerRole === 'landlord' ? '地主' : '农民'}
-                      </div>
+                <div className="winner-info">
+                  <div className="winner-avatar">👑</div>
+                  <div className="winner-meta">
+                    <div className="winner-name">{gameState.gameResult.winnerName || '未知玩家'}</div>
+                    <div className="winner-role">
+                      {gameState.gameResult.winnerRole === 'landlord' ? '地主' : '农民'}
                     </div>
                   </div>
-
-                  {gameState.gameResult.score && (
-                    <>
-                      <div className="score-summary-grid">
-                        <div className="score-item">
-                          <span className="label">基础分</span>
-                          <span className="value">{settlementScore?.baseScore ?? 1}</span>
-                        </div>
-                        <div className="score-item">
-                          <span className="label">倍数</span>
-                          <span className="value">×{settlementPlayerScores[0]?.multipliers?.total ?? 1}</span>
-                        </div>
-                      </div>
-
-                      {multiplierDescriptions.length > 0 && (
-                        <div className="score-multipliers">
-                          <h4 className="section-subtitle">倍数详情</h4>
-                          <div className="multiplier-tags">
-                            {multiplierDescriptions.map((item, idx) => (
-                              <span key={idx} className="multiplier-tag">{item}</span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
                 </div>
 
-                <div className="settlement-panel settlement-panel-right">
-                  {gameState.gameResult.score && (
-                    <div className="players-score">
-                      <h3 className="section-title">玩家得分</h3>
-                      <div className="players-score-list">
-                        {settlementPlayerScores.map((ps: SettlementPlayerScore) => {
-                          const isWinner = ps.isWinner
-                          const isMe = (ps.playerId === (user?.id || user?.name))
-                          const scoreValue = ps.finalScore > 0 ? `+${ps.finalScore}` : ps.finalScore
-                          return (
-                            <div
-                              key={ps.playerId}
-                              className={`player-score-row ${isWinner ? 'winner' : ''} ${isMe ? 'me' : ''}`}
-                            >
-                              <div className="player-info">
-                                <span className="player-name">{ps.playerName}</span>
-                                <span className="player-role">{ps.role === 'landlord' ? '地主' : '农民'}</span>
-                              </div>
-                              <span className={`player-score-value ${ps.finalScore >= 0 ? 'positive' : 'negative'}`}>
-                                {scoreValue}
-                              </span>
-                            </div>
-                          )
-                        })}
+                {gameState.gameResult.score && (
+                  <>
+                    <div className="score-summary-grid">
+                      <div className="score-item">
+                        <span className="label">基础分</span>
+                        <span className="value">{settlementScore?.baseScore ?? 1}</span>
+                      </div>
+                      <div className="score-item">
+                        <span className="label">倍数</span>
+                        <span className="value">×{settlementPlayerScores[0]?.multipliers?.total ?? 1}</span>
                       </div>
                     </div>
-                  )}
 
-                  {settlementAchievementEntries.length > 0 && (
-                    <div className="achievements-info">
-                      <h3 className="section-title">🏆 解锁成就</h3>
-                      <div className="achievements-list">
-                        {settlementAchievementEntries.map(([playerId, achievements]: [string, string[]]) => {
-                          const playerName = settlementPlayerScores.find((ps: SettlementPlayerScore) => ps.playerId === playerId)?.playerName || playerId
-                          return (
-                            <div key={playerId} className="achievement-row">
-                              <span className="achievement-player">{playerName}</span>
-                              <div className="achievement-tags">
-                                {achievements.map((ach: string, idx: number) => (
-                                  <span key={idx} className="achievement-tag">{ach}</span>
-                                ))}
-                              </div>
-                            </div>
-                          )
-                        })}
+                    {multiplierDescriptions.length > 0 && (
+                      <div className="score-multipliers">
+                        <h4 className="section-subtitle">倍数详情</h4>
+                        <div className="multiplier-tags">
+                          {multiplierDescriptions.map((item, idx) => (
+                            <span key={idx} className="multiplier-tag">{item}</span>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </>
+                )}
+              </div>
 
-                  <div className="settlement-actions">
-                    <Button
-                      color="success"
-                      onClick={handleViewProfile}
-                    >
-                      查看战绩
-                    </Button>
-                    <Button
-                      color="primary"
-                      onClick={() => {
-                        dispatch(prepareNextGame())
-                        setShowSettlement(false)
-                        handleStartGame()  // 再来一局
-                      }}
-                    >
-                      再来一局
-                    </Button>
-                    <Button
-                      color="default"
-                      onClick={() => {
-                        dispatch(prepareNextGame())
-                        setShowSettlement(false)
-                        handleLeaveRoom()
-                      }}
-                    >
-                      返回大厅
-                    </Button>
+              <div className="settlement-panel settlement-panel-right">
+                {gameState.gameResult.score && (
+                  <div className="players-score">
+                    <h3 className="section-title">玩家得分</h3>
+                    <div className="players-score-list">
+                      {settlementPlayerScores.map((ps: SettlementPlayerScore) => {
+                        const isWinner = ps.isWinner
+                        const isMe = ps.playerId === (user?.id || user?.name)
+                        const scoreValue = ps.finalScore > 0 ? `+${ps.finalScore}` : ps.finalScore
+                        return (
+                          <div
+                            key={ps.playerId}
+                            className={`player-score-row ${isWinner ? 'winner' : ''} ${isMe ? 'me' : ''}`}
+                          >
+                            <div className="player-info">
+                              <span className="player-name">{ps.playerName}</span>
+                              <span className="player-role">{ps.role === 'landlord' ? '地主' : '农民'}</span>
+                            </div>
+                            <span className={`player-score-value ${ps.finalScore >= 0 ? 'positive' : 'negative'}`}>
+                              {scoreValue}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
+                )}
+
+                {settlementAchievementEntries.length > 0 && (
+                  <div className="achievements-info">
+                    <h3 className="section-title">🏆 解锁成就</h3>
+                    <div className="achievements-list">
+                      {settlementAchievementEntries.map(([playerId, achievements]: [string, string[]]) => {
+                        const playerName =
+                          settlementPlayerScores.find((ps: SettlementPlayerScore) => ps.playerId === playerId)?.playerName ||
+                          playerId
+                        return (
+                          <div key={playerId} className="achievement-row">
+                            <span className="achievement-player">{playerName}</span>
+                            <div className="achievement-tags">
+                              {achievements.map((ach: string, idx: number) => (
+                                <span key={idx} className="achievement-tag">{ach}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <div className="settlement-actions">
+                  <Button color="success" onClick={handleViewProfile}>
+                    查看战绩
+                  </Button>
+                  <Button
+                    color="primary"
+                    onClick={() => {
+                      dispatch(prepareNextGame())
+                      setShowSettlement(false)
+                      handleStartGame() // 再来一局
+                    }}
+                  >
+                    再来一局
+                  </Button>
+                  <Button
+                    color="default"
+                    onClick={() => {
+                      dispatch(prepareNextGame())
+                      setShowSettlement(false)
+                      handleLeaveRoom()
+                    }}
+                  >
+                    返回大厅
+                  </Button>
                 </div>
               </div>
             </div>
-          }
-          closeOnMaskClick={false}
-        />
+          </div>
+        </div>
       )}
     </div>
   )

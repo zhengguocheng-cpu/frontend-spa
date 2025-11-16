@@ -3,14 +3,14 @@
 /* 玩家手牌区域 - 在当前玩家信息右侧 */
 .player-hand-section {
   position: absolute;
-  bottom: 20px; /* 距离底部 */
+  bottom: 10px; /* 距离底部，稍微下沉一些给手牌更多空间 */
   left: 150px; /* 距离左边 */
   right: 10px; /* 距离右边 */
-  height: 130px; /* 增加高度以容纳更多牌 */
+  height: 150px; /* 增加高度以容纳更多牌 */
   display: flex;
   justify-content: center; /* 水平居中 */
   align-items: flex-end;
-  overflow-x: visible; /* 水平方向不允许溢出 */
+  overflow-x: visible; /* 水平方向允许溢出，具体是否越界由 JS 控制重叠 */
   overflow-y: visible; /* 垂直方向允许溢出（选中的牌向上） */
   padding: 0;
   z-index: 50;
@@ -34,8 +34,10 @@
 
 /* 卡牌样式 - 照抄 frontend */
 .card {
-  width: clamp(45px, 3.5vw, 65px); /* 减小宽度 */
-  height: clamp(65px, 5vw, 95px); /* 减小高度 */
+  --card-width: clamp(45px, 3.5vw, 65px); /* 基础牌宽度 */
+  --card-height: clamp(65px, 5vw, 95px); /* 基础牌高度 */
+  width: var(--card-width); /* 减小宽度 */
+  height: var(--card-height); /* 减小高度 */
   background: linear-gradient(to bottom, #ffffff 0%, #f5f5f5 100%);
   border: 2px solid #333; /* 减细边框 */
   border-radius: 6px;
@@ -73,7 +75,8 @@
 
 /* 卡牌内容布局 - 调整字体 */
 .card-value {
-  font-size: clamp(24px, 1.3vw, 40px); /* 减小字体 */
+  --card-rank-font-size: clamp(24px, 1.3vw, 40px); /* 基础点数字体 */
+  font-size: var(--card-rank-font-size); /* 减小字体 */
   font-weight: 900;
   font-family: 'Arial Black', 'Microsoft YaHei', sans-serif;
   line-height: 1;
@@ -81,7 +84,8 @@
 }
 
 .card-suit {
-  font-size: clamp(20px, 1.1vw, 36px); /* 减小字体 */
+  --card-suit-font-size: clamp(20px, 1.1vw, 36px); /* 基础花色字体 */
+  font-size: var(--card-suit-font-size); /* 减小字体 */
   line-height: 1;
 }
 
@@ -282,20 +286,20 @@
 /* 底牌显示区域 - 桌面顶端中间 - 照抄 frontend */
 .bottom-cards-display {
   position: absolute;
-  top: 20px;
+  top: 6px; /* 更贴近桌面顶部，减少占用高度 */
   left: 50%;
   transform: translateX(-50%);
   z-index: 100;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
 }
 
 .bottom-cards-container {
   display: flex;
-  gap: 10px;
-  padding: 15px 20px;
+  gap: 6px;
+  padding: 8px 12px; /* 缩小内边距，让区域更紧凑 */
   background: rgba(0, 0, 0, 0.5);
   border-radius: 12px;
   border: 2px solid rgba(255, 215, 0, 0.5);
@@ -304,17 +308,17 @@
 }
 
 .bottom-card {
-  width: 70px;
-  height: 100px;
+  width: 32px;
+  height: 48px; /* 底牌进一步缩小，营造远景效果（再缩小约 30%） */
   background: linear-gradient(to bottom, #ffffff 0%, #f5f5f5 100%);
-  border: 2px solid #333;
-  border-radius: 8px;
+  border: 1.2px solid #333;
+  border-radius: 6px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   justify-content: flex-start;
-  padding: 8px 0 0 8px;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+  padding: 4px 0 0 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.28);
   transition: all 0.3s ease;
   color: #000;
   text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
@@ -327,7 +331,7 @@
 }
 
 .bottom-card .card-value {
-  font-size: 20px;
+  font-size: 9px;
   font-weight: 900;
   font-family: 'Arial Black', 'Microsoft YaHei', sans-serif;
   line-height: 1;
@@ -335,12 +339,12 @@
 }
 
 .bottom-card .card-suit {
-  font-size: 18px;
+  font-size: 8px;
   line-height: 1;
 }
 
 .bottom-card .card-value.joker-text {
-  font-size: 16px;
+  font-size: 7px;
   font-weight: 900;
   writing-mode: vertical-rl;
   letter-spacing: 0px;
@@ -380,13 +384,23 @@
 
 .played-cards-container {
   display: flex;
-  gap: -40px; /* 卡牌重叠 */
+  justify-content: center;
+  gap: 6px; /* 轻微间距，接近平铺 */
 }
 
 .played-cards-container .card {
-  width: 80px;
-  height: 110px;
-  margin-left: -40px;
+  width: calc(var(--card-width) * 0.7);   /* 比手牌略小，清晰可见 */
+  height: calc(var(--card-height) * 0.7); /* 保持比例 */
+  margin-left: 0; /* 不再使用负间距重叠 */
+}
+
+/* 出牌区域的点数和花色也按 50% 缩放，区分于手牌 */
+.played-cards-container .card .card-value {
+  font-size: calc(var(--card-rank-font-size) * 0.7);
+}
+
+.played-cards-container .card .card-suit {
+  font-size: calc(var(--card-suit-font-size) * 0.7);
 }
 
 .played-cards-container .card:first-child {
@@ -454,79 +468,12 @@
   }
 }
 
-/* 结算界面样式 - 照抄 frontend */
-.settlement-content {
-  padding: 20px;
-  text-align: center;
-}
-
-.settlement-title {
-  font-size: 24px;
-  font-weight: bold;
-  color: #f39c12;
-  margin-bottom: 20px;
-}
-
-.winner-info {
-  margin: 20px 0;
-  padding: 20px;
-  background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 140, 0, 0.1));
-  border-radius: 12px;
-  border: 2px solid rgba(255, 215, 0, 0.3);
-}
-
-.winner-avatar {
-  font-size: 48px;
-  margin-bottom: 10px;
-}
-
-.winner-name {
-  font-size: 20px;
-  font-weight: bold;
-  margin-bottom: 5px;
-}
-
-.winner-role {
-  font-size: 16px;
-  color: #666;
-}
-
-.score-info {
-  margin: 20px 0;
-  padding: 15px;
-  background: #f5f5f5;
-  border-radius: 8px;
-}
-
-.score-item {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 0;
-  font-size: 16px;
-}
-
-.score-item.total {
-  border-top: 2px solid #ddd;
-  margin-top: 10px;
-  padding-top: 15px;
-  font-size: 18px;
-  font-weight: bold;
-  color: #e74c3c;
-}
-
-.settlement-actions {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  margin-top: 20px;
-}
-
 /* 小屏幕适配 */
 @media (max-width: 768px) {
   .player-hand-section {
     left: 10px; /* 缩小左边距 */
     right: 15px;
-    height: 120px; /* 减小高度 */
+    height: 135px; /* 移动端也稍微增加高度，让手牌更不拥挤 */
   }
   
   .card {

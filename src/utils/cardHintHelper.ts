@@ -46,6 +46,9 @@ const RANK_VALUES: Record<string, number> = {
   '🃏大王': 17,
 }
 
+const HIGH_CARD_VALUE = RANK_VALUES['A']
+const isHighPowerValue = (v: number): boolean => v >= HIGH_CARD_VALUE
+
 const getCardValue = (card: Card): number => {
   if (!card) return 0
 
@@ -562,7 +565,8 @@ const findBiggerSingles = (hand: Card[], minValue: number): Card[][] => {
 
     const baseCost =
       groupSize === 1 ? 0 : groupSize === 2 ? 1 : groupSize === 3 ? 2 : 3
-    const fullCost = baseCost + (isCriticalSingle ? 100 : 0)
+    const isHighPower = isHighPowerValue(value)
+    const fullCost = baseCost + (isCriticalSingle ? 100 : 0) + (isHighPower ? 120 : 0)
 
     for (const card of cardsOfValue) {
       candidates.push({ card, value, cost: fullCost })
@@ -603,7 +607,11 @@ const findBiggerPairs = (hand: Card[], minValue: number): Card[][] => {
     const breaksAirplane = airplaneTriple.has(value) && groupSize === 3
 
     const baseCost = groupSize === 2 ? 1 : groupSize === 3 ? 2 : 3
-    const fullCost = baseCost + (breaksStraight || breaksPairSequence || breaksAirplane ? 100 : 0)
+    const isHighPower = isHighPowerValue(value)
+    const fullCost =
+      baseCost +
+      (breaksStraight || breaksPairSequence || breaksAirplane ? 100 : 0) +
+      (isHighPower ? 120 : 0)
 
     candidates.push({ cards: pair, value, cost: fullCost })
   }
@@ -1127,7 +1135,8 @@ const findBiggerTripleWithSingles = (hand: Card[], minTripleValue: number): Card
       const isCriticalSingle = isStraightCritical || isPairSeqCritical || isAirplaneCritical
       const baseCost =
         groupSize === 1 ? 0 : groupSize === 2 ? 1 : groupSize === 3 ? 2 : 3
-      const fullCost = baseCost + (isCriticalSingle ? 100 : 0)
+      const isHighPower = isHighPowerValue(v)
+      const fullCost = baseCost + (isCriticalSingle ? 100 : 0) + (isHighPower ? 120 : 0)
 
       kicks.push({ card, value: v, cost: fullCost })
     }
@@ -1175,7 +1184,11 @@ const findBiggerTripleWithPairs = (hand: Card[], minTripleValue: number): Card[]
       const breaksAirplane = airplaneTriple.has(pairValue) && groupSize === 3
 
       const baseCost = groupSize === 2 ? 1 : groupSize === 3 ? 2 : 3
-      const fullCost = baseCost + (breaksStraight || breaksPairSequence || breaksAirplane ? 100 : 0)
+      const isHighPower = isHighPowerValue(pairValue)
+      const fullCost =
+        baseCost +
+        (breaksStraight || breaksPairSequence || breaksAirplane ? 100 : 0) +
+        (isHighPower ? 120 : 0)
 
       pairKicks.push({ cards: pair, value: pairValue, cost: fullCost })
     }
@@ -1230,7 +1243,8 @@ const findBiggerFourWithTwo = (hand: Card[], minFourValue: number, length: numbe
           const isCriticalSingle = isStraightCritical || isPairSeqCritical || isAirplaneCritical
           const baseCost =
             groupSize === 1 ? 0 : groupSize === 2 ? 1 : groupSize === 3 ? 2 : 3
-          const fullCost = baseCost + (isCriticalSingle ? 100 : 0)
+          const isHighPower = isHighPowerValue(v)
+          const fullCost = baseCost + (isCriticalSingle ? 100 : 0) + (isHighPower ? 120 : 0)
 
           for (const c of cardsOfV) {
             kicks.push({ card: c, value: v, cost: fullCost })
@@ -1330,6 +1344,20 @@ export class CardHintHelper {
 
     const selfPattern = detectSimplePattern(fullHand)
     if (!selfPattern) return false
+
+    // 如果整手牌是王炸：
+    // - 无上家牌：可以直接出
+    // - 上家不是王炸：可以直接压过
+    // - 上家也是王炸：无法再压过
+    if (selfPattern.type === 'rocket') {
+      if (!lastPlayed || lastPlayed.length === 0) {
+        return true
+      }
+
+      const lastPatternForRocket = detectSimplePattern(lastPlayed)
+      if (!lastPatternForRocket) return true
+      return lastPatternForRocket.type !== 'rocket'
+    }
 
     if (!lastPlayed || lastPlayed.length === 0) {
       // 无上家牌：首家/新一轮，默认允许整手牌出
