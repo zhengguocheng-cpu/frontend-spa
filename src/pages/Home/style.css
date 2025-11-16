@@ -7,7 +7,7 @@
   align-items: center;
   justify-content: center;
   padding: 20px;
-  overflow-y: auto; /* 允许垂直滚动 */
+  overflow-y: auto; /* 竖屏下内容略超出时可以滚动 */
 }
 
 .home-content {
@@ -67,5 +67,12 @@
 
   .home-subtitle {
     font-size: 18px;
+  }
+}
+
+@media screen and (orientation: landscape) {
+  .home-container {
+    height: 100vh;
+    overflow-y: hidden; /* 横屏下尽量不出现垂直滚动条 */
   }
 }

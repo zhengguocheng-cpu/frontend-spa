@@ -31,31 +31,39 @@ interface AchievementItem {
   unlockedAt?: string | Date | null
 }
 
+// 按成就ID定义一个展示优先级：首胜 -> 连胜类 -> 其它里程碑
+const ACHIEVEMENT_ORDER: Record<string, number> = {
+  first_win: 1,
+  streak_3: 2,
+  streak_5: 3,
+  streak_10: 4,
+  win_10: 5,
+  win_50: 6,
+  win_100: 7,
+}
+
+function getAchievementOrder(a: AchievementItem): number {
+  const byId = ACHIEVEMENT_ORDER[a.id]
+  if (typeof byId === 'number') return byId
+  // 未在表中的成就统一排在后面
+  return 1000
+}
+
 export default function Profile() {
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const navigate = useNavigate()
 
   const [stats, setStats] = useState<ProfileStats | null>(null)
   const [history, setHistory] = useState<GameHistoryItem[]>([])
-   const [achievements, setAchievements] = useState<AchievementItem[]>([])
+  const [achievements, setAchievements] = useState<AchievementItem[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-   const [achievementsLoading, setAchievementsLoading] = useState(false)
+  const [achievementsLoading, setAchievementsLoading] = useState(false)
 
   const status = globalSocket.getStatus()
-  const lastRoomId = typeof window !== 'undefined' ? sessionStorage.getItem('lastRoomId') : null
 
-  const handleLogout = () => {
-    logout()
-    navigate('/login')
-  }
-
-  const handleBackToGame = () => {
-    if (lastRoomId) {
-      navigate(`/game/${lastRoomId}`)
-    } else {
-      navigate('/rooms')
-    }
+  const handleGoBack = () => {
+    navigate(-1)
   }
 
   if (!user) {
@@ -72,7 +80,12 @@ export default function Profile() {
         setLoading(true)
         setError(null)
 
-        const res = await fetch(`/api/score/${encodeURIComponent(user.id)}`, {
+        const baseUrl =
+          window.location.hostname === 'localhost'
+            ? 'http://localhost:3000'
+            : window.location.origin
+
+        const res = await fetch(`${baseUrl}/api/score/${encodeURIComponent(user.id)}`, {
           signal: controller.signal,
         })
 
@@ -124,8 +137,13 @@ export default function Profile() {
       try {
         setAchievementsLoading(true)
 
+        const baseUrl =
+          window.location.hostname === 'localhost'
+            ? 'http://localhost:3000'
+            : window.location.origin
+
         const res = await fetch(
-          `/api/score/${encodeURIComponent(user.id)}/achievements`,
+          `${baseUrl}/api/score/${encodeURIComponent(user.id)}/achievements`,
           {
             signal: controller.signal,
           }
@@ -144,7 +162,16 @@ export default function Profile() {
           return
         }
 
-        setAchievements(json.data)
+        // 按预设顺序排序成就，让展示呈现“首胜 -> 三连胜/五连胜/十连胜 -> 其它”的进阶效果
+        const sorted: AchievementItem[] = [...json.data].sort((a: AchievementItem, b: AchievementItem) => {
+          const orderA = getAchievementOrder(a)
+          const orderB = getAchievementOrder(b)
+          if (orderA !== orderB) return orderA - orderB
+          // 次级按名称排序，保证顺序稳定
+          return String(a.name).localeCompare(String(b.name), 'zh-CN')
+        })
+
+        setAchievements(sorted)
       } catch (err: any) {
         if (err?.name === 'AbortError') return
         console.error('加载成就失败:', err)
@@ -217,6 +244,35 @@ export default function Profile() {
             </div>
           </div>
 
+          <div className="profile-achievements-card">
+            <div className="profile-achievements-header">
+              <div className="title">我的成就</div>
+              {achievementsLoading && <span className="sub">加载中...</span>}
+            </div>
+            {!achievementsLoading && achievements.length === 0 && (
+              <div className="profile-empty">暂无成就，继续加油～</div>
+            )}
+            {achievements.length > 0 && (
+              <div className="achievements-grid">
+                {achievements.map((a) => (
+                  <div
+                    key={a.id}
+                    className={
+                      'achievement-item ' + (a.isUnlocked ? 'unlocked' : 'locked')
+                    }
+                    title={a.description}
+                  >
+                    <div className="achievement-icon">{a.icon}</div>
+                    <div className="achievement-name">{a.name}</div>
+                    <div className="achievement-desc">
+                      {a.isUnlocked ? '已解锁' : `${Math.round(a.progress || 0)}%`}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="profile-history-card">
             <div className="profile-history-header">
               <div className="title">最近战绩</div>
@@ -272,43 +328,16 @@ export default function Profile() {
               </div>
             )}
           </div>
-
-          <div className="profile-achievements-card">
-            <div className="profile-achievements-header">
-              <div className="title">我的成就</div>
-              {achievementsLoading && <span className="sub">加载中...</span>}
-            </div>
-            {!achievementsLoading && achievements.length === 0 && (
-              <div className="profile-empty">暂无成就，继续加油～</div>
-            )}
-            {achievements.length > 0 && (
-              <div className="achievements-grid">
-                {achievements.map((a) => (
-                  <div
-                    key={a.id}
-                    className={
-                      'achievement-item ' + (a.isUnlocked ? 'unlocked' : 'locked')
-                    }
-                    title={a.description}
-                  >
-                    <div className="achievement-icon">{a.icon}</div>
-                    <div className="achievement-name">{a.name}</div>
-                    <div className="achievement-desc">
-                      {a.isUnlocked ? '已解锁' : `${Math.round(a.progress || 0)}%`}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
 
         <div className="profile-actions">
-          <Button type="primary" onClick={handleBackToGame}>
-            {lastRoomId ? '返回牌桌' : '返回大厅'}
+          <Button onClick={handleGoBack}>返回</Button>
+          <Button type="primary" onClick={() => navigate('/leaderboard')}>
+            查看排行榜
           </Button>
-          <Button onClick={() => navigate('/rooms')}>返回大厅</Button>
-          <Button danger onClick={handleLogout}>退出登录</Button>
+          <Button onClick={() => navigate('/feedback')}>
+            意见反馈
+          </Button>
         </div>
       </Card>
     </div>

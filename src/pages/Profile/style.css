@@ -94,7 +94,7 @@
 
 .profile-main {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr);
+  grid-template-columns: minmax(0, 1fr); /* 三个主块按行竖直排列 */
   gap: 20px;
 }
 
@@ -107,37 +107,38 @@
   box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.25);
 }
 
-.profile-achievements-card {
-  grid-column: 1 / -1; /* 成就区占满两列，位于下方 */
+.profile-stats-card {
+  padding: 12px 14px; /* 对局概览整体更紧凑一点 */
 }
 
 .profile-stats-title {
-  font-size: 14px;
+  font-size: 18px;
   font-weight: 600;
   color: #e5e7eb;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .profile-stats-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr)); /* 四个统计卡片一行展示 */
+  gap: 10px;
 }
 
 .profile-stat-item {
   background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.3), rgba(15, 23, 42, 0.9));
   border-radius: 12px;
-  padding: 10px 12px;
+  padding: 10px 10px;
 }
 
 .profile-stat-item .label {
-  font-size: 12px;
-  color: #9ca3af;
+  font-size: 13px;
+  font-weight: 600;
+  color: #e5e7eb;
   margin-bottom: 4px;
 }
 
 .profile-stat-item .value {
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 700;
   color: #f9fafb;
 }
@@ -152,10 +153,10 @@
 
 .profile-history-header .title,
 .profile-achievements-header .title {
-  font-size: 14px;
+  font-size: 18px;
   font-weight: 600;
   color: #e5e7eb;
-  margin-bottom: 0;
+  margin-bottom: 2px;
 }
 
 .profile-history-header .sub,
@@ -237,14 +238,14 @@
 
 .achievements-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
   margin-top: 4px;
 }
 
 .achievement-item {
-  padding: 14px 12px;
-  border-radius: 14px;
+  padding: 10px 10px; /* 成就卡片整体略微缩小 */
+  border-radius: 12px;
   text-align: center;
   transition: all 0.25s ease;
   cursor: pointer;
@@ -266,12 +267,12 @@
 }
 
 .achievement-icon {
-  font-size: 32px;
-  margin-bottom: 6px;
+  font-size: 26px;
+  margin-bottom: 4px;
 }
 
 .achievement-name {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   color: #111827;
   margin-bottom: 4px;
@@ -282,7 +283,7 @@
 }
 
 .achievement-desc {
-  font-size: 12px;
+  font-size: 11px;
   color: #4b5563;
 }
 
@@ -312,6 +313,17 @@
 
   .profile-main {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .profile-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)); /* 小屏保留两列，更易阅读 */
+  }
+
+  .profile-stats-card,
+  .profile-history-card,
+  .profile-achievements-card {
+    grid-column: 1 / -1; /* 小屏下三块区域按顺序纵向排列 */
+    grid-row: auto;
   }
 
   .profile-header {

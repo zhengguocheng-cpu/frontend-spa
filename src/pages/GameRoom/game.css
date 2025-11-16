@@ -89,13 +89,13 @@
   line-height: 1;
 }
 
-/* JOKER特殊样式 - 竖着显示 */
+/* JOKER特殊样式 - 竖排显示（参考原版房间样式） */
 .card-value.joker-text {
-  font-size: clamp(12px, 1vw, 16px); /* 减小字体 */
+  font-size: clamp(12px, 1vw, 16px);
   font-weight: 900;
   writing-mode: vertical-rl;
-  letter-spacing: 0px;
   text-orientation: upright;
+  letter-spacing: 2px;
   max-height: 100%;
 }
 
@@ -347,8 +347,8 @@
   font-size: 7px;
   font-weight: 900;
   writing-mode: vertical-rl;
-  letter-spacing: 0px;
   text-orientation: upright;
+  letter-spacing: 1px;
   max-height: 80px;
 }
 
@@ -385,13 +385,17 @@
 .played-cards-container {
   display: flex;
   justify-content: center;
-  gap: 6px; /* 轻微间距，接近平铺 */
+  gap: 0; /* 由负 margin 控制遮挡间距 */
 }
 
 .played-cards-container .card {
   width: calc(var(--card-width) * 0.7);   /* 比手牌略小，清晰可见 */
   height: calc(var(--card-height) * 0.7); /* 保持比例 */
-  margin-left: 0; /* 不再使用负间距重叠 */
+  margin-left: calc(var(--card-width) * -0.35); /* 适度遮挡，营造出牌重叠效果 */
+}
+
+.played-cards-container .card:first-child {
+  margin-left: 0;
 }
 
 /* 出牌区域的点数和花色也按 50% 缩放，区分于手牌 */
@@ -401,6 +405,13 @@
 
 .played-cards-container .card .card-suit {
   font-size: calc(var(--card-suit-font-size) * 0.7);
+}
+
+/* 已出牌区域中的 JOKER 再缩小一档，避免竖排文字被裁剪 */
+.played-cards-container .card .card-value.joker-text {
+  font-size: clamp(6px, 0.55vw, 9px);
+  letter-spacing: 0.6px;
+  margin-bottom: 0;
 }
 
 .played-cards-container .card:first-child {

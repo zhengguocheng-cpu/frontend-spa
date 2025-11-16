@@ -150,6 +150,30 @@ export default function RoomList() {
         </Button>
         <Button
           size="small"
+          className="room-action-button"
+          onClick={() => navigate('/leaderboard')}
+        >
+          <span className="action-icon" aria-hidden>🏆</span>
+          <span>排行榜</span>
+        </Button>
+        <Button
+          size="small"
+          className="room-action-button"
+          onClick={() => navigate('/feedback')}
+        >
+          <span className="action-icon" aria-hidden>💬</span>
+          <span>意见反馈</span>
+        </Button>
+        <Button
+          size="small"
+          className="room-action-button"
+          onClick={() => navigate('/profile')}
+        >
+          <span className="action-icon" aria-hidden>👤</span>
+          <span>个人中心</span>
+        </Button>
+        <Button
+          size="small"
           color="danger"
           className="room-action-button"
           onClick={handleLogout}

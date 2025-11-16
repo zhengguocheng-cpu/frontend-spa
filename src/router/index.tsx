@@ -9,6 +9,8 @@ const Login = lazy(() => import('../pages/Login'))
 const Register = lazy(() => import('../pages/Register'))
 const RoomList = lazy(() => import('../pages/RoomList'))
 const Profile = lazy(() => import('../pages/Profile'))
+const Leaderboard = lazy(() => import('../pages/Leaderboard'))
+const Feedback = lazy(() => import('../pages/Feedback'))
 const NotFound = lazy(() => import('../pages/NotFound'))
 
 const RequireAuth = lazy(() => import('../components/RequireAuth'))
@@ -72,6 +74,26 @@ export const router = createBrowserRouter([
       <Suspense fallback={<Loading />}>
         <RequireAuth>
           <Profile />
+        </RequireAuth>
+      </Suspense>
+    ),
+  },
+  {
+    path: '/leaderboard',
+    element: (
+      <Suspense fallback={<Loading />}>
+        <RequireAuth>
+          <Leaderboard />
+        </RequireAuth>
+      </Suspense>
+    ),
+  },
+  {
+    path: '/feedback',
+    element: (
+      <Suspense fallback={<Loading />}>
+        <RequireAuth>
+          <Feedback />
         </RequireAuth>
       </Suspense>
     ),

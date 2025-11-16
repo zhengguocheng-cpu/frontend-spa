@@ -1,8 +1,9 @@
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Button, Toast } from 'antd-mobile'
+import { Button, Toast, Dialog } from 'antd-mobile'
 import { useAuth } from '@/context/AuthContext'
 import { useAppDispatch, useAppSelector } from '@/hooks/useAppDispatch'
+import { useSocketStatus } from '@/hooks/useSocketStatus'
 import { globalSocket } from '@/services/socket'
 import type { RootState } from '@/store'
 import {
@@ -21,7 +22,8 @@ import {
   clearSelection,
   setLastPlayedFromState,
   type SettlementPlayerScore,
-  type SettlementAchievements,
+  type GameResultPayload,
+  type SettlementScore,
 } from '@/store/slices/gameSlice'
 import { CardHintHelper } from '@/utils/cardHintHelper'
 import { soundManager } from '@/utils/sound'
@@ -48,8 +50,10 @@ export default function GameRoom() {
     landlordId = null,
   } = gameState
 
+  // 全局 Socket 连接状态（用于本房间 UI 显示 & 事件监听控制）
+  const { connected } = useSocketStatus()
+
   // Local state
-  const [connected, setConnected] = useState(false)
   const [chatVisible, setChatVisible] = useState(false)
   const [chatMessage, setChatMessage] = useState('')
   const [chatMessages, setChatMessages] = useState<Array<{ sender: string; message: string }>>([])
@@ -129,39 +133,74 @@ export default function GameRoom() {
 
   const settlementScore = useMemo(() => gameState.gameResult?.score, [gameState.gameResult])
   const settlementPlayerScores = settlementScore?.playerScores ?? []
-  const settlementAchievements = useMemo<SettlementAchievements>(
-    () => gameState.gameResult?.achievements ?? {},
-  [gameState.gameResult?.achievements])
-  const settlementAchievementEntries = useMemo<Array<[string, string[]]>>(
-    () => Object.entries(settlementAchievements).map(([playerId, list]) => [playerId, list || []]),
-  [settlementAchievements])
-
-  const multiplierDescriptions = useMemo(() => {
-    if (!settlementScore) return []
-    const multipliers = settlementScore.playerScores?.[0]?.multipliers
-    if (!multipliers) return []
-    const desc: string[] = []
-    if (multipliers.bomb > 1) {
-      desc.push(`炸弹×${Math.log2(multipliers.bomb)}`)
-    }
-    if (multipliers.rocket > 1) {
-      desc.push(`王炸×${Math.log(multipliers.rocket) / Math.log(4)}`)
-    }
-    if (multipliers.spring > 1) {
-      desc.push('春天')
-    }
-    if (multipliers.antiSpring > 1) {
-      desc.push('反春')
-    }
-    if (desc.length === 0) {
-      desc.push('基础倍数')
-    }
-    desc.push(`总倍数 ×${multipliers.total}`)
-    return desc
-  }, [settlementScore])
 
   const handleViewProfile = () => {
     navigate('/profile')
+  }
+
+  // 调试用：构造一份假结算数据，直接展示结算界面
+  const handlePreviewSettlement = () => {
+    if (!user) return
+
+    const meId = (user.id || user.name || 'me') as string
+    const meName = (user.name || user.id || '我') as string
+
+    const other1Name =
+      players[0] && players[0].name && players[0].name !== meName ? players[0].name : '玩家2'
+    const other2Name =
+      players[1] && players[1].name && players[1].name !== meName ? players[1].name : '玩家3'
+
+    const mockPlayerScores: SettlementPlayerScore[] = [
+      {
+        playerId: meId,
+        playerName: meName,
+        role: 'landlord',
+        isWinner: true,
+        baseScore: 16,
+        multipliers: { base: 1, bomb: 1, rocket: 1, spring: 1, antiSpring: 1, total: 1 },
+        finalScore: 16,
+      },
+      {
+        playerId: `${other1Name}-id`,
+        playerName: other1Name,
+        role: 'farmer',
+        isWinner: false,
+        baseScore: -8,
+        multipliers: { base: 1, bomb: 1, rocket: 1, spring: 1, antiSpring: 1, total: 1 },
+        finalScore: -8,
+      },
+      {
+        playerId: `${other2Name}-id`,
+        playerName: other2Name,
+        role: 'farmer',
+        isWinner: false,
+        baseScore: -8,
+        multipliers: { base: 1, bomb: 1, rocket: 1, spring: 1, antiSpring: 1, total: 1 },
+        finalScore: -8,
+      },
+    ]
+
+    const mockScore: SettlementScore = {
+      baseScore: 1,
+      bombCount: 0,
+      rocketCount: 0,
+      isSpring: false,
+      isAntiSpring: false,
+      landlordWin: true,
+      playerScores: mockPlayerScores,
+    }
+
+    const mockResult: GameResultPayload = {
+      winnerId: meId,
+      winnerName: meName,
+      winnerRole: 'landlord',
+      landlordWin: true,
+      score: mockScore,
+      achievements: {},
+    }
+
+    dispatch(endGame(mockResult))
+    setShowSettlement(true)
   }
 
   // 解析卡牌 - 照抄 frontend/public/room/js/room-simple.js 第 2065-2093 行
@@ -187,7 +226,20 @@ export default function GameRoom() {
       }
     }
     
-    return { rank, suit, isJoker: null }
+    const result = { rank, suit, isJoker: null as any }
+
+    // 调试日志：如果点数不在预期集合内，输出完整原始字符串，排查“问/向”等异常牌面
+    const validRanks = ['3','4','5','6','7','8','9','10','J','Q','K','A','2','JOKER']
+    if (!validRanks.includes(result.rank)) {
+      // 使用 warn 而不是 error，避免影响正常流程
+      console.warn('⚠️ [parseCard] 异常牌面', {
+        card,
+        rank: result.rank,
+        suit: result.suit,
+      })
+    }
+
+    return result
   }
 
   const STRAIGHT_RANKS = ['3','4','5','6','7','8','9','10','J','Q','K','A']
@@ -237,7 +289,6 @@ export default function GameRoom() {
     // 监听连接状态
     const handleConnect = () => {
       console.log('✅ Socket 已连接，准备加入房间')
-      setConnected(true)
       
       // 连接成功后立即加入房间
       globalSocket.joinGame({
@@ -250,15 +301,15 @@ export default function GameRoom() {
 
     const handleDisconnect = () => {
       console.log('❌ Socket 已断开')
-      setConnected(false)
     }
 
     socket.on('connect', handleConnect)
+    socket.on('reconnect', handleConnect)
     socket.on('disconnect', handleDisconnect)
 
-    // 如果已经连接，立即加入房间
+    // 如果已经连接，立即标记为已连接并加入房间
     if (socket.connected) {
-      setConnected(true)
+      console.log('✅ Socket 已处于连接状态，直接加入房间')
       globalSocket.joinGame({
         roomId,
         userId: user.id,
@@ -277,6 +328,7 @@ export default function GameRoom() {
 
     return () => {
       socket.off('connect', handleConnect)
+      socket.off('reconnect', handleConnect)
       socket.off('disconnect', handleDisconnect)
       soundManager.stopBackgroundMusic()
     }
@@ -1545,9 +1597,16 @@ export default function GameRoom() {
             {connected ? '✅ 已连接' : '❌ 未连接'}
           </span>
         </div>
-        <Button size="small" color="danger" onClick={handleLeaveRoom}>
-          退出房间
-        </Button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {import.meta.env.DEV && (
+            <Button size="small" color="primary" onClick={handlePreviewSettlement}>
+              预览结算
+            </Button>
+          )}
+          <Button size="small" color="danger" onClick={handleLeaveRoom}>
+            退出房间
+          </Button>
+        </div>
       </div>
 
       {/* 游戏桌面 */}
@@ -1926,92 +1985,39 @@ export default function GameRoom() {
         <div className="settlement-overlay">
           <div className="settlement-root">
             <div className="settlement-layout">
-              <div className="settlement-panel settlement-panel-left">
-                <h2 className="settlement-title">
-                  {gameState.gameResult.landlordWin ? '🎊 地主获胜！' : '🎊 农民获胜！'}
-                </h2>
-
-                <div className="winner-info">
-                  <div className="winner-avatar">👑</div>
-                  <div className="winner-meta">
-                    <div className="winner-name">{gameState.gameResult.winnerName || '未知玩家'}</div>
-                    <div className="winner-role">
-                      {gameState.gameResult.winnerRole === 'landlord' ? '地主' : '农民'}
-                    </div>
+              <div className="settlement-panel">
+                <div className="settlement-header">
+                  <div
+                    className={`settlement-result-badge ${
+                      gameState.gameResult.landlordWin ? 'landlord-win' : 'farmer-win'
+                    }`}
+                  >
+                    {gameState.gameResult.landlordWin ? '地主获胜' : '农民获胜'}
                   </div>
                 </div>
 
                 {gameState.gameResult.score && (
-                  <>
-                    <div className="score-summary-grid">
-                      <div className="score-item">
-                        <span className="label">基础分</span>
-                        <span className="value">{settlementScore?.baseScore ?? 1}</span>
-                      </div>
-                      <div className="score-item">
-                        <span className="label">倍数</span>
-                        <span className="value">×{settlementPlayerScores[0]?.multipliers?.total ?? 1}</span>
-                      </div>
-                    </div>
-
-                    {multiplierDescriptions.length > 0 && (
-                      <div className="score-multipliers">
-                        <h4 className="section-subtitle">倍数详情</h4>
-                        <div className="multiplier-tags">
-                          {multiplierDescriptions.map((item, idx) => (
-                            <span key={idx} className="multiplier-tag">{item}</span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-
-              <div className="settlement-panel settlement-panel-right">
-                {gameState.gameResult.score && (
                   <div className="players-score">
-                    <h3 className="section-title">玩家得分</h3>
+                    <h3 className="section-title">本局结算</h3>
                     <div className="players-score-list">
                       {settlementPlayerScores.map((ps: SettlementPlayerScore) => {
                         const isWinner = ps.isWinner
                         const isMe = ps.playerId === (user?.id || user?.name)
                         const scoreValue = ps.finalScore > 0 ? `+${ps.finalScore}` : ps.finalScore
+                        const roleLabel = ps.role === 'landlord' ? '地主' : '农民'
                         return (
                           <div
                             key={ps.playerId}
                             className={`player-score-row ${isWinner ? 'winner' : ''} ${isMe ? 'me' : ''}`}
                           >
                             <div className="player-info">
-                              <span className="player-name">{ps.playerName}</span>
-                              <span className="player-role">{ps.role === 'landlord' ? '地主' : '农民'}</span>
+                              <span className="player-name">
+                                {ps.playerName}（{roleLabel}）
+                              </span>
                             </div>
                             <span className={`player-score-value ${ps.finalScore >= 0 ? 'positive' : 'negative'}`}>
                               {scoreValue}
                             </span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {settlementAchievementEntries.length > 0 && (
-                  <div className="achievements-info">
-                    <h3 className="section-title">🏆 解锁成就</h3>
-                    <div className="achievements-list">
-                      {settlementAchievementEntries.map(([playerId, achievements]: [string, string[]]) => {
-                        const playerName =
-                          settlementPlayerScores.find((ps: SettlementPlayerScore) => ps.playerId === playerId)?.playerName ||
-                          playerId
-                        return (
-                          <div key={playerId} className="achievement-row">
-                            <span className="achievement-player">{playerName}</span>
-                            <div className="achievement-tags">
-                              {achievements.map((ach: string, idx: number) => (
-                                <span key={idx} className="achievement-tag">{ach}</span>
-                              ))}
-                            </div>
                           </div>
                         )
                       })}

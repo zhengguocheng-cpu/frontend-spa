@@ -66,6 +66,7 @@ class GlobalSocketManager {
 
   subscribeStatus(listener: StatusListener) {
     this.statusListeners.add(listener)
+    // 订阅时立即推送一次当前状态，方便 UI 立刻显示
     listener(this.getStatus())
     return () => this.statusListeners.delete(listener)
   }

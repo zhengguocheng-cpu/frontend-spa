@@ -1,10 +1,19 @@
-import { useSyncExternalStore } from 'react'
+import { useEffect, useState } from 'react'
 import { globalSocket, type SocketStatus } from '@/services/socket'
 
 export function useSocketStatus(): SocketStatus {
-  return useSyncExternalStore(
-    (notify) => globalSocket.subscribeStatus(notify),
-    () => globalSocket.getStatus(),
-    () => globalSocket.getStatus()
-  )
+  const [status, setStatus] = useState<SocketStatus>(() => globalSocket.getStatus())
+
+  useEffect(() => {
+    // 订阅全局 Socket 状态变化
+    const unsubscribe = globalSocket.subscribeStatus(() => {
+      setStatus(globalSocket.getStatus())
+    })
+
+    return () => {
+      unsubscribe()
+    }
+  }, [])
+
+  return status
 }

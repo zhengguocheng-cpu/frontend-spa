@@ -4,7 +4,7 @@
   min-height: 100vh;
   background: #f5f5f5;
   padding: 12px 16px 24px;
-  overflow-y: auto; /* 允许垂直滚动 */
+  overflow-y: auto; /* 滚动限制在容器内部 */
 }
 
 .room-list-header {
@@ -139,4 +139,10 @@
 .loading-state {
   text-align: center;
   padding: 60px 20px;
+}
+
+@media screen and (orientation: landscape) {
+  .room-list-container {
+    height: 100vh; /* 横屏下占满视口高度，避免 body 额外滚动 */
+  }
 }
