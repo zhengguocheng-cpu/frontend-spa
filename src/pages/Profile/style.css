@@ -1,0 +1,334 @@
+.profile-page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+  background: radial-gradient(circle at top, #1e3a8a 0%, #020617 55%, #0f172a 100%);
+}
+
+.profile-card.ant-card {
+  width: min(960px, 100%);
+  border-radius: 20px;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.55);
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.96), rgba(15, 118, 110, 0.95));
+  border: none;
+  color: #e5e7eb;
+}
+
+.profile-card .ant-card-body {
+  padding: 24px 28px;
+}
+
+.profile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.profile-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.profile-avatar-large {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  background: radial-gradient(circle at 20% 10%, #fef9c3, #f97316);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  box-shadow: 0 10px 25px rgba(251, 191, 36, 0.45);
+}
+
+.profile-basic {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.profile-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: #f9fafb;
+}
+
+.profile-id {
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+.profile-header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.profile-conn-pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.profile-conn-ok {
+  background: rgba(22, 163, 74, 0.18);
+  color: #bbf7d0;
+}
+
+.profile-conn-bad {
+  background: rgba(220, 38, 38, 0.28);
+  color: #fecaca;
+}
+
+.profile-conn-sub {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.profile-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr);
+  gap: 20px;
+}
+
+.profile-stats-card,
+.profile-history-card,
+.profile-achievements-card {
+  background: rgba(15, 23, 42, 0.72);
+  border-radius: 16px;
+  padding: 16px 18px;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.25);
+}
+
+.profile-achievements-card {
+  grid-column: 1 / -1; /* 成就区占满两列，位于下方 */
+}
+
+.profile-stats-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e5e7eb;
+  margin-bottom: 12px;
+}
+
+.profile-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.profile-stat-item {
+  background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.3), rgba(15, 23, 42, 0.9));
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.profile-stat-item .label {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-bottom: 4px;
+}
+
+.profile-stat-item .value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #f9fafb;
+}
+
+.profile-history-header,
+.profile-achievements-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.profile-history-header .title,
+.profile-achievements-header .title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e5e7eb;
+  margin-bottom: 0;
+}
+
+.profile-history-header .sub,
+.profile-achievements-header .sub {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.profile-error-text {
+  font-size: 13px;
+  color: #fecaca;
+  margin-bottom: 8px;
+}
+
+.profile-empty {
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+.profile-history-list {
+  margin-top: 4px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.profile-history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 6px;
+  border-bottom: 1px solid rgba(30, 64, 175, 0.5);
+}
+
+.profile-history-item .info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.profile-history-item .time {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.profile-history-item .role {
+  font-size: 13px;
+  color: #e5e7eb;
+}
+
+.profile-history-item .tags {
+  margin-top: 2px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.profile-history-item .tag {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.25);
+  color: #bfdbfe;
+}
+
+.profile-history-item .score {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.profile-history-item .score.positive {
+  color: #4ade80;
+}
+
+.profile-history-item .score.negative {
+  color: #fca5a5;
+}
+
+/* 成就区域 - 参考旧 frontend 风格 */
+
+.achievements-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.achievement-item {
+  padding: 14px 12px;
+  border-radius: 14px;
+  text-align: center;
+  transition: all 0.25s ease;
+  cursor: pointer;
+}
+
+.achievement-item.unlocked {
+  background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+  box-shadow: 0 6px 16px rgba(248, 181, 85, 0.4);
+}
+
+.achievement-item.locked {
+  background: rgba(15, 23, 42, 0.85);
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.3);
+  opacity: 0.75;
+}
+
+.achievement-item:hover {
+  transform: translateY(-2px) scale(1.03);
+}
+
+.achievement-icon {
+  font-size: 32px;
+  margin-bottom: 6px;
+}
+
+.achievement-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 4px;
+}
+
+.achievement-item.locked .achievement-name {
+  color: #e5e7eb;
+}
+
+.achievement-desc {
+  font-size: 12px;
+  color: #4b5563;
+}
+
+.achievement-item.locked .achievement-desc {
+  color: #9ca3af;
+}
+
+.profile-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+@media (max-width: 768px) {
+  .profile-page {
+    align-items: stretch;
+  }
+
+  .profile-card.ant-card {
+    width: 100%;
+  }
+
+  .profile-card .ant-card-body {
+    padding: 18px 16px;
+  }
+
+  .profile-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .profile-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .profile-header-right {
+    align-items: flex-start;
+  }
+
+  .profile-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .achievements-grid {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  }
+}

@@ -118,6 +118,7 @@
   border: 2px solid rgba(255, 255, 255, 0.3);
   backdrop-filter: blur(8px);
   transition: all 0.3s ease;
+  position: relative;
 }
 
 .player-slot:hover {
@@ -235,6 +236,7 @@
   z-index: 10;
   backdrop-filter: blur(8px);
   transition: all 0.3s ease;
+  position: relative;
 }
 
 .current-player-info:hover {
@@ -265,6 +267,30 @@
   font-size: 11px;
   margin-left: 0;
   text-align: center;
+}
+
+/* 当前出牌玩家高亮和倒计时标志 */
+.player-slot.turn-active,
+.current-player-info.turn-active {
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.8);
+  border-color: #38bdf8;
+}
+
+.turn-indicator {
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #ffffff, #0ea5e9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 0 10px rgba(14, 165, 233, 0.9);
 }
 
 
@@ -383,18 +409,43 @@
   color: #333;
 }
 
+.settlement-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at top, rgba(250, 250, 250, 0.15), transparent 55%),
+    linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 64, 175, 0.98));
+  backdrop-filter: blur(6px);
+}
+
+.settlement-root {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
 .settlement-layout {
   display: flex;
   flex-direction: row;
   gap: 24px;
   align-items: stretch;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(240, 244, 255, 0.95));
-  border-radius: 20px;
-  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.2);
-  padding: 32px 36px;
-  width: min(90vw, 960px);
-  max-width: 960px;
-  max-height: 80vh;
+  background: radial-gradient(circle at top left, rgba(251, 191, 36, 0.25), transparent 55%),
+    radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.3), transparent 55%),
+    rgba(15, 23, 42, 0.92);
+  border-radius: 24px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
+  padding: 32px 40px;
+  width: 100%;
+  max-width: 1100px;
+  max-height: 100%;
   overflow: hidden;
   box-sizing: border-box;
 }
@@ -411,7 +462,7 @@
 }
 
 .settlement-panel-left {
-  flex: 0 0 320px;
+  flex: 0 0 360px; /* 左侧信息区稍微加宽 */
   gap: 24px;
 }
 
@@ -656,6 +707,12 @@
   min-width: 108px;
   font-size: 14px;
   font-weight: 600;
+}
+
+/* 覆盖 antd-mobile Dialog 默认高度限制，避免结算内容被裁剪 */
+.adm-dialog-body {
+  max-height: 90vh;
+  overflow: auto;
 }
 
 @media (max-width: 900px) {
