@@ -12,23 +12,35 @@ export default function RoomList() {
   const [loading, setLoading] = useState(false)
   const [connected, setConnected] = useState(false)
   const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null)
-  const [isStandalone, setIsStandalone] = useState(false)
+  const [showInstallBanner, setShowInstallBanner] = useState(false)
 
   useEffect(() => {
-    const checkStandalone = () => {
+    const checkEnvironment = () => {
       if (typeof window === 'undefined') return
+
       const isDisplayStandalone = window.matchMedia?.('(display-mode: standalone)').matches
       const isNavigatorStandalone = (window.navigator as any)?.standalone === true
-      setIsStandalone(Boolean(isDisplayStandalone || isNavigatorStandalone))
+
+      const ua = window.navigator.userAgent || ''
+      const isAndroidWebView = /Android/.test(ua) && /; wv\)/.test(ua)
+      const isIOS = /\b(iPhone|iPad|iPod)\b/.test(ua)
+      const isSafari = /Safari/.test(ua)
+      const isIOSWebView = isIOS && !isSafari
+
+      const isNativeShell = isAndroidWebView || isIOSWebView
+
+      setShowInstallBanner(
+        Boolean(!isDisplayStandalone && !isNavigatorStandalone && !isNativeShell)
+      )
     }
 
-    checkStandalone()
+    checkEnvironment()
 
     const media = window.matchMedia?.('(display-mode: standalone)')
-    media?.addEventListener('change', checkStandalone)
+    media?.addEventListener('change', checkEnvironment)
 
     return () => {
-      media?.removeEventListener('change', checkStandalone)
+      media?.removeEventListener('change', checkEnvironment)
     }
   }, [])
 
@@ -140,7 +152,7 @@ export default function RoomList() {
 
   return (
     <div className="room-list-container">
-      {!isStandalone && (
+      {showInstallBanner && (
         <div className="install-banner">
           <div className="install-banner-text">
             为了下次可以从桌面一键打开，建议先将「欢乐斗地主」安装到桌面。

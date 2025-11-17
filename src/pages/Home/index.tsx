@@ -4,6 +4,7 @@ import './style.css'
 
 export default function Home() {
   const navigate = useNavigate()
+  const appVersion = (import.meta as any).env?.VITE_APP_BUILD_VERSION || 'dev'
 
   return (
     <div className="home-container">
@@ -42,6 +43,7 @@ export default function Home() {
             前往登录
           </Button>
         </div>
+        <div className="home-version">版本：{appVersion}</div>
       </div>
     </div>
   )

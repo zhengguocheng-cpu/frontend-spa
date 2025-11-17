@@ -13,7 +13,7 @@
   overflow-x: visible; /* 水平方向允许溢出，具体是否越界由 JS 控制重叠 */
   overflow-y: visible; /* 垂直方向允许溢出（选中的牌向上） */
   padding: 0;
-  z-index: 50;
+  z-index: 3; /* 降低层级，让出牌区（z-index: 5）显示在手牌上方 */
 }
 
 .player-hand {
@@ -479,31 +479,35 @@
   }
 }
 
-/* 小屏幕适配 */
+/* 小屏幕适配 - 参照图2优化 */
 @media (max-width: 768px) {
   .player-hand-section {
-    left: 10px; /* 缩小左边距 */
+    left: 10px;
     right: 15px;
-    height: 135px; /* 移动端也稍微增加高度，让手牌更不拥挤 */
+    bottom: 56px; /* 整体上移，为底部玩家信息条腾出空间 */
+    height: 130px; /* 稍微提高高度，容纳稍大的牌 */
   }
   
   .card {
-    width: clamp(40px, 3.5vw, 55px);
-    height: clamp(56px, 4.9vw, 77px);
+    /* 参照图2，牌稍大一些 */
+    width: clamp(42px, 4vw, 58px);
+    height: clamp(60px, 5.5vw, 84px);
     margin-left: clamp(-35px, -4vw, 0px);
-    border-width: 2px;
-    padding: 4px 0 0 4px;
+    border-width: 2.5px;
+    padding: 5px 0 0 5px;
   }
-  
+
   .card-value {
-    font-size: clamp(12px, 1vw, 14px);
+    /* 字体更醒目 */
+    font-size: clamp(22px, 2.5vw, 32px);
+    font-weight: 900;
   }
-  
+
   .card-suit {
-    font-size: clamp(10px, 0.8vw, 12px);
+    font-size: clamp(18px, 2.2vw, 28px);
   }
-  
+
   .card-value.joker-text {
-    font-size: clamp(10px, 0.9vw, 12px);
+    font-size: clamp(13px, 1.2vw, 18px);
   }
 }

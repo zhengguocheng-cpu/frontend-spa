@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Card } from 'antd'
 import { SpinLoading } from 'antd-mobile'
 import { useAuth } from '@/context/AuthContext'
+import { globalSocket } from '@/services/socket'
 import './style.css'
 
  type RankType = 'score' | 'winRate'
@@ -93,12 +94,31 @@ export default function Leaderboard() {
 
   const scoreHeaderLabel = type === 'score' ? '积分' : '胜率'
 
+  const handleBackToLobby = () => {
+    try {
+      const lastRoomId = sessionStorage.getItem('lastRoomId')
+      if (lastRoomId) {
+        try {
+          globalSocket.leaveGame(lastRoomId)
+        } catch (err) {
+          console.warn('返回大厅时离开房间失败（可忽略）:', err)
+        }
+        sessionStorage.removeItem('lastRoomId')
+        sessionStorage.removeItem('lastRoomTime')
+      }
+    } catch (e) {
+      console.warn('清理房间缓存失败（可忽略）:', e)
+    }
+
+    navigate('/rooms')
+  }
+
   return (
     <div className="leaderboard-page">
       <Card className="leaderboard-card" bordered={false}>
         <div className="leaderboard-header-row">
           <div className="leaderboard-header-left">
-            <button className="lb-header-btn" onClick={() => navigate('/rooms')}>
+            <button className="lb-header-btn" onClick={handleBackToLobby}>
               ← 返回大厅
             </button>
           </div>

@@ -190,6 +190,80 @@
   gap: 16px;
   padding: 16px;
   z-index: 5;
+  pointer-events: none; /* 让点击穿透到下层，不阻挡手牌交互 */
+}
+
+/* 出牌区域样式 */
+.played-cards-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none; /* 出牌区不接受点击 */
+  position: absolute;
+  z-index: 15; /* 高于手牌区和中央区域 */
+}
+
+/* 左上玩家出牌区：在其右侧 */
+.played-cards-area.left-player-cards {
+  top: 80px;
+  left: 200px;
+}
+
+/* 右上玩家出牌区：在其左侧 */
+.played-cards-area.right-player-cards {
+  top: 80px;
+  right: 200px;
+}
+
+/* 底部玩家出牌区：在center-area内（手牌上方） */
+.played-cards-area.bottom-player-cards {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 不出文字显示 */
+.pass-text {
+  font-size: 48px;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.6), 0 0 20px rgba(255, 255, 255, 0.3);
+  letter-spacing: 8px;
+  animation: pass-fade-in 0.3s ease-out;
+}
+
+@keyframes pass-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.played-cards-container {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  flex-wrap: nowrap;
+  pointer-events: none;
+}
+
+/* 确保出牌区的卡牌可见且在手牌上方 */
+.played-cards-container .card {
+  pointer-events: none;
+  z-index: 10; /* 比手牌的z-index(1)高 */
+}
+
+/* 出牌区的卡牌也需要重叠显示 */
+.played-cards-container .card:not(:first-child) {
+  margin-left: -30px; /* 让卡牌重叠显示 */
 }
 
 .bottom-cards,
@@ -279,18 +353,21 @@
 .turn-indicator {
   position: absolute;
   top: -10px;
-  left: -10px;
-  width: 28px;
-  height: 28px;
+  right: -10px; /* 倒计时移动到头像右上角 */
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, #ffffff, #0ea5e9);
+  /* 提高对比度：深橙色背景 + 白色数字 */
+  background: linear-gradient(135deg, #ff6b35 0%, #ff8c42 50%, #ffa600 100%);
+  border: 3px solid #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 700;
-  box-shadow: 0 0 10px rgba(14, 165, 233, 0.9);
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 900;
+  box-shadow: 0 0 12px rgba(255, 107, 53, 0.8), 0 2px 8px rgba(0, 0, 0, 0.3);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
 
@@ -299,11 +376,11 @@
 .player-hand {
   grid-row: 3; /* 第3行 */
   grid-column: 2 / 4; /* 第2-3列 */
-  background: rgba(0, 0, 0, 0.2);
-  padding: 1px;
+  background: transparent; /* 不再单独加一层背景框 */
+  padding: 0;
   overflow-x: auto;
   overflow-y: visible;
-  border-radius: 8px;
+  border-radius: 0;
   z-index: 10;
   min-height: 0; /* 允许缩小 */
 }
@@ -367,7 +444,7 @@
   align-items: center;
   justify-content: center;
   gap: 16px;
-  z-index: 100;
+  z-index: 200; /* 提高到200，确保在所有元素之上 */
   pointer-events: none; /* 不阻挡鼠标事件 */
 }
 
@@ -394,7 +471,8 @@
 }
 
 .bidding-controls button {
-  min-width: 80px;
+  min-width: 96px; /* 加宽一点，避免“抢地主”换行 */
+  white-space: nowrap;
 }
 
 .playing-controls {
@@ -523,6 +601,7 @@
 }
 
 .winner-avatar {
+  position: relative;
   width: 72px;
   height: 72px;
   border-radius: 16px;
@@ -532,6 +611,23 @@
   justify-content: center;
   font-size: 36px;
   box-shadow: 0 10px 20px rgba(249, 115, 22, 0.35);
+}
+
+.landlord-badge {
+  position: absolute;
+  top: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  box-shadow: 0 2px 8px rgba(255, 215, 0, 0.6);
+  z-index: 10;
 }
 
 .winner-meta {
@@ -912,10 +1008,23 @@
     width: 350px;
   }
   
+  /* 移动端横屏：右下角UI组缩小一点 */
   .chat-toggle-btn {
-    width: 56px;
-    height: 56px;
-    font-size: 28px;
+    width: 48px;
+    height: 48px;
+    font-size: 24px;
+  }
+
+  .game-multiplier {
+    padding: 6px 12px;
+  }
+
+  .multiplier-icon {
+    font-size: 18px;
+  }
+
+  .multiplier-value {
+    font-size: 13px;
   }
 }
 
@@ -931,6 +1040,135 @@
     width: 44px;
     height: 44px;
     font-size: 20px;
+  }
+}
+
+/* 移动端横屏优化：压缩垂直空间，缩小玩家信息面板 */
+@media (max-width: 900px) and (orientation: landscape) {
+  .game-room-header {
+    height: 42px;
+    padding: 4px 12px;
+  }
+
+  .room-id {
+    font-size: 13px;
+  }
+
+  .game-table {
+    margin: 4px 6px;
+    padding: 12px;
+    border-width: 8px;
+    grid-template-rows: 80px 1fr 140px;
+  }
+
+  .top-players {
+    align-items: flex-start;
+    margin-top: -4px;
+  }
+
+  .player-slot {
+    padding: 6px 10px;
+    min-width: 110px;
+  }
+
+  .current-player-info {
+    /* 移动端横屏：改为头像下方布局，下移到桌底 */
+    position: absolute;
+    left: 18px;
+    bottom: 8px; /* 从22px改为8px，更靠近桌底 */
+    grid-row: auto;
+    grid-column: auto;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 5px 7px;
+    width: auto;
+    min-width: 75px;
+    max-width: 110px;
+    height: auto;
+    border-radius: 8px;
+    transform: none;
+    z-index: 40;
+    gap: 3px;
+  }
+
+  .player-avatar-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .current-player-info .player-avatar {
+    width: 44px;
+    height: 44px;
+    font-size: 22px;
+  }
+
+  .player-info-below {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+  }
+
+  .player-level,
+  .player-coins {
+    font-size: 10px;
+    color: #ffd700;
+    white-space: nowrap;
+    text-align: left;
+  }
+
+  /* 按钮组下移到桌子中间 */
+  .game-controls {
+    position: absolute;
+    left: 50%;
+    top: 42%;
+    transform: translate(-50%, -50%);
+    grid-row: auto;
+    grid-column: auto;
+    flex-direction: row;
+    gap: 10px;
+    padding: 0;
+    background: transparent;
+    z-index: 200; /* 提高到200，确保按钮在手牌之上 */
+  }
+
+  /* 出牌/提示/不出按钮 */
+  .game-controls .adm-button {
+    font-size: 15px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    min-width: 68px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  /* 叫地主/抢地主按钮（缩小） */
+  .bidding-controls {
+    position: absolute;
+    left: 50%;
+    top: 42%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    z-index: 20;
+  }
+
+  .bidding-controls .adm-button {
+    font-size: 14px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    min-width: 65px;
+    height: 38px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  /* 不出文字移动端调整 */
+  .pass-text {
+    font-size: 40px;
+    letter-spacing: 6px;
   }
 }
 
@@ -969,33 +1207,62 @@
   background: rgba(255, 255, 255, 0.5);
 }
 
+/* 右下角UI组（倍数+聊天） */
+.bottom-right-ui {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 1002;
+}
+
+/* 倍数显示 */
+.game-multiplier {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(8px);
+}
+
+.multiplier-icon {
+  font-size: 20px;
+}
+
+.multiplier-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: #d97706;
+}
+
 /* 聊天切换按钮 */
 .chat-toggle-btn {
-  position: fixed;
-  right: 16px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
   color: white;
-  font-size: 24px;
+  border: none;
+  font-size: 28px;
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 999;
   transition: all 0.3s ease;
+  flex-shrink: 0;
 }
 
 .chat-toggle-btn:hover {
-  transform: translateY(-50%) scale(1.1);
+  transform: scale(1.1);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
 }
 
 .chat-toggle-btn:active {
-  transform: translateY(-50%) scale(0.95);
+  transform: scale(0.95);
 }

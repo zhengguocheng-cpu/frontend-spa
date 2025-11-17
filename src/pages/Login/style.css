@@ -90,6 +90,38 @@
 @media screen and (orientation: landscape) {
   .login-container {
     height: 100vh;
-    overflow-y: hidden; /* 横屏下尽量不出现垂直滚动条 */
+    overflow-y: hidden; /* 横屏下一屏展示，不滚动 */
+    align-items: flex-start;
+    padding: 8px 12px;
+  }
+
+  .login-card {
+    max-width: 360px;
+    padding: 20px 16px;
+  }
+
+  .login-header {
+    margin-bottom: 16px;
+  }
+
+  .login-title {
+    font-size: 26px;
+  }
+
+  .login-subtitle {
+    font-size: 13px;
+  }
+
+  .login-form {
+    margin-bottom: 16px;
+  }
+
+  .avatar-emoji {
+    font-size: 28px;
+  }
+
+  .login-button {
+    height: 44px;
+    font-size: 15px;
   }
 }

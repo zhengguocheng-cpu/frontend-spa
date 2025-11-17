@@ -2,6 +2,8 @@
 
 .home-container {
   min-height: 100vh;
+  width: 100%;
+  box-sizing: border-box;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   display: flex;
   align-items: center;
@@ -55,6 +57,13 @@
   margin-top: 24px;
 }
 
+.home-version {
+  margin-top: 12px;
+  font-size: 12px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.8);
+}
+
 /* 平板和桌面适配 */
 @media (min-width: 768px) {
   .home-content {
@@ -73,6 +82,45 @@
 @media screen and (orientation: landscape) {
   .home-container {
     height: 100vh;
-    overflow-y: hidden; /* 横屏下尽量不出现垂直滚动条 */
+    /* 横屏下整体再压缩一些，并允许轻微滚动，保证能看到版本号 */
+    overflow-y: auto;
+    align-items: center;
+    padding: 6px 10px;
+  }
+
+  .home-content {
+    max-width: 320px;
+  }
+
+  .home-header {
+    margin-bottom: 8px;
+  }
+
+  .home-title {
+    font-size: 24px;
+    margin-bottom: 2px;
+  }
+
+  .home-subtitle {
+    font-size: 12px;
+  }
+
+  .home-card {
+    margin-bottom: 8px;
+  }
+
+  .home-actions {
+    margin-top: 8px;
+  }
+
+  .home-version {
+    margin-top: 4px;
+    font-size: 10px;
+  }
+
+  /* 横屏下正文也稍微缩小一号 */
+  .home-description p {
+    font-size: 13px;
+    line-height: 1.4;
   }
 }

@@ -168,3 +168,11 @@
     height: 100vh; /* 横屏下占满视口高度，避免 body 额外滚动 */
   }
 }
+
+/* 横屏手机/平板上一行放三个房间卡片 */
+@media screen and (orientation: landscape) and (max-width: 1024px) {
+  .room-list-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+}
