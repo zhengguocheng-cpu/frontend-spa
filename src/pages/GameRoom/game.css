@@ -226,15 +226,17 @@
   border-radius: 8px;
 }
 
-/* 游戏操作按钮 */
+/* 游戏操作按钮（老版本定位逻辑已废弃）
+   SPA 版按钮的位置完全交给 GameRoom/style.css 中的 .game-controls + .game-actions 控制
+   这里仅保留基础的布局，不再使用 absolute/bottom/left 避免与新布局冲突。 */
 .game-actions {
-  position: absolute;
-  bottom: 200px;
-  left: 50%;
-  transform: translateX(-50%);
+  position: static;
+  bottom: auto;
+  left: auto;
+  transform: none;
   display: flex;
   gap: 20px;
-  z-index: 100;
+  z-index: auto;
 }
 
 .game-actions button {

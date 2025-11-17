@@ -194,26 +194,47 @@
 }
 
 /* 出牌区域样式 */
-.played-cards-area {
+
+.player-slot .played-cards-area {
+  position: absolute;
+  top: 50%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  pointer-events: none; /* 出牌区不接受点击 */
-  position: absolute;
-  z-index: 15; /* 高于手牌区和中央区域 */
+  pointer-events: none;
+  z-index: 20;
+  min-width: 120px;
 }
 
-/* 左上玩家出牌区：在其右侧 */
-.played-cards-area.left-player-cards {
-  top: 80px;
-  left: 200px;
+/* 左侧玩家（上家）：出牌区在玩家框右侧 */
+.player-slot.left .played-cards-area {
+  left: calc(100% + 12px);
+  transform: translateY(-50%);
+  align-items: flex-start;
 }
 
-/* 右上玩家出牌区：在其左侧 */
-.played-cards-area.right-player-cards {
-  top: 80px;
-  right: 200px;
+.player-slot.left .played-cards-container {
+  justify-content: flex-start; /* 牌靠左对齐，最左边的牌紧贴玩家框 */
+}
+
+/* 右侧玩家（下家）：出牌区在玩家框左侧
+   以 player-slot 的左边框为锚点：
+   left: 0        → 出牌区的左边缘先对齐到 player-slot 左边框
+   translateX(-100%) → 再整体向左移动自身宽度，这样“最右边那张牌”刚好贴住 player-slot 左边框，整串牌向左伸出 */
+.player-slot.right .played-cards-area {
+  left: 0;
+  transform: translate(-100%, -50%);
+  align-items: flex-end;
+}
+
+.player-slot.right .played-cards-container {
+  justify-content: flex-end; /* 牌靠右对齐，最右边的牌紧贴玩家框 */
+}
+
+.player-slot .played-cards-area .pass-text {
+  font-size: 36px;
+  letter-spacing: 4px;
 }
 
 /* 底部玩家出牌区：在center-area内（手牌上方） */
@@ -436,20 +457,47 @@
   font-size: 20px;
 }
 
-/* 控制按钮覆盖层 - 使用 Grid 定位（中央区域） */
+/* 控制按钮覆盖层 - 覆盖在游戏桌面中央偏下位置 */
 .game-controls {
+  /* 保留原有 Grid 信息，便于以后切回 Grid 布局 */
   grid-row: 2; /* 第2行（中央） */
   grid-column: 1 / 4; /* 跨越所有列 */
-  display: flex;
+
+  /* 关键：相对于 .game-table 绝对定位，强制居中显示 */
+  position: absolute;
+  left: 50%;
+  top: 68%; /* 稍微偏下，靠近手牌上方 */
+  transform: translate(-50%, -50%);
+
+  display: flex !important;
   align-items: center;
   justify-content: center;
   gap: 16px;
-  z-index: 200; /* 提高到200，确保在所有元素之上 */
+  z-index: 200; /* 确保在所有元素之上，包括出牌区和手牌 */
   pointer-events: none; /* 不阻挡鼠标事件 */
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 .game-controls > * {
   pointer-events: auto; /* 按钮可点击 */
+}
+
+/* 确保game-actions和game-buttons可见 */
+.game-actions {
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.game-buttons {
+  display: flex !important;
+  gap: 10px;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 /* 确保按钮在桌面正中间 */

@@ -10,6 +10,7 @@ import {
   initGame,
   updatePlayers,
   updatePlayerStatus,
+  setGameStatus,
   startGame,
   toggleCardSelection,
   playCards as playCardsAction,
@@ -103,14 +104,14 @@ export default function GameRoom() {
     // 当前玩家（底部）
     const currentPlayer = filteredPlayers[myIndex]
 
-    // 左侧玩家（逆时针下一位）
+    // 左侧玩家（上家，逆时针上一位）
     const leftPlayer = filteredPlayers.length >= 2
-      ? filteredPlayers[(myIndex + 1) % filteredPlayers.length]
+      ? filteredPlayers[(myIndex - 1 + filteredPlayers.length) % filteredPlayers.length]
       : null
 
-    // 右侧玩家（逆时针再下一位）
+    // 右侧玩家（下家，逆时针下一位）
     const rightPlayer = filteredPlayers.length >= 3
-      ? filteredPlayers[(myIndex + 2) % filteredPlayers.length]
+      ? filteredPlayers[(myIndex + 1) % filteredPlayers.length]
       : null
 
     return { leftPlayer, rightPlayer, currentPlayer }
@@ -726,13 +727,8 @@ export default function GameRoom() {
             ...prev,
             { sender: '系统', message: `🎴 您是地主！获得 ${data.bottomCards?.length || 3} 张底牌` }
           ])
-
-          // 保险起见：在收到首个 turn_to_play 事件前，先让地主看到出牌按钮
-          // 后端通常会立即发 turn_to_play 给地主，如果事件到了会覆盖这里的状态
-          setIsMyTurn(true)
-          setCanPass(false)
         }
-        
+
         console.log('✅ [地主确定] 等待 turn_to_play 事件...')
       }
     }
@@ -748,6 +744,12 @@ export default function GameRoom() {
       console.log('🎯 [轮到出牌] 当前玩家ID:', user?.id)
       console.log('🎯 [轮到出牌] 事件中的玩家ID:', data.playerId)
       console.log('🎯 [轮到出牌] 当前 gameStatus:', gameStatus)
+      
+      // 收到 turn_to_play 说明游戏已开始，强制确保 gameStatus 为 playing
+      if (gameStatus !== 'playing') {
+        console.warn('⚠️ [轮到出牌] gameStatus 不是 playing，强制修正为 playing')
+        dispatch(setGameStatus('playing'))
+      }
       
       if (data.playerId) {
         dispatch(setCurrentPlayer(data.playerId))
@@ -874,13 +876,14 @@ export default function GameRoom() {
           playPendingRef.current = false
           setPlayPending(false)
         }
-        
+
         // 停止倒计时
         if (turnTimerRef.current) {
           clearInterval(turnTimerRef.current)
           turnTimerRef.current = null
         }
-        
+        setTurnTimer(0)
+
         // 清除已选牌
         dispatch(clearSelection())
         
@@ -932,15 +935,17 @@ export default function GameRoom() {
       // 更新 Redux 状态
       dispatch(endGame(data))
       
-      // 显示结算消息
+      // 将游戏结束结果写入聊天消息框（不再使用 Toast 遮挡牌面）
       const winnerName = data.winnerName || '未知玩家'
       const role = data.winnerRole === 'landlord' ? '地主' : '农民'
-      Toast.show({ 
-        content: `🎊 游戏结束！${winnerName}（${role}）获胜！`, 
-        icon: 'success',
-        duration: 2000
-      })
-      
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          sender: '系统',
+          message: `🎊 游戏结束！${winnerName}（${role}）获胜！`,
+        },
+      ])
+
       // 延迟显示结算界面
       setTimeout(() => {
         setShowSettlement(true)
@@ -1019,17 +1024,27 @@ export default function GameRoom() {
     if (!isMyTurn) return
     if (turnTimer !== 0) return
 
+    console.log('⏰ [超时处理] 倒计时归零，isMyTurn=true, canPass=', canPass)
+
     if (turnTimerRef.current) {
       clearInterval(turnTimerRef.current)
       turnTimerRef.current = null
     }
 
     if (canPass) {
+      console.log('⏰ [超时处理] 可以不出，自动执行不出')
       handlePass()
     } else {
       // 必须出牌且超时：尝试自动按提示出一手牌（参考上家牌型）
-      if (myCards.length === 0) return
-      if (playPendingRef.current) return
+      console.log('⏰ [超时处理] 必须出牌，尝试自动提示出牌')
+      if (myCards.length === 0) {
+        console.warn('⏰ [超时处理] 手牌为空，无法出牌')
+        return
+      }
+      if (playPendingRef.current) {
+        console.warn('⏰ [超时处理] 出牌操作进行中，跳过')
+        return
+      }
 
       const lastCards: string[] | null =
         lastPlayedCards && lastPlayedCards.cards && lastPlayedCards.cards.length > 0
@@ -1037,35 +1052,30 @@ export default function GameRoom() {
           : null
 
       const autoHint = CardHintHelper.getHint(myCards, lastCards)
+      console.log('⏰ [超时处理] 提示结果:', autoHint)
+      
       if (autoHint && autoHint.length > 0) {
+        console.log('⏰ [超时处理] 自动出牌:', autoHint)
         doPlayCards(autoHint)
         Toast.show({ content: '⏰ 时间到，已为你自动出牌', icon: 'success' })
       } else {
-        Toast.show({ content: '⏰ 时间到，但没有可出的牌', icon: 'fail' })
+        // 首轮出牌且没有可出的牌：强制出最小的一张牌
+        console.error('⏰ [超时处理] 无可出牌型，强制出最小的一张牌避免卡死')
+        const minCard = myCards[0] // 手牌已排序，第一张是最小的
+        if (minCard) {
+          console.log('⏰ [超时处理] 强制出最小牌:', minCard)
+          doPlayCards([minCard])
+          setChatMessages(prev => [
+            ...prev,
+            { sender: '系统', message: '⏰ 时间到，无可出牌型，已强制出最小的牌' }
+          ])
+        } else {
+          console.error('⏰ [超时处理] 手牌为空或无法获取最小牌，游戏可能卡住')
+          Toast.show({ content: '⏰ 时间到，但没有可出的牌', icon: 'fail' })
+        }
       }
     }
   }, [turnTimer, isMyTurn, canPass])
-
-  // 当轮到自己出牌且整手牌本身就是一个完整牌型，并且在同牌型前提下能压过上家时，自动立刻出牌
-  useEffect(() => {
-    if (!isMyTurn) return
-    if (playPendingRef.current) return
-    if (!myCards || myCards.length === 0) return
-
-    const autoFullHand = CardHintHelper.getFullHandIfSinglePattern(myCards)
-    if (!autoFullHand || autoFullHand.length !== myCards.length) return
-
-    const lastCards: string[] | null =
-      lastPlayedCards && lastPlayedCards.cards && lastPlayedCards.cards.length > 0
-        ? lastPlayedCards.cards
-        : null
-
-    const canBeat = CardHintHelper.canFullHandBeatLast(autoFullHand, lastCards)
-    if (!canBeat) return
-
-    console.log('🤖 [自动出牌] 整手牌是完整牌型且可压过上家，自动全出:', autoFullHand)
-    doPlayCards(autoFullHand)
-  }, [isMyTurn, myCards, lastPlayedCards])
 
   // 智能自动不出：当轮到自己出牌、可以不出、且没有任何牌能打过上家时，自动不出
   useEffect(() => {
@@ -1368,9 +1378,10 @@ export default function GameRoom() {
       // 1) 上家是对子：点一张牌时整对选中/取消
       if (isLastPair) {
         const { rank } = parseCard(cardStr)
-        const groupCards = myCards.filter((c: string) => parseCard(c).rank === rank)
-        if (groupCards.length >= 2) {
-          const allSelected = groupCards.every((c: string) => selectedCards.includes(c))
+        const sameRankCards = myCards.filter((c: string) => parseCard(c).rank === rank)
+        if (sameRankCards.length >= 2) {
+          const pairCards = sameRankCards.slice(0, 2)
+          const allSelected = pairCards.every((c: string) => selectedCards.includes(c))
           const mode: 'select' | 'deselect' = allSelected ? 'deselect' : 'select'
 
           setIsDragSelecting(true)
@@ -1378,10 +1389,10 @@ export default function GameRoom() {
           if (mode === 'select') {
             // 选择新的一对时，先清空之前的选牌，再只选中当前这一对
             dispatch(clearSelection())
-            groupCards.forEach((c: string) => dispatch(toggleCardSelection(c)))
+            pairCards.forEach((c: string) => dispatch(toggleCardSelection(c)))
           } else {
             // 取消当前这一对的选中状态，保持其它牌的选中状态不变
-            groupCards.forEach((c: string) => updateCardSelection(c, false))
+            pairCards.forEach((c: string) => updateCardSelection(c, false))
           }
           return
         }
@@ -1548,13 +1559,6 @@ export default function GameRoom() {
         playerName: user.name,
         message: chatMessage,
       })
-      
-      // 立即显示自己的消息
-      setChatMessages(prev => [...prev, {
-        sender: user.name,
-        message: chatMessage
-      }])
-      
       setChatMessage('')
     }
   }
@@ -1727,6 +1731,36 @@ export default function GameRoom() {
                   )}
                 </div>
               </div>
+              <div className="played-cards-area">
+                {passedPlayers[leftPlayer.id] ? (
+                  <div className="pass-text">不出</div>
+                ) : (
+                  lastPlayedCards && lastPlayedCards.playerId === leftPlayer.id && (
+                    <div className="played-cards-container">
+                      {lastPlayedCards.cards.map((cardStr: string, index: number) => {
+                        const { rank, suit, isJoker } = parseCard(cardStr)
+                        const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
+                        return (
+                          <motion.div
+                            key={index}
+                            className={`card ${isRed ? 'red' : 'black'}`}
+                            initial={{ opacity: 0, scale: 0.6 }}
+                            animate={{ opacity: 1, scale: 0.85 }}
+                            exit={{ opacity: 0, scale: 0.6, transition: { duration: 0.2 } }}
+                            transition={{ delay: index * 0.03, type: 'spring', stiffness: 280, damping: 20 }}
+                          >
+                            <div className={`card-value ${isJoker ? 'joker-text' : ''}`}
+                              style={isJoker ? { color: isJoker === 'big' ? '#d32f2f' : '#000' } : undefined}>
+                              {isJoker ? 'JOKER' : rank}
+                            </div>
+                            {!isJoker && <div className="card-suit">{suit}</div>}
+                          </motion.div>
+                        )
+                      })}
+                    </div>
+                  )
+                )}
+              </div>
             </div>
           )}
 
@@ -1752,79 +1786,44 @@ export default function GameRoom() {
                   )}
                 </div>
               </div>
+              <div className="played-cards-area">
+                {passedPlayers[rightPlayer.id] ? (
+                  <div className="pass-text">不出</div>
+                ) : (
+                  lastPlayedCards && lastPlayedCards.playerId === rightPlayer.id && (
+                    <div className="played-cards-container">
+                      {lastPlayedCards.cards.map((cardStr: string, index: number) => {
+                        const { rank, suit, isJoker } = parseCard(cardStr)
+                        const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
+                        return (
+                          <motion.div
+                            key={index}
+                            className={`card ${isRed ? 'red' : 'black'}`}
+                            initial={{ opacity: 0, scale: 0.6 }}
+                            animate={{ opacity: 1, scale: 0.85 }}
+                            exit={{ opacity: 0, scale: 0.6, transition: { duration: 0.2 } }}
+                            transition={{ delay: index * 0.03, type: 'spring', stiffness: 280, damping: 20 }}
+                          >
+                            <div className={`card-value ${isJoker ? 'joker-text' : ''}`}
+                              style={isJoker ? { color: isJoker === 'big' ? '#d32f2f' : '#000' } : undefined}>
+                              {isJoker ? 'JOKER' : rank}
+                            </div>
+                            {!isJoker && <div className="card-suit">{suit}</div>}
+                          </motion.div>
+                        )
+                      })}
+                    </div>
+                  )
+                )}
+              </div>
             </div>
           )}
         </div>
 
-        {/* 左上玩家出牌区或不出文字 */}
-        {leftPlayer && passedPlayers[leftPlayer.id] && (
-          <div className="played-cards-area left-player-cards">
-            <div className="pass-text">不出</div>
-          </div>
-        )}
-        {leftPlayer && !passedPlayers[leftPlayer.id] && lastPlayedCards && lastPlayedCards.playerId === leftPlayer.id && (
-          <div className="played-cards-area left-player-cards">
-            <div className="played-cards-container">
-              {lastPlayedCards.cards.map((cardStr: string, index: number) => {
-                const { rank, suit, isJoker } = parseCard(cardStr)
-                const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
-                return (
-                  <motion.div
-                    key={index}
-                    className={`card ${isRed ? 'red' : 'black'}`}
-                    initial={{ opacity: 0, scale: 0.6 }}
-                    animate={{ opacity: 1, scale: 0.85 }}
-                    exit={{ opacity: 0, scale: 0.6, transition: { duration: 0.2 } }}
-                    transition={{ delay: index * 0.03, type: 'spring', stiffness: 280, damping: 20 }}
-                  >
-                    <div className={`card-value ${isJoker ? 'joker-text' : ''}`}
-                      style={isJoker ? { color: isJoker === 'big' ? '#d32f2f' : '#000' } : undefined}>
-                      {isJoker ? 'JOKER' : rank}
-                    </div>
-                    {!isJoker && <div className="card-suit">{suit}</div>}
-                  </motion.div>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* 右上玩家出牌区或不出文字 */}
-        {rightPlayer && passedPlayers[rightPlayer.id] && (
-          <div className="played-cards-area right-player-cards">
-            <div className="pass-text">不出</div>
-          </div>
-        )}
-        {rightPlayer && !passedPlayers[rightPlayer.id] && lastPlayedCards && lastPlayedCards.playerId === rightPlayer.id && (
-          <div className="played-cards-area right-player-cards">
-            <div className="played-cards-container">
-              {lastPlayedCards.cards.map((cardStr: string, index: number) => {
-                const { rank, suit, isJoker } = parseCard(cardStr)
-                const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
-                return (
-                  <motion.div
-                    key={index}
-                    className={`card ${isRed ? 'red' : 'black'}`}
-                    initial={{ opacity: 0, scale: 0.6 }}
-                    animate={{ opacity: 1, scale: 0.85 }}
-                    exit={{ opacity: 0, scale: 0.6, transition: { duration: 0.2 } }}
-                    transition={{ delay: index * 0.03, type: 'spring', stiffness: 280, damping: 20 }}
-                  >
-                    <div className={`card-value ${isJoker ? 'joker-text' : ''}`}
-                      style={isJoker ? { color: isJoker === 'big' ? '#d32f2f' : '#000' } : undefined}>
-                      {isJoker ? 'JOKER' : rank}
-                    </div>
-                    {!isJoker && <div className="card-suit">{suit}</div>}
-                  </motion.div>
-                )
-              })}
-            </div>
-          </div>
-        )}
 
         {/* 底部（当前玩家）出牌区 - 在手牌上方 */}
         <div className="center-area">
-          {lastPlayedCards && lastPlayedCards.playerId === (user?.id || user?.name) && lastPlayedCards.cards && lastPlayedCards.cards.length > 0 && (
+          {lastPlayedCards && currentPlayer && lastPlayedCards.playerId === currentPlayer.id && lastPlayedCards.cards && lastPlayedCards.cards.length > 0 && (
             <div className="played-cards-area bottom-player-cards">
               <div className="played-cards-container">
                 {lastPlayedCards.cards.map((cardStr: string, index: number) => {
@@ -1976,57 +1975,40 @@ export default function GameRoom() {
           </div>
         )}
 
-        {/* 出牌 UI - 照抄 frontend 结构 */}
+        {/* 出牌 UI - 使用原生 button，避免组件层面渲染异常 */}
+        {(() => {
+          console.log('🔍 [按钮渲染] gameStatus=', gameStatus, ', isMyTurn=', isMyTurn, ', 条件满足=', gameStatus === 'playing' && isMyTurn)
+          return null
+        })()}
         {gameStatus === 'playing' && isMyTurn && (
           <div className="game-actions" id="gameActions">
             {turnTimer > 0 && (
               <div className="turn-timer">⏰ {turnTimer}秒</div>
             )}
             <div className="game-buttons">
-              <Button 
-                size="large" 
+              <button
+                type="button"
+                className="btn-hint"
                 onClick={handleHint}
-                style={{
-                  background: '#17a2b8',
-                  border: 'none',
-                  fontSize: '18px',
-                  fontWeight: 'bold',
-                  padding: '12px 30px',
-                  marginRight: '10px'
-                }}
               >
                 提示
-              </Button>
-              <Button 
-                color="primary" 
-                size="large" 
+              </button>
+              <button
+                type="button"
+                className="btn-play"
                 onClick={handlePlayCards}
-                style={{
-                  background: '#007bff',
-                  border: 'none',
-                  fontSize: '18px',
-                  fontWeight: 'bold',
-                  padding: '12px 30px',
-                  marginRight: '10px'
-                }}
                 disabled={playPending}
               >
                 出牌
-              </Button>
+              </button>
               {canPass && (
-                <Button 
-                  size="large" 
+                <button
+                  type="button"
+                  className="btn-pass"
                   onClick={handlePass}
-                  style={{
-                    background: '#6c757d',
-                    border: 'none',
-                    fontSize: '18px',
-                    fontWeight: 'bold',
-                    padding: '12px 30px'
-                  }}
                 >
                   不出
-                </Button>
+                </button>
               )}
             </div>
           </div>

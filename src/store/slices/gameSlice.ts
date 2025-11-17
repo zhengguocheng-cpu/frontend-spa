@@ -234,6 +234,11 @@ const gameSlice = createSlice({
       }
     },
     
+    // 设置游戏状态
+    setGameStatus: (state, action: PayloadAction<'waiting' | 'bidding' | 'playing' | 'finished'>) => {
+      state.gameStatus = action.payload
+    },
+    
     // 开始游戏
     startGame: (state, action: PayloadAction<{ myCards: Card[] }>) => {
       state.gameStatus = 'bidding'
@@ -462,6 +467,7 @@ export const {
   initGame,
   updatePlayers,
   updatePlayerStatus,
+  setGameStatus,
   startGame,
   addBid,
   setLandlord,
