@@ -136,11 +136,6 @@ export default function GameRoom() {
 
   const settlementScore = useMemo(() => gameState.gameResult?.score, [gameState.gameResult])
   const settlementPlayerScores = settlementScore?.playerScores ?? []
-
-  const handleViewProfile = () => {
-    navigate('/profile')
-  }
-
   // 调试用：构造一份假结算数据，直接展示结算界面
   const handlePreviewSettlement = () => {
     if (!user) return
@@ -497,6 +492,11 @@ export default function GameRoom() {
           isReady: p.isReady !== undefined ? p.isReady : p.ready
         }))
         dispatch(updatePlayers(players))
+      } else if (data.playerId) {
+        // 兼容模式：有 playerId 但没有完整 players 列表时，从当前状态中移除该玩家
+        console.log('📋 未收到完整玩家列表，仅根据 playerId 从本地状态移除玩家:', data.playerId)
+        const filtered = (players || []).filter((p: any) => p.id !== data.playerId && p.userId !== data.playerId)
+        dispatch(updatePlayers(filtered))
       }
     }
 
@@ -1111,18 +1111,23 @@ export default function GameRoom() {
     }
   }, [isMyTurn, canPass, myCards, lastPlayedCards])
 
-  // 离开房间 - 退出游戏回到首页
+  // 离开房间 - 实际执行逻辑
+  const doLeaveRoom = () => {
+    if (roomId) {
+      globalSocket.leaveGame(roomId)
+    }
+    sessionStorage.removeItem('lastRoomId')
+    sessionStorage.removeItem('lastRoomTime')
+    dispatch(resetGame())
+    navigate('/', { replace: true })
+  }
+
+  // 离开房间 - 顶部按钮带确认
   const handleLeaveRoom = () => {
     Dialog.confirm({
       content: '确定要退出游戏吗？',
       onConfirm: () => {
-        if (roomId) {
-          globalSocket.leaveGame(roomId)
-        }
-        sessionStorage.removeItem('lastRoomId')
-        sessionStorage.removeItem('lastRoomTime')
-        dispatch(resetGame())
-        navigate('/rooms', { replace: true })
+        doLeaveRoom()
       },
     })
   }
@@ -2132,9 +2137,6 @@ export default function GameRoom() {
                 )}
 
                 <div className="settlement-actions">
-                  <Button color="success" onClick={handleViewProfile}>
-                    查看战绩
-                  </Button>
                   <Button
                     color="primary"
                     onClick={() => {
@@ -2150,7 +2152,7 @@ export default function GameRoom() {
                     onClick={() => {
                       dispatch(prepareNextGame())
                       setShowSettlement(false)
-                      handleLeaveRoom()
+                      doLeaveRoom()
                     }}
                   >
                     返回大厅

@@ -247,15 +247,24 @@ export default function RoomList() {
             // 处理 players 可能是数组或数字的情况
             const playerCount = Array.isArray(room.players) ? room.players.length : room.players
             const isFull = playerCount >= room.maxPlayers
-            
+            const rawStatus = (room as any).status as string | undefined
+            const roomStatus: 'waiting' | 'playing' | 'finished' =
+              rawStatus === 'playing' ? 'playing' : rawStatus === 'finished' ? 'finished' : 'waiting'
+            const tagColor =
+              roomStatus === 'playing' ? 'warning' : roomStatus === 'finished' ? 'default' : 'success'
+            const tagText =
+              roomStatus === 'playing' ? '游戏中' : roomStatus === 'finished' ? '已结束' : '等待中'
+            const cardClassName = `room-card room-card-${roomStatus}`
+
             return (
-              <Card className="room-card" key={room.id}>
+              <Card className={cardClassName} key={room.id}>
                 <div className="room-card-content">
+                  <div className={`room-card-status room-card-status-${roomStatus}`} />
                   <div className="room-card-main">
                     <div className="room-info">
                       <span className="room-name">🏠 {room.name}</span>
-                      <Tag color={isFull ? 'danger' : 'success'}>
-                        {isFull ? '游戏中' : '等待中'}
+                      <Tag color={tagColor}>
+                        {tagText}
                       </Tag>
                     </div>
                     <div className="room-players">

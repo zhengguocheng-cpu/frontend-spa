@@ -110,7 +110,7 @@ export default function Leaderboard() {
       console.warn('清理房间缓存失败（可忽略）:', e)
     }
 
-    navigate('/rooms')
+    navigate('/')
   }
 
   return (

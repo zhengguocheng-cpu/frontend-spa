@@ -1,0 +1,299 @@
+.lobby-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: url('/imgs/bk.jpg') center/cover no-repeat;
+  position: relative;
+  z-index: 0;
+  padding: 12px 12px 70px; /* 底部 padding 留出导航栏空间 */
+  box-sizing: border-box;
+  color: #123057;
+}
+
+.lobby-container::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.lobby-header-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px; /* 两行之间的小缝隙 */
+  margin-bottom: 4px; /* 与下方卡片的距离更近 */
+}
+
+.lobby-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 4px 4px 0;
+}
+
+.lobby-user {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.96), rgba(15, 118, 110, 0.95));
+  border: 1px solid rgba(15, 23, 42, 0.9);
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.45);
+}
+
+.lobby-user-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  background: radial-gradient(circle at 20% 10%, #fef9c3, #f97316);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  margin-right: 10px;
+  box-shadow: 0 10px 25px rgba(251, 191, 36, 0.45);
+}
+
+.lobby-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 18px;
+  background: url('/imgs/玩家头像（男）.png') center/cover no-repeat;
+}
+
+.lobby-user-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 0 4px;
+  gap: 15px; /* 用户名和 ID 之间留出一行的距离 */
+}
+
+.lobby-user-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.lobby-user-level {
+  margin-left: 8px;
+  margin-top: -4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: #5b1b00;
+  background: linear-gradient(135deg, #fff4ce, #ffd36b);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.lobby-level-icon {
+  font-size: 14px;
+}
+
+.lobby-level-text {
+  line-height: 1;
+}
+
+.lobby-user-id {
+  font-size: 11px;
+  color: #e0f2ff;
+}
+
+.lobby-assets {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 8px;
+}
+
+.lobby-asset-item {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #1556c0, #1e78ea);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.35);
+  min-width: 130px;
+  max-width: 170px;
+}
+
+.asset-icon {
+  margin-right: 8px;
+  font-size: 22px;
+}
+
+.asset-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.lobby-login-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.lobby-login-button {
+  flex: 1;
+}
+
+.lobby-sync-wechat {
+  margin-top: 0;
+  margin-left: 16px; /* 与头像略微对齐 */
+  align-self: flex-start;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: none;
+  background: linear-gradient(135deg, #ffe4bd, #ffb955);
+  color: #8a4600;
+  font-size: 11px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16);
+}
+
+.lobby-main-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: -55px; /* 更贴近顶部资产区域，填补空白 */
+  margin-bottom: 0; /* 底部由 container padding 控制 */
+  padding-top: 12px; /* 保持卡片顶部呼吸感 */
+  width: 68%;
+  margin-left: auto;
+}
+
+.lobby-card {
+  border-radius: 16px;
+  padding: 6px 8px 8px; /* 上内边距减小，让标题整体往上挪 */
+  background: linear-gradient(135deg, #ffffff, #f5f8ff);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+
+.lobby-card-img {
+  width: 100%;
+  height: 150px; /* 放大图片高度，占据更多空间 */
+  border-radius: 12px;
+  margin: 0 0 2px; /* 上面紧挨标题，下面尽量靠近描述 */
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.lobby-card-img-quick {
+  background-image: url('/imgs/card-quick-02.png');
+}
+
+.lobby-card-img-join {
+  background-image: url('/imgs/card-room.png');
+}
+
+.lobby-card-img-bomb {
+  background-image: url('/imgs/card-boom.png');
+}
+
+
+.lobby-card-title {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 32px;
+  font-weight: 700;
+  margin-bottom: 2px; /* 更贴近下面的图片 */
+  color: #123057;
+}
+
+.lobby-card-desc {
+  font-size: 11px;
+  color: #6b7280;
+  margin-bottom: 2px; /* 底部留白减小，整体高度更紧凑 */
+}
+
+.lobby-card.quick {
+  background: linear-gradient(135deg, #ffe9b0, #ffd071);
+  border-color: rgba(255, 255, 255, 0.9);
+}
+
+.lobby-card.join {
+  background: linear-gradient(135deg, #b8f3ff, #8edbff);
+  border-color: rgba(255, 255, 255, 0.9);
+}
+
+.lobby-card.bomb {
+  background: linear-gradient(135deg, #ffd7e2, #ffb4c6);
+  border-color: rgba(255, 255, 255, 0.9);
+}
+
+.lobby-card-button {
+  align-self: flex-start;
+}
+
+.lobby-bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 56px;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  background: linear-gradient(180deg, rgba(51, 65, 85, 0.92) 0%, rgba(30, 41, 59, 0.95) 100%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(148, 163, 184, 0.25);
+  box-shadow: 0 -3px 15px rgba(0, 0, 0, 0.2), 0 -1px 3px rgba(0, 0, 0, 0.08);
+  z-index: 100;
+}
+
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  color: rgba(255, 255, 255, 0.98);
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+  min-width: 64px;
+}
+
+.bottom-nav-item:hover {
+  background: rgba(148, 163, 184, 0.2);
+  color: rgba(255, 255, 255, 1);
+  transform: translateY(-2px);
+}
+
+.bottom-nav-item:active {
+  background: rgba(148, 163, 184, 0.25);
+  transform: translateY(0);
+}
+
+.bottom-nav-icon {
+  font-size: 20px;
+  margin-bottom: 2px;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.25));
+}
+
+.bottom-nav-label {
+  font-size: 12px;
+  font-weight: 500;
+  margin-top: 2px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}

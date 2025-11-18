@@ -198,7 +198,7 @@ export default function Profile() {
         <div className="profile-header">
           <div className="profile-header-left">
             <div className="profile-avatar-large">
-              <span>{user.avatar}</span>
+              <div className="profile-avatar-img" />
             </div>
             <div className="profile-basic">
               <div className="profile-name">{user.name}</div>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Button, Form, Input, Picker, Toast } from 'antd-mobile'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
+import { getOrCreateGuestIdentity } from '@/utils/guestIdentity'
 import './style.css'
 
 const avatarOptions = ['👑', '🐯', '🐼', '🐻', '🐰', '🐶', '🐱', '🦁', '🐸', '🐵']
@@ -15,6 +16,7 @@ export default function Login() {
   const [pickerVisible, setPickerVisible] = useState(false)
 
   const handleSubmit = async () => {
+
     if (!username.trim()) {
       Toast.show({ content: '请输入玩家昵称', icon: 'fail' })
       return
@@ -24,11 +26,18 @@ export default function Login() {
     setSubmitting(true)
     try {
       console.log('🔵 调用 login 函数...')
+      // 使用本地生成的 guestId 作为唯一 userId，昵称仅用于展示
+      const guest = getOrCreateGuestIdentity()
+      // 覆盖本地游客昵称，保证后续自动登录时显示同一昵称
+      sessionStorage.setItem('guestUserName', username.trim())
+
       const authUser = await login({
+        userId: guest.id,
         userName: username.trim(),
         playerAvatar: avatar,
         htmlName: 'spa',
       })
+
       console.log('✅ 登录成功:', authUser)
       Toast.show({ content: `欢迎回来，${authUser.name}`, icon: 'success' })
       

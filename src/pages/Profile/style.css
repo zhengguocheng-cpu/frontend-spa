@@ -46,6 +46,13 @@
   box-shadow: 0 10px 25px rgba(251, 191, 36, 0.45);
 }
 
+.profile-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 18px;
+  background: url('/imgs/玩家头像（男）.png') center/cover no-repeat;
+}
+
 .profile-basic {
   display: flex;
   flex-direction: column;
