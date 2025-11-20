@@ -13,19 +13,37 @@ function generateGuestId(): string {
   return `${now}${rand}`
 }
 
+function getGuestStorage(): Storage {
+  try {
+    const search = window.location.search
+    if (search.includes('guestStorage=session') && typeof sessionStorage !== 'undefined') {
+      return sessionStorage
+    }
+  } catch (error) {}
+
+  try {
+    if (typeof localStorage !== 'undefined') {
+      return localStorage
+    }
+  } catch (error) {}
+
+  return sessionStorage
+}
+
 export function getOrCreateGuestIdentity(): GuestIdentity {
-  let id = sessionStorage.getItem(GUEST_ID_KEY)
-  let name = sessionStorage.getItem(GUEST_NAME_KEY)
+  const storage = getGuestStorage()
+  let id = storage.getItem(GUEST_ID_KEY)
+  let name = storage.getItem(GUEST_NAME_KEY)
 
   if (!id) {
     id = generateGuestId()
-    sessionStorage.setItem(GUEST_ID_KEY, id)
+    storage.setItem(GUEST_ID_KEY, id)
   }
 
   if (!name) {
     // 默认昵称：用户 + 完整 ID，例如 用户12345678
     name = `用户${id}`
-    sessionStorage.setItem(GUEST_NAME_KEY, name)
+    storage.setItem(GUEST_NAME_KEY, name)
   }
 
   return { id, name }

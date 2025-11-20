@@ -6,6 +6,7 @@ import { useAppDispatch, useAppSelector } from '@/hooks/useAppDispatch'
 import { useSocketStatus } from '@/hooks/useSocketStatus'
 import { globalSocket } from '@/services/socket'
 import type { RootState } from '@/store'
+import { getLevelByScore } from '@/utils/playerLevel'
 import {
   initGame,
   updatePlayers,
@@ -23,8 +24,6 @@ import {
   clearSelection,
   setLastPlayedFromState,
   type SettlementPlayerScore,
-  type GameResultPayload,
-  type SettlementScore,
 } from '@/store/slices/gameSlice'
 import { CardHintHelper } from '@/utils/cardHintHelper'
 import { soundManager } from '@/utils/sound'
@@ -77,6 +76,11 @@ export default function GameRoom() {
   // 跟踪哪些玩家不出了（用于显示“不出”文字）
   const [passedPlayers, setPassedPlayers] = useState<{[playerId: string]: boolean}>({})
   const [dragSelectMode, setDragSelectMode] = useState<'select' | 'deselect' | null>(null)
+  const [walletScore, setWalletScore] = useState<number | null>(null)
+  const autoReadySentRef = useRef(false)
+  const settlementAutoLeaveRef = useRef<number | null>(null)
+  const [autoReplayCountdown, setAutoReplayCountdown] = useState<number | null>(null)
+  const autoReplayTimerRef = useRef<number | null>(null)
 
   // 计算玩家位置（逆时针排列）
   const getPlayerPositions = () => {
@@ -136,70 +140,37 @@ export default function GameRoom() {
 
   const settlementScore = useMemo(() => gameState.gameResult?.score, [gameState.gameResult])
   const settlementPlayerScores = settlementScore?.playerScores ?? []
-  // 调试用：构造一份假结算数据，直接展示结算界面
-  const handlePreviewSettlement = () => {
-    if (!user) return
 
-    const meId = (user.id || user.name || 'me') as string
-    const meName = (user.name || user.id || '我') as string
-
-    const other1Name =
-      players[0] && players[0].name && players[0].name !== meName ? players[0].name : '玩家2'
-    const other2Name =
-      players[1] && players[1].name && players[1].name !== meName ? players[1].name : '玩家3'
-
-    const mockPlayerScores: SettlementPlayerScore[] = [
-      {
-        playerId: meId,
-        playerName: meName,
-        role: 'landlord',
-        isWinner: true,
-        baseScore: 16,
-        multipliers: { base: 1, bomb: 1, rocket: 1, spring: 1, antiSpring: 1, total: 1 },
-        finalScore: 16,
-      },
-      {
-        playerId: `${other1Name}-id`,
-        playerName: other1Name,
-        role: 'farmer',
-        isWinner: false,
-        baseScore: -8,
-        multipliers: { base: 1, bomb: 1, rocket: 1, spring: 1, antiSpring: 1, total: 1 },
-        finalScore: -8,
-      },
-      {
-        playerId: `${other2Name}-id`,
-        playerName: other2Name,
-        role: 'farmer',
-        isWinner: false,
-        baseScore: -8,
-        multipliers: { base: 1, bomb: 1, rocket: 1, spring: 1, antiSpring: 1, total: 1 },
-        finalScore: -8,
-      },
-    ]
-
-    const mockScore: SettlementScore = {
-      baseScore: 1,
-      bombCount: 0,
-      rocketCount: 0,
-      isSpring: false,
-      isAntiSpring: false,
-      landlordWin: true,
-      playerScores: mockPlayerScores,
-    }
-
-    const mockResult: GameResultPayload = {
-      winnerId: meId,
-      winnerName: meName,
-      winnerRole: 'landlord',
-      landlordWin: true,
-      score: mockScore,
-      achievements: {},
-    }
-
-    dispatch(endGame(mockResult))
-    setShowSettlement(true)
+  const isLandlordPlayer = (player: any | null): boolean => {
+    if (!player || !landlordId) return false
+    const ids = [player.id, (player as any)?.userId, player.name].filter(Boolean)
+    return ids.includes(landlordId)
   }
+
+  const findPlayerScore = (player: any | null): SettlementPlayerScore | null => {
+    if (!player || !settlementPlayerScores.length) return null
+    const idsToMatch = [player.id, (player as any)?.userId, player.name].filter(Boolean)
+    const found = settlementPlayerScores.find((ps: SettlementPlayerScore) =>
+      idsToMatch.includes(ps.playerId),
+    )
+    return found || null
+  }
+
+  const leftPlayerScore = findPlayerScore(leftPlayer)
+  const rightPlayerScore = findPlayerScore(rightPlayer)
+  const bottomPlayerScore = findPlayerScore(currentPlayer)
+
+  const isLeftLandlord = isLandlordPlayer(leftPlayer)
+  const isRightLandlord = isLandlordPlayer(rightPlayer)
+  const isBottomLandlord = isLandlordPlayer(currentPlayer)
+
+  const landlordWinFlag = settlementScore?.landlordWin
+  const centerResultText =
+    gameStatus === 'finished' && typeof landlordWinFlag === 'boolean'
+      ? landlordWinFlag
+        ? '地主获胜'
+        : '农民获胜'
+      : ''
 
   // 解析卡牌 - 照抄 frontend/public/room/js/room-simple.js 第 2065-2093 行
   const parseCard = (card: string) => {
@@ -480,8 +451,12 @@ export default function GameRoom() {
     // 玩家离开
     const handlePlayerLeft = (data: any) => {
       console.log('👋 玩家离开:', data)
-      Toast.show({ content: `${data.playerName || '玩家'} 离开房间`, icon: 'fail' })
-      
+      // 将提示写入聊天消息框，而不是使用大 Toast 遮挡牌面
+      setChatMessages((prev) => [
+        ...prev,
+        { sender: '系统', message: `${data.playerName || '玩家'} 离开房间` },
+      ])
+
       // 参考 frontend: onPlayerLeft
       // 如果服务器发送了完整的玩家列表，使用它来更新
       if (data.players && Array.isArray(data.players)) {
@@ -946,10 +921,7 @@ export default function GameRoom() {
         },
       ])
 
-      // 延迟显示结算界面
-      setTimeout(() => {
-        setShowSettlement(true)
-      }, 1500)
+      // 暂时不自动弹出结算弹窗，只在桌面展示结算结果
     }
 
     // 聊天消息
@@ -1009,7 +981,60 @@ export default function GameRoom() {
       socket.off('game_over', handleGameEnded)
       socket.off('message_received', handleChatMessage)
     }
-  }, [connected, dispatch])
+  }, [connected, dispatch, user, roomId])
+
+  // 进入房间后自动为当前玩家发送一次“准备”，等价于以前点击准备按钮
+  useEffect(() => {
+    if (!user || !roomId) return
+    if (autoReadySentRef.current) return
+    if (gameStatus !== 'waiting') return
+
+    const myId = user.id || user.name
+    const me = Array.isArray(players)
+      ? players.find((p: any) => p && (p.id === myId || p.userId === myId || p.name === user.name))
+      : null
+    if (!me) return
+
+    if (me.isReady) {
+      autoReadySentRef.current = true
+      return
+    }
+
+    const socket = globalSocket.getSocket()
+    if (!socket) return
+
+    autoReadySentRef.current = true
+    const playerId = myId
+    console.log('🎮 [自动准备] 进入房间后自动为当前玩家发送 player_ready', {
+      roomId,
+      userId: myId,
+    })
+    dispatch(updatePlayerStatus({ playerId, isReady: true }))
+    socket.emit('player_ready', {
+      roomId,
+      userId: myId,
+    })
+  }, [user, roomId, players, gameStatus, dispatch])
+
+  // 每次回到等待状态时，允许自动准备逻辑在新的一局重新生效
+  useEffect(() => {
+    if (gameStatus === 'waiting') {
+      autoReadySentRef.current = false
+    }
+  }, [gameStatus])
+
+  // 结算阶段的自动离开逻辑由“再来一局/返回大厅”按钮接管，这里仅负责清理旧定时器
+  useEffect(() => {
+    const clearTimer = () => {
+      if (settlementAutoLeaveRef.current != null) {
+        window.clearTimeout(settlementAutoLeaveRef.current)
+        settlementAutoLeaveRef.current = null
+      }
+    }
+
+    clearTimer()
+    return clearTimer
+  }, [gameStatus, roomId])
 
   useEffect(() => {
     return () => {
@@ -1660,54 +1685,152 @@ export default function GameRoom() {
     }
   }, [myCards]) // 手牌变化时重新计算
 
+  // 加载当前用户的钱包积分（金币总数），用于段位与金币展示
+  useEffect(() => {
+    if (!user) {
+      setWalletScore(null)
+      return
+    }
+
+    const controller = new AbortController()
+
+    const loadWallet = async () => {
+      try {
+        const baseUrl =
+          window.location.hostname === 'localhost'
+            ? 'http://localhost:3000'
+            : window.location.origin
+
+        const res = await fetch(
+          `${baseUrl}/api/score/${encodeURIComponent(user.id)}`,
+          {
+            signal: controller.signal,
+          },
+        )
+
+        let json: any = null
+        try {
+          json = await res.json()
+        } catch {
+          // ignore body parse error
+        }
+
+        if (!res.ok || !json?.success || !json.data) {
+          console.warn('GameRoom 加载钱包失败或返回结构异常:', res.status, json?.message)
+          setWalletScore(0)
+          return
+        }
+
+        const data = json.data
+        const scoreValue = typeof data.totalScore === 'number' ? data.totalScore : 0
+        setWalletScore(scoreValue)
+      } catch (err: any) {
+        if (err?.name === 'AbortError') return
+        console.error('GameRoom 加载钱包失败:', err)
+        setWalletScore(0)
+      }
+    }
+
+    loadWallet()
+
+    return () => {
+      controller.abort()
+    }
+  }, [user])
+
+  const formatAmount = (value: number | null) => {
+    const safe = typeof value === 'number' && value >= 0 ? value : 0
+    if (safe >= 10000) {
+      return `${(safe / 10000).toFixed(2)}万`
+    }
+    return String(safe)
+  }
+
+  const { name: currentLevelName, icon: currentLevelIcon } = getLevelByScore(walletScore)
+  const currentCoinsText = formatAmount(walletScore)
+
+  // 游戏结束后在桌面上显示“再来一局(倒计时)”和“返回大厅”
+  useEffect(() => {
+    if (gameStatus === 'finished' && gameState.gameResult) {
+      // 进入结算状态：启动 30 秒倒计时
+      setAutoReplayCountdown(30)
+
+      if (autoReplayTimerRef.current != null) {
+        window.clearInterval(autoReplayTimerRef.current)
+      }
+
+      autoReplayTimerRef.current = window.setInterval(() => {
+        setAutoReplayCountdown((prev) => {
+          if (prev == null) return prev
+          if (prev <= 1) {
+            // 倒计时结束，自动再来一局
+            window.clearInterval(autoReplayTimerRef.current as number)
+            autoReplayTimerRef.current = null
+
+            // 直接触发再来一局，相当于点击按钮
+            dispatch(prepareNextGame())
+            handleStartGame()
+
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    } else {
+      // 离开结算状态：清理倒计时
+      setAutoReplayCountdown(null)
+      if (autoReplayTimerRef.current != null) {
+        window.clearInterval(autoReplayTimerRef.current)
+        autoReplayTimerRef.current = null
+      }
+    }
+
+    return () => {
+      if (autoReplayTimerRef.current != null) {
+        window.clearInterval(autoReplayTimerRef.current)
+        autoReplayTimerRef.current = null
+      }
+    }
+  }, [gameStatus, gameState.gameResult, dispatch])
+
   return (
     <div className="game-room-container">
-      {/* 顶部信息栏 */}
-      <div className="game-room-header">
-        <div className="room-info">
-          <span className="room-id">房间: {roomId}</span>
-          <span className={`connection-status ${connected ? 'connected' : 'disconnected'}`}>
-            {connected ? '✅ 已连接' : '❌ 未连接'}
-          </span>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {import.meta.env.DEV && (
-            <Button size="small" color="primary" onClick={handlePreviewSettlement}>
-              预览结算
-            </Button>
-          )}
-          <Button size="small" color="danger" onClick={handleLeaveRoom}>
-            退出房间
-          </Button>
-        </div>
-      </div>
-
       {/* 游戏桌面 */}
       <div className="game-table">
-        {/* 底牌显示区域 - 桌面顶端中间 - 照抄 frontend */}
+        <div className="game-room-header">
+          <button
+            type="button"
+            className="game-room-back"
+            onClick={handleLeaveRoom}
+            aria-label="返回"
+          ></button>
+        </div>
+        {/* 底牌显示区域 - 桌面顶端中间 */}
         {landlordCards.length > 0 && (
           <div className="bottom-cards-display">
-            <div className="bottom-cards-container">
-              {landlordCards.map((cardStr: string, index: number) => {
-                const { rank, suit, isJoker } = parseCard(cardStr)
-                const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
-                
-                return (
-                  <div key={index} className={`bottom-card ${isRed ? 'red' : 'black'}`}>
-                    <div
-                      className={`card-value ${isJoker ? 'joker-text' : ''}`}
-                      style={isJoker ? { color: isJoker === 'big' ? '#d32f2f' : '#000' } : undefined}
-                    >
-                      {rank}
-                    </div>
-                    {!isJoker && (
-                      <div className="card-suit">
-                        {suit}
+            <div className="bottom-info-bar">
+              <div className="bottom-cards-container">
+                {landlordCards.map((cardStr: string, index: number) => {
+                  const { rank, suit, isJoker } = parseCard(cardStr)
+                  const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
+
+                  return (
+                    <div key={index} className={`bottom-card ${isRed ? 'red' : 'black'}`}>
+                      <div
+                        className={`card-value ${isJoker ? 'joker-text' : ''}`}
+                        style={isJoker ? { color: isJoker === 'big' ? '#d32f2f' : '#000' } : undefined}
+                      >
+                        {rank}
                       </div>
-                    )}
-                  </div>
-                )
-              })}
+                      {!isJoker && <div className="card-suit">{suit}</div>}
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="bottom-meta">
+                <span>基数: {settlementScore?.baseScore ?? 100}</span>
+                <span>倍数: {settlementScore?.bombCount ? settlementScore.bombCount : 3}</span>
+              </div>
             </div>
           </div>
         )}
@@ -1736,32 +1859,64 @@ export default function GameRoom() {
                   )}
                 </div>
               </div>
+              {gameStatus === 'finished' && leftPlayerScore && (
+                <div
+                  className={`result-score ${
+                    leftPlayerScore.finalScore >= 0 ? 'win' : 'lose'
+                  }`}
+                >
+                  {leftPlayerScore.finalScore > 0
+                    ? `+${leftPlayerScore.finalScore}`
+                    : leftPlayerScore.finalScore}
+                </div>
+              )}
               <div className="played-cards-area">
                 {passedPlayers[leftPlayer.id] ? (
                   <div className="pass-text">不出</div>
                 ) : (
-                  lastPlayedCards && lastPlayedCards.playerId === leftPlayer.id && (
+                  lastPlayedCards &&
+                  lastPlayedCards.playerId === leftPlayer.id && (
                     <div className="played-cards-container">
-                      {lastPlayedCards.cards.map((cardStr: string, index: number) => {
-                        const { rank, suit, isJoker } = parseCard(cardStr)
-                        const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
-                        return (
-                          <motion.div
-                            key={index}
-                            className={`card ${isRed ? 'red' : 'black'}`}
-                            initial={{ opacity: 0, scale: 0.6 }}
-                            animate={{ opacity: 1, scale: 0.85 }}
-                            exit={{ opacity: 0, scale: 0.6, transition: { duration: 0.2 } }}
-                            transition={{ delay: index * 0.03, type: 'spring', stiffness: 280, damping: 20 }}
-                          >
-                            <div className={`card-value ${isJoker ? 'joker-text' : ''}`}
-                              style={isJoker ? { color: isJoker === 'big' ? '#d32f2f' : '#000' } : undefined}>
-                              {isJoker ? 'JOKER' : rank}
-                            </div>
-                            {!isJoker && <div className="card-suit">{suit}</div>}
-                          </motion.div>
-                        )
-                      })}
+                        {lastPlayedCards.cards.map((cardStr: string, index: number) => {
+                          const { rank, suit, isJoker } = parseCard(cardStr)
+                          const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
+                          return (
+                            <motion.div
+                              key={index}
+                              className={`card ${isRed ? 'red' : 'black'}`}
+                              initial={{ opacity: 0, scale: 0.6 }}
+                              animate={{ opacity: 1, scale: 0.85 }}
+                              exit={{ opacity: 0, scale: 0.6, transition: { duration: 0.2 } }}
+                              transition={{
+                                delay: index * 0.03,
+                                type: 'spring',
+                                stiffness: 280,
+                                damping: 20,
+                              }}
+                            >
+                              <div
+                                className={`card-value ${isJoker ? 'joker-text' : ''}`}
+                                style={
+                                  isJoker
+                                    ? { color: isJoker === 'big' ? '#d32f2f' : '#000' }
+                                    : undefined
+                                }
+                              >
+                                {isJoker ? 'JOKER' : rank}
+                              </div>
+                              {!isJoker && <div className="card-suit">{suit}</div>}
+                              {landlordId && (
+                                <div
+                                  className={`card-landlord-mark ${
+                                    isLeftLandlord ? 'landlord' : 'farmer'
+                                  }`}
+                                >
+                                  {isLeftLandlord ? '地主' : '农民'}
+                                </div>
+                              )}
+                            </motion.div>
+                          )
+                        })}
                     </div>
                   )
                 )}
@@ -1791,11 +1946,23 @@ export default function GameRoom() {
                   )}
                 </div>
               </div>
+              {gameStatus === 'finished' && rightPlayerScore && (
+                <div
+                  className={`result-score ${
+                    rightPlayerScore.finalScore >= 0 ? 'win' : 'lose'
+                  }`}
+                >
+                  {rightPlayerScore.finalScore > 0
+                    ? `+${rightPlayerScore.finalScore}`
+                    : rightPlayerScore.finalScore}
+                </div>
+              )}
               <div className="played-cards-area">
                 {passedPlayers[rightPlayer.id] ? (
                   <div className="pass-text">不出</div>
                 ) : (
-                  lastPlayedCards && lastPlayedCards.playerId === rightPlayer.id && (
+                  lastPlayedCards &&
+                  lastPlayedCards.playerId === rightPlayer.id && (
                     <div className="played-cards-container">
                       {lastPlayedCards.cards.map((cardStr: string, index: number) => {
                         const { rank, suit, isJoker } = parseCard(cardStr)
@@ -1807,13 +1974,33 @@ export default function GameRoom() {
                             initial={{ opacity: 0, scale: 0.6 }}
                             animate={{ opacity: 1, scale: 0.85 }}
                             exit={{ opacity: 0, scale: 0.6, transition: { duration: 0.2 } }}
-                            transition={{ delay: index * 0.03, type: 'spring', stiffness: 280, damping: 20 }}
+                            transition={{
+                              delay: index * 0.03,
+                              type: 'spring',
+                              stiffness: 280,
+                              damping: 20,
+                            }}
                           >
-                            <div className={`card-value ${isJoker ? 'joker-text' : ''}`}
-                              style={isJoker ? { color: isJoker === 'big' ? '#d32f2f' : '#000' } : undefined}>
+                            <div
+                              className={`card-value ${isJoker ? 'joker-text' : ''}`}
+                              style={
+                                isJoker
+                                  ? { color: isJoker === 'big' ? '#d32f2f' : '#000' }
+                                  : undefined
+                              }
+                            >
                               {isJoker ? 'JOKER' : rank}
                             </div>
                             {!isJoker && <div className="card-suit">{suit}</div>}
+                            {landlordId && (
+                              <div
+                                className={`card-landlord-mark ${
+                                  isRightLandlord ? 'landlord' : 'farmer'
+                                }`}
+                              >
+                                {isRightLandlord ? '地主' : '农民'}
+                              </div>
+                            )}
                           </motion.div>
                         )
                       })}
@@ -1825,73 +2012,156 @@ export default function GameRoom() {
           )}
         </div>
 
-
         {/* 底部（当前玩家）出牌区 - 在手牌上方 */}
         <div className="center-area">
-          {lastPlayedCards && currentPlayer && lastPlayedCards.playerId === currentPlayer.id && lastPlayedCards.cards && lastPlayedCards.cards.length > 0 && (
-            <div className="played-cards-area bottom-player-cards">
-              <div className="played-cards-container">
-                {lastPlayedCards.cards.map((cardStr: string, index: number) => {
-                  const { rank, suit, isJoker } = parseCard(cardStr)
-                  const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
-                  return (
-                    <motion.div
-                      key={index}
-                      className={`card ${isRed ? 'red' : 'black'}`}
-                      initial={{ opacity: 0, y: -160, scale: 0.6, rotate: -6 }}
-                      animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }}
-                      exit={{ opacity: 0, y: 40, scale: 0.9, rotate: 6, transition: { duration: 0.2 } }}
-                      transition={{
-                        y: {
-                          delay: isDealingAnimation ? index * 0.05 : 0,
-                          type: 'spring',
-                          stiffness: 280,
-                          damping: 22,
-                        },
-                        opacity: {
-                          delay: isDealingAnimation ? index * 0.05 : 0,
-                          duration: 0.16,
-                        },
-                      }}
-                    >
-                      <div
-                        className={`card-value ${isJoker ? 'joker-text' : ''}`}
-                        style={isJoker ? { color: isJoker === 'big' ? '#d32f2f' : '#000' } : undefined}
-                      >
-                        {rank}
-                      </div>
-                      {!isJoker && <div className="card-suit">{suit}</div>}
-                    </motion.div>
-                  )
-                })}
-              </div>
+          {gameStatus === 'finished' && centerResultText && (
+            <div
+              className={`center-result-banner ${
+                landlordWinFlag ? 'landlord' : 'farmer'
+              }`}
+            >
+              {centerResultText}
             </div>
           )}
+
+          {/* 结算阶段：在大字下方显示再来一局 / 返回大厅按钮 */}
+          {gameStatus === 'finished' && gameState.gameResult && (
+            <div className="settlement-inline-actions">
+              <button
+                type="button"
+                className="btn-replay"
+                onClick={() => {
+                  if (autoReplayTimerRef.current != null) {
+                    window.clearInterval(autoReplayTimerRef.current)
+                    autoReplayTimerRef.current = null
+                  }
+                  setAutoReplayCountdown(null)
+                  dispatch(prepareNextGame())
+                  handleStartGame()
+                }}
+              >
+                再来一局{typeof autoReplayCountdown === 'number' && autoReplayCountdown > 0
+                  ? `（${autoReplayCountdown}秒）`
+                  : ''}
+              </button>
+              <button
+                type="button"
+                className="btn-back-lobby"
+                onClick={() => {
+                  if (autoReplayTimerRef.current != null) {
+                    window.clearInterval(autoReplayTimerRef.current)
+                    autoReplayTimerRef.current = null
+                  }
+                  setAutoReplayCountdown(null)
+                  dispatch(prepareNextGame())
+                  doLeaveRoom()
+                }}
+              >
+                返回大厅
+              </button>
+            </div>
+          )}
+
+          {lastPlayedCards &&
+            currentPlayer &&
+            lastPlayedCards.playerId === currentPlayer.id &&
+            lastPlayedCards.cards &&
+            lastPlayedCards.cards.length > 0 && (
+              <div className="played-cards-area bottom-player-cards">
+                <div className="played-cards-container">
+                  {lastPlayedCards.cards.map((cardStr: string, index: number) => {
+                    const { rank, suit, isJoker } = parseCard(cardStr)
+                    const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
+                    return (
+                      <motion.div
+                        key={`${cardStr}-${index}`}
+                        className={`card ${isRed ? 'red' : 'black'}`}
+                        initial={{ opacity: 0, y: -160, scale: 0.6, rotate: -6 }}
+                        animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }}
+                        exit={{
+                          opacity: 0,
+                          y: 40,
+                          scale: 0.9,
+                          rotate: 6,
+                          transition: { duration: 0.2 },
+                        }}
+                        transition={{
+                          y: {
+                            delay: isDealingAnimation ? index * 0.05 : 0,
+                            type: 'spring',
+                            stiffness: 280,
+                            damping: 22,
+                          },
+                          opacity: {
+                            delay: isDealingAnimation ? index * 0.05 : 0,
+                            duration: 0.16,
+                          },
+                        }}
+                      >
+                        <div
+                          className={`card-value ${isJoker ? 'joker-text' : ''}`}
+                          style={
+                            isJoker
+                              ? { color: isJoker === 'big' ? '#d32f2f' : '#000' }
+                              : undefined
+                          }
+                        >
+                          {rank}
+                        </div>
+                        {!isJoker && <div className="card-suit">{suit}</div>}
+                        {landlordId && (
+                          <div
+                            className={`card-landlord-mark ${
+                              isBottomLandlord ? 'landlord' : 'farmer'
+                            }`}
+                          >
+                            {isBottomLandlord ? '地主' : '农民'}
+                          </div>
+                        )}
+                      </motion.div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
         </div>
 
-        {/* 当前玩家信息 - 头像下方布局 */}
-        <div
-          className={`current-player-info ${
-            landlordId === (user?.id || user?.name) ? 'landlord' : ''
-          } ${isBottomTurn ? 'turn-active' : ''}`}
-        >
-          {isBottomTurn && turnTimer > 0 && (
-            <div className="turn-indicator">{turnTimer}</div>
-          )}
-          <div className="player-avatar-container">
-            {landlordId === (user?.id || user?.name) && (
-              <div className="landlord-badge" title="地主">👑</div>
+        {/* 当前玩家信息 - 左下角 */}
+        {currentPlayer && (
+          <div className={`current-player-info ${isBottomTurn ? 'turn-active' : ''}`}>
+            <div className="player-avatar-container">
+              {landlordId === currentPlayer.id && (
+                <div className="landlord-badge" title="地主">👑</div>
+              )}
+              <div className="player-avatar">{currentPlayer.avatar || '👤'}</div>
+              {isBottomTurn && <div className="turn-indicator">{turnTimer}</div>}
+            </div>
+            <div className="player-info-below">
+              <div className="player-level">
+                <span className="player-level-icon">{currentLevelIcon}</span>
+                <span className="player-level-text">{currentLevelName}</span>
+              </div>
+              <div className="player-coins">
+                <span className="player-coins-icon">💰</span>
+                <span className="player-coins-text">{currentCoinsText}</span>
+              </div>
+              {user && passedPlayers[user.id || user.name || ''] && (
+                <div className="player-passed">不出</div>
+              )}
+            </div>
+            {gameStatus === 'finished' && bottomPlayerScore && (
+              <div
+                className={`result-score-bottom ${
+                  bottomPlayerScore.finalScore >= 0 ? 'win' : 'lose'
+                }`}
+              >
+                {bottomPlayerScore.finalScore > 0
+                  ? `+${bottomPlayerScore.finalScore}`
+                  : bottomPlayerScore.finalScore}
+              </div>
             )}
-            <div className="player-avatar">{currentPlayer?.avatar || user?.avatar || '👤'}</div>
           </div>
-          <div className="player-info-below">
-            <div className="player-level">🏆 青铜星</div>
-            <div className="player-coins">💰 13.33万</div>
-            {user && passedPlayers[user.id || user.name || ''] && (
-              <div className="player-passed">不出</div>
-            )}
-          </div>
-        </div>
+        )}
 
         {/* 手牌区域 - 照抄 frontend 结构 */}
         {myCards.length > 0 && (
@@ -1911,14 +2181,26 @@ export default function GameRoom() {
                   return (
                     <motion.div
                       key={`${cardStr}-${index}`}
-                      className={`card ${isRed ? 'red' : 'black'} ${isSelected ? 'selected' : ''}`}
+                      className={`card ${isRed ? 'red' : 'black'} ${
+                        isSelected ? 'selected' : ''
+                      }`}
                       style={{ zIndex: index + 1 }}
                       onPointerDown={(ev) => handleCardPointerDown(cardStr, ev)}
                       onPointerEnter={(ev) => handleCardPointerEnter(cardStr, ev)}
                       layout
-                      initial={isDealingAnimation ? { opacity: 0, y: -160, scale: 0.6, rotate: -6 } : false}
+                      initial={
+                        isDealingAnimation
+                          ? { opacity: 0, y: -160, scale: 0.6, rotate: -6 }
+                          : false
+                      }
                       animate={{ opacity: 1, y: targetY, scale: 1, rotate: 0 }}
-                      exit={{ opacity: 0, y: 40, scale: 0.9, rotate: 6, transition: { duration: 0.2 } }}
+                      exit={{
+                        opacity: 0,
+                        y: 40,
+                        scale: 0.9,
+                        rotate: 6,
+                        transition: { duration: 0.2 },
+                      }}
                       transition={{
                         y: {
                           delay: isDealingAnimation ? index * 0.05 : 0,
@@ -1939,6 +2221,15 @@ export default function GameRoom() {
                         {rank}
                       </div>
                       {!isJoker && <div className="card-suit">{suit}</div>}
+                      {landlordId && (
+                        <div
+                          className={`card-landlord-mark ${
+                            isBottomLandlord ? 'landlord' : 'farmer'
+                          }`}
+                        >
+                          {isBottomLandlord ? '地主' : '农民'}
+                        </div>
+                      )}
                     </motion.div>
                   )
                 })}
@@ -1949,75 +2240,74 @@ export default function GameRoom() {
 
         {/* 控制按钮 */}
         <div className="game-controls">
-        {gameStatus === 'waiting' && (
-          <div className="waiting-controls">
-            <Button color="primary" size="middle" onClick={handleStartGame}>
-              {currentPlayer?.isReady ? '取消准备' : '准备'}
-            </Button>
-          </div>
-        )}
-
-        {/* 抢地主 UI - 只保留倒计时与两个按钮，不再显示提示文字 */}
-        {gameStatus === 'bidding' && showBiddingUI && (
-          <div className="bidding-actions" id="biddingActions">
-            <div className="bidding-timer" id="biddingTimer">{biddingTimer}</div>
-            <div className="bidding-buttons bidding-controls">
-              <Button 
-                color="warning" 
-                size="large"
-                onClick={() => handleBid(true)}
-              >
-                抢地主
-              </Button>
-              <Button 
-                color="default" 
-                size="large"
-                onClick={() => handleBid(false)}
-              >
-                不抢
-              </Button>
+          {/* 等待中提示 */}
+          {gameStatus === 'waiting' && (
+            <div className="waiting-controls">
+              <span className="waiting-text">等待其他玩家准备...</span>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* 出牌 UI - 使用原生 button，避免组件层面渲染异常 */}
-        {(() => {
-          console.log('🔍 [按钮渲染] gameStatus=', gameStatus, ', isMyTurn=', isMyTurn, ', 条件满足=', gameStatus === 'playing' && isMyTurn)
-          return null
-        })()}
-        {gameStatus === 'playing' && isMyTurn && (
-          <div className="game-actions" id="gameActions">
-            {turnTimer > 0 && (
-              <div className="turn-timer">⏰ {turnTimer}秒</div>
-            )}
-            <div className="game-buttons">
-              <button
-                type="button"
-                className="btn-hint"
-                onClick={handleHint}
-              >
-                提示
-              </button>
-              <button
-                type="button"
-                className="btn-play"
-                onClick={handlePlayCards}
-                disabled={playPending}
-              >
-                出牌
-              </button>
-              {canPass && (
+          {/* 抢地主 UI - 只保留倒计时与两个按钮，不再显示提示文字 */}
+          {gameStatus === 'bidding' && showBiddingUI && (
+            <div className="bidding-actions" id="biddingActions">
+              <div className="bidding-timer" id="biddingTimer">{biddingTimer}</div>
+              <div className="bidding-buttons bidding-controls">
+                <Button 
+                  color="warning" 
+                  size="large"
+                  onClick={() => handleBid(true)}
+                >
+                  抢地主
+                </Button>
+                <Button 
+                  color="default" 
+                  size="large"
+                  onClick={() => handleBid(false)}
+                >
+                  不抢
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* 出牌 UI - 使用原生 button，避免组件层面渲染异常 */}
+          {(() => {
+            console.log('🔍 [按钮渲染] gameStatus=', gameStatus, ', isMyTurn=', isMyTurn, ', 条件满足=', gameStatus === 'playing' && isMyTurn)
+            return null
+          })()}
+          {gameStatus === 'playing' && isMyTurn && (
+            <div className="game-actions" id="gameActions">
+              {turnTimer > 0 && (
+                <div className="turn-timer">⏰ {turnTimer}秒</div>
+              )}
+              <div className="game-buttons">
                 <button
                   type="button"
-                  className="btn-pass"
-                  onClick={handlePass}
+                  className="btn-hint"
+                  onClick={handleHint}
                 >
-                  不出
+                  提示
                 </button>
-              )}
+                <button
+                  type="button"
+                  className="btn-play"
+                  onClick={handlePlayCards}
+                  disabled={playPending}
+                >
+                  出牌
+                </button>
+                {canPass && (
+                  <button
+                    type="button"
+                    className="btn-pass"
+                    onClick={handlePass}
+                  >
+                    不出
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
         </div>
       </div>
 

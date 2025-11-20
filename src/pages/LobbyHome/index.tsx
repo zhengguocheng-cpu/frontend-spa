@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { globalSocket } from '@/services/socket'
 import { getOrCreateGuestIdentity } from '@/utils/guestIdentity'
+import { getLevelByScore } from '@/utils/playerLevel'
 import './style.css'
 
 export default function LobbyHome() {
@@ -76,7 +77,7 @@ export default function LobbyHome() {
 
         if (!res.ok || !json?.success || !json.data) {
           console.warn('加载钱包失败或返回结构异常:', res.status, json?.message)
-          setWalletScore(null)
+          setWalletScore(0)
           return
         }
 
@@ -87,7 +88,7 @@ export default function LobbyHome() {
       } catch (err: any) {
         if (err?.name === 'AbortError') return
         console.error('加载钱包失败:', err)
-        setWalletScore(null)
+        setWalletScore(0)
       }
     }
 
@@ -168,11 +169,6 @@ export default function LobbyHome() {
         true,
       )
 
-      socket.emit('player_ready', {
-        roomId: targetRoom.id,
-        userId: user.id,
-      })
-
       navigate(`/game/${targetRoom.id}`)
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : '快速开始失败，请稍后重试'
@@ -209,16 +205,16 @@ export default function LobbyHome() {
   }
 
   const formatAmount = (value: number | null) => {
-    if (value == null) return '--'
-    if (value >= 10000) {
-      return `${(value / 10000).toFixed(2)}万`
+    const safe = typeof value === 'number' && value >= 0 ? value : 0
+    if (safe >= 10000) {
+      return `${(safe / 10000).toFixed(2)}万`
     }
-    return String(value)
+    return String(safe)
   }
 
   const displayName = user?.name ?? '未登录玩家'
   const displayId = user?.id ?? '--'
-  const playerLevel = '新手IV'
+  const { name: playerLevelName, icon: playerLevelIcon } = getLevelByScore(walletScore)
 
   return (
     <div className="lobby-container">
@@ -229,27 +225,23 @@ export default function LobbyHome() {
               <div className="lobby-avatar-img" />
             </div>
             <div className="lobby-user-info">
+              <div className="lobby-user-level">
+                <span className="lobby-level-icon" aria-hidden>
+                  {playerLevelIcon}
+                </span>
+                <span className="lobby-level-text">{playerLevelName}</span>
+              </div>
               <div className="lobby-user-name">{displayName}</div>
               <div className="lobby-user-id">ID: {displayId}</div>
             </div>
           </button>
-          <div className="lobby-user-level">
-            <span className="lobby-level-icon" aria-hidden>
-              🛡
-            </span>
-            <span className="lobby-level-text">{playerLevel}</span>
-          </div>
           <div className="lobby-assets">
             <div className="lobby-asset-item">
-              <span className="asset-icon" aria-hidden>
-                💎
-              </span>
+              <span className="asset-icon asset-icon-diamond" aria-hidden />
               <span className="asset-value">{formatAmount(walletScore)}</span>
             </div>
             <div className="lobby-asset-item">
-              <span className="asset-icon" aria-hidden>
-                🪙
-              </span>
+              <span className="asset-icon asset-icon-coin" aria-hidden />
               <span className="asset-value">{formatAmount(walletScore)}</span>
             </div>
           </div>
