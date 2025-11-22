@@ -133,11 +133,11 @@
 .game-table::after {
   content: '';
   position: absolute;
-  inset: -8px -8px 4px -8px; /* 上边略收，底部略扩，营造透视 */
-  border-radius: 24px;
-  border: 10px solid #8b7355;
-  box-shadow: 0 18px 28px rgba(0, 0, 0, 0.8);
-  transform: perspective(800px) rotateX(2deg); /* 轻微上倾，营造立体桌面 */
+  inset: -4px -4px 2px -4px; /* 边缘收窄一点，整体更紧凑 */
+  border-radius: 18px;
+  border: 6px solid #8b7355;
+  box-shadow: 0 12px 22px rgba(0, 0, 0, 0.55);
+  transform: perspective(1000px) rotateX(0.5deg); /* 更轻微的透视效果，减少“斜”的感觉 */
   transform-origin: center bottom;
   pointer-events: none;
   z-index: 1;
@@ -345,6 +345,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  margin-bottom: 12px; /* 为底部按钮留出空间，避免重叠遮挡 */
 }
 
 /* 不出文字显示 */
@@ -370,9 +371,12 @@
 
 .played-cards-container {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
-  flex-wrap: nowrap;
+  flex-wrap: wrap; /* 允许换行，方便游戏结束时显示多张剩余手牌 */
+  max-width: 600px; /* 限制最大宽度，超过后自动换行 */
+  gap: 0; /* 保持牌之间的重叠效果 */
+  row-gap: 8px; /* 行与行之间的间距 */
   pointer-events: none;
   position: relative; /* 作为出牌区整体标签的定位容器 */
 }
@@ -414,7 +418,13 @@
 
 /* 出牌区的卡牌也需要重叠显示 */
 .played-cards-container .card:not(:first-child) {
-  margin-left: -30px; /* 让卡牌重叠显示 */
+  margin-left: -20px; /* 适当减小重叠，让牌面点数更清晰 */
+}
+
+/* 左右玩家：在出牌区空间内允许多行布局，最多扩展到桌面中央 */
+.player-slot.left .played-cards-container,
+.player-slot.right .played-cards-container {
+  max-width: 500px; /* 控制左右玩家出牌区的水平宽度，让多行向桌面中央扩展 */
 }
 
 .bottom-cards,
@@ -1468,7 +1478,7 @@
   .game-controls {
     position: absolute;
     left: 50%;
-    top: 42%;
+    top: 52%; /* 略微下移，避免遮挡中央出牌区 */
     transform: translate(-50%, -50%);
     grid-row: auto;
     grid-column: auto;

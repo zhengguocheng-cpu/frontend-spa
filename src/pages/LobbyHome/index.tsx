@@ -5,6 +5,8 @@ import { useAuth } from '@/context/AuthContext'
 import { globalSocket } from '@/services/socket'
 import { getOrCreateGuestIdentity } from '@/utils/guestIdentity'
 import { getLevelByScore } from '@/utils/playerLevel'
+import { getLlmSettings, saveLlmSettings, type LlmSettings } from '@/utils/llmSettings'
+import { getGameSettings, saveGameSettings, type GameSettings } from '@/utils/gameSettings'
 import './style.css'
 
 export default function LobbyHome() {
@@ -12,6 +14,10 @@ export default function LobbyHome() {
   const navigate = useNavigate()
   const [autoLoggingIn, setAutoLoggingIn] = useState(false)
   const [walletScore, setWalletScore] = useState<number | null>(null)
+  const [settingsVisible, setSettingsVisible] = useState(false)
+  const [llmSettings, setLlmSettings] = useState<LlmSettings>(() => getLlmSettings())
+  const [gameSettings, setGameSettings] = useState<GameSettings>(() => getGameSettings())
+  const [settingsTab, setSettingsTab] = useState<'ai' | 'game' | 'audio'>('ai')
 
   const handleGoProfile = () => {
     if (!user) {
@@ -23,6 +29,55 @@ export default function LobbyHome() {
 
   const handleSyncWeChat = () => {
     Toast.show({ content: '微信信息同步功能开发中', icon: 'info' })
+  }
+
+  const openSettings = () => {
+    setLlmSettings(getLlmSettings())
+    setGameSettings(getGameSettings())
+    setSettingsTab('ai')
+    setSettingsVisible(true)
+  }
+
+  const closeSettings = () => {
+    setSettingsVisible(false)
+  }
+
+  const handleSaveSettings = () => {
+    saveLlmSettings(llmSettings)
+    saveGameSettings(gameSettings)
+    Toast.show({ content: '设置已保存', icon: 'success' })
+    setSettingsVisible(false)
+  }
+
+  const handleToggleLlmEnabled = (e: any) => {
+    const enabled = e.target?.checked
+    setLlmSettings((prev) => ({ ...prev, enabled }))
+  }
+
+  const handleChangeModel = (e: any) => {
+    const model = e.target?.value
+    setLlmSettings((prev) => ({ ...prev, model }))
+  }
+
+  const handleChangeCustomPrompt = (e: any) => {
+    const customPrompt = e.target?.value
+    setLlmSettings((prev) => ({ ...prev, customPrompt }))
+  }
+
+  const handleChangeQuickBotDelay = (e: any) => {
+    const value = typeof e.target?.value === 'string' ? Number(e.target.value) : 0
+    const ms = Number.isFinite(value) && value >= 0 ? value : 0
+    setGameSettings((prev) => ({ ...prev, quickBotDelayMs: ms }))
+  }
+
+  const handleToggleBgm = (e: any) => {
+    const enabled = !!e.target?.checked
+    setGameSettings((prev) => ({ ...prev, bgmEnabled: enabled }))
+  }
+
+  const handleToggleSfx = (e: any) => {
+    const enabled = !!e.target?.checked
+    setGameSettings((prev) => ({ ...prev, sfxEnabled: enabled }))
   }
 
   useEffect(() => {
@@ -187,7 +242,7 @@ export default function LobbyHome() {
   const handleBottomClick = (type: string) => {
     switch (type) {
       case 'settings':
-        Toast.show({ content: '设置功能开发中', icon: 'info' })
+        openSettings()
         break
       case 'shop':
         Toast.show({ content: '商城暂未开放', icon: 'info' })
@@ -323,6 +378,180 @@ export default function LobbyHome() {
           <span className="bottom-nav-label">更多</span>
         </button>
       </div>
+
+      {settingsVisible && (
+        <div className="lobby-settings-mask" onClick={closeSettings}>
+          <div
+            className="lobby-settings-panel"
+            onClick={(e) => {
+              e.stopPropagation()
+            }}
+          >
+            <div className="lobby-settings-header">系统设置</div>
+            <div className="lobby-settings-body">
+              <div className="lobby-settings-tabs-vertical">
+                <button
+                  type="button"
+                  className={
+                    'lobby-settings-tab-item' + (settingsTab === 'ai' ? ' active' : '')
+                  }
+                  onClick={() => setSettingsTab('ai')}
+                >
+                  AI 提示
+                </button>
+                <button
+                  type="button"
+                  className={
+                    'lobby-settings-tab-item' + (settingsTab === 'game' ? ' active' : '')
+                  }
+                  onClick={() => setSettingsTab('game')}
+                >
+                  游戏设置
+                </button>
+                <button
+                  type="button"
+                  className={
+                    'lobby-settings-tab-item' + (settingsTab === 'audio' ? ' active' : '')
+                  }
+                  onClick={() => setSettingsTab('audio')}
+                >
+                  音频设置
+                </button>
+              </div>
+
+              <div className="lobby-settings-section">
+                {/* AI 出牌提示设置 */}
+                {settingsTab === 'ai' && (
+                  <>
+                    <div className="lobby-settings-group-title">🤖 AI 出牌提示</div>
+
+                    <div className="lobby-settings-field">
+                      <div className="lobby-settings-field-row">
+                        <span className="lobby-settings-label-text">启用大模型提示</span>
+                        <label className="toggle-switch">
+                          <input
+                            type="checkbox"
+                            checked={llmSettings.enabled}
+                            onChange={handleToggleLlmEnabled}
+                          />
+                          <span className="toggle-slider"></span>
+                        </label>
+                      </div>
+                      <div className="lobby-settings-desc">
+                        关闭后，提示只使用本地算法，不再调用 LLM，避免拆炸弹等高风险操作。
+                      </div>
+                    </div>
+
+                    <div className="lobby-settings-field">
+                      <div className="lobby-settings-label-block">大模型类型</div>
+                      <select
+                        className="lobby-settings-select"
+                        value={llmSettings.model}
+                        onChange={handleChangeModel}
+                        disabled={!llmSettings.enabled}
+                      >
+                        <option value="deepseek-chat">DeepSeek Chat</option>
+                        <option value="deepseek-reasoner">DeepSeek Reasoner</option>
+                      </select>
+                      <div className="lobby-settings-desc">
+                        不同模型在速度和思考深度上有所差异，可按需要切换。
+                      </div>
+                    </div>
+
+                    <div className="lobby-settings-field">
+                      <div className="lobby-settings-label-block">自定义提示偏好（可选）</div>
+                      <textarea
+                        className="lobby-settings-textarea"
+                        rows={3}
+                        placeholder="例如：尽量保留炸弹，不要轻易拆 4444 等大牌；有顺子、连对、飞机时优先整体出。"
+                        value={llmSettings.customPrompt}
+                        onChange={handleChangeCustomPrompt}
+                        disabled={!llmSettings.enabled}
+                      />
+                      <div className="lobby-settings-desc">
+                        这里的文字会作为额外策略说明附加给大模型，用于微调出牌风格。
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* 游戏设置 */}
+                {settingsTab === 'game' && (
+                  <>
+                    <div className="lobby-settings-group-title">🎮 游戏设置</div>
+
+                    <div className="lobby-settings-field">
+                      <div className="lobby-settings-label-block">快速游戏：等待真人时长</div>
+                      <select
+                        className="lobby-settings-select"
+                        value={String(gameSettings.quickBotDelayMs)}
+                        onChange={handleChangeQuickBotDelay}
+                      >
+                        <option value="0">立即补机器人（最快开局）</option>
+                        <option value="30000">等待 30 秒无人加入再补机器人</option>
+                        <option value="60000">等待 60 秒无人加入再补机器人</option>
+                      </select>
+                      <div className="lobby-settings-desc">
+                        仅对房间号以 K 开头的快速房间生效，用于控制多久后自动补齐机器人开局。
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* 音频设置 */}
+                {settingsTab === 'audio' && (
+                  <>
+                    <div className="lobby-settings-group-title">🔊 音频设置</div>
+
+                    <div className="lobby-settings-field">
+                      <div className="lobby-settings-field-row">
+                        <span className="lobby-settings-label-text">背景音乐</span>
+                        <label className="toggle-switch">
+                          <input
+                            type="checkbox"
+                            checked={gameSettings.bgmEnabled}
+                            onChange={handleToggleBgm}
+                          />
+                          <span className="toggle-slider"></span>
+                        </label>
+                      </div>
+                      <div className="lobby-settings-desc">
+                        关闭后，进入牌局时不再自动播放背景音乐。
+                      </div>
+                    </div>
+
+                    <div className="lobby-settings-field">
+                      <div className="lobby-settings-field-row">
+                        <span className="lobby-settings-label-text">音效（出牌、抢地主等）</span>
+                        <label className="toggle-switch">
+                          <input
+                            type="checkbox"
+                            checked={gameSettings.sfxEnabled}
+                            onChange={handleToggleSfx}
+                          />
+                          <span className="toggle-slider"></span>
+                        </label>
+                      </div>
+                      <div className="lobby-settings-desc">
+                        关闭后，仅保留背景音乐，不再播放操作音效。
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="lobby-settings-actions">
+              <button type="button" className="btn-cancel" onClick={closeSettings}>
+                取消
+              </button>
+              <button type="button" className="btn-save" onClick={handleSaveSettings}>
+                保存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

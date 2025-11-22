@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Button, Toast, Dialog } from 'antd-mobile'
+import { Button, Dialog } from 'antd-mobile'
 import { useAuth } from '@/context/AuthContext'
 import { useAppDispatch, useAppSelector } from '@/hooks/useAppDispatch'
 import { useSocketStatus } from '@/hooks/useSocketStatus'
@@ -27,9 +27,12 @@ import {
 } from '@/store/slices/gameSlice'
 import { CardHintHelper } from '@/utils/cardHintHelper'
 import { soundManager } from '@/utils/sound'
+import { getLlmSettings } from '@/utils/llmSettings'
+import { getGameSettings } from '@/utils/gameSettings'
 import { motion, AnimatePresence } from 'framer-motion'
 import './style.css'
 import './game.css'
+import './ai-panel.css'
 
 export default function GameRoom() {
   const { roomId } = useParams<{ roomId: string }>()
@@ -78,9 +81,31 @@ export default function GameRoom() {
   const [dragSelectMode, setDragSelectMode] = useState<'select' | 'deselect' | null>(null)
   const [walletScore, setWalletScore] = useState<number | null>(null)
   const autoReadySentRef = useRef(false)
+  const autoReadyTimerRef = useRef<number | null>(null)
   const settlementAutoLeaveRef = useRef<number | null>(null)
   const [autoReplayCountdown, setAutoReplayCountdown] = useState<number | null>(null)
   const autoReplayTimerRef = useRef<number | null>(null)
+  // 提示请求上下文（用于后端失败时回退到本地提示）
+  const hintContextRef = useRef<{ myCards: string[]; lastCards: string[] | null } | null>(null)
+  
+  // AI 提示历史记录
+  interface AiHintRecord {
+    id: number
+    timestamp: string
+    cards: string[]
+    reason?: string
+    analysis?: string
+    winRate?: number
+    isPass: boolean
+  }
+  const [aiHintHistory, setAiHintHistory] = useState<AiHintRecord[]>([])
+  const [showAiPanel, setShowAiPanel] = useState(false)
+  const aiHintCounterRef = useRef(0)
+
+  const appendSystemMessage = (text: string) => {
+    if (!text) return
+    setChatMessages((prev) => [...prev, { sender: '系统', message: text }])
+  }
 
   // 计算玩家位置（逆时针排列）
   const getPlayerPositions = () => {
@@ -141,6 +166,16 @@ export default function GameRoom() {
   const settlementScore = useMemo(() => gameState.gameResult?.score, [gameState.gameResult])
   const settlementPlayerScores = settlementScore?.playerScores ?? []
 
+  const remainingHandsMap = (gameState.gameResult as any)?.remainingHands as
+    | {
+        [playerId: string]: {
+          playerId: string
+          playerName: string
+          cards: string[]
+        }
+      }
+    | undefined
+
   const isLandlordPlayer = (player: any | null): boolean => {
     if (!player || !landlordId) return false
     const ids = [player.id, (player as any)?.userId, player.name].filter(Boolean)
@@ -159,6 +194,22 @@ export default function GameRoom() {
   const leftPlayerScore = findPlayerScore(leftPlayer)
   const rightPlayerScore = findPlayerScore(rightPlayer)
   const bottomPlayerScore = findPlayerScore(currentPlayer)
+
+  const getRemainingCardsForPlayer = (player: any | null): string[] | null => {
+    if (!player || !remainingHandsMap) return null
+    const idsToMatch = [player.id, (player as any)?.userId, player.name].filter(Boolean)
+    for (const id of idsToMatch) {
+      const info = (remainingHandsMap as any)[id]
+      if (info && Array.isArray(info.cards) && info.cards.length > 0) {
+        return info.cards as string[]
+      }
+    }
+    return null
+  }
+
+  const leftRemainingCards = getRemainingCardsForPlayer(leftPlayer)
+  const rightRemainingCards = getRemainingCardsForPlayer(rightPlayer)
+  const bottomRemainingCards = getRemainingCardsForPlayer(currentPlayer)
 
   const isLeftLandlord = isLandlordPlayer(leftPlayer)
   const isRightLandlord = isLandlordPlayer(rightPlayer)
@@ -253,7 +304,12 @@ export default function GameRoom() {
       return
     }
 
-    soundManager.playBackgroundMusic()
+    const gameSettings = getGameSettings()
+    soundManager.setSoundEnabled(gameSettings.sfxEnabled)
+    soundManager.setMusicEnabled(gameSettings.bgmEnabled)
+    if (gameSettings.bgmEnabled) {
+      soundManager.playBackgroundMusic()
+    }
 
     // 监听连接状态
     const handleConnect = () => {
@@ -272,9 +328,74 @@ export default function GameRoom() {
       console.log('❌ Socket 已断开')
     }
 
+    // 出牌提示结果（来自后端大模型）
+    const handleHintResult = (data: any) => {
+      console.log('💡 [提示结果] 收到后端提示结果:', data)
+
+      const { success, cards, reason, analysis, winRate, error } = data || {}
+
+      // 如果后端成功返回了推荐牌
+      if (success && Array.isArray(cards)) {
+        // 清空之前的选牌，只选中推荐牌
+        if (cards.length > 0) {
+          dispatch(clearSelection())
+          ;(cards as string[]).forEach((card) => {
+            dispatch(toggleCardSelection(card))
+          })
+        }
+
+        // 追加到 AI 提示历史
+        aiHintCounterRef.current += 1
+        const newRecord: AiHintRecord = {
+          id: aiHintCounterRef.current,
+          timestamp: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          cards: cards as string[],
+          reason,
+          analysis,
+          winRate,
+          isPass: cards.length === 0,
+        }
+        setAiHintHistory(prev => [...prev, newRecord])
+        setShowAiPanel(true)
+
+        // 简短提示写入消息框
+        appendSystemMessage(cards.length > 0 ? 'AI 提示：已为你选中推荐出牌' : 'AI 提示：建议不出')
+        return
+      }
+
+      // 后端没有给出可用推荐或报错，回退到本地提示逻辑
+      const ctx = hintContextRef.current
+      const myCardsSnapshot = ctx?.myCards
+      const lastCardsSnapshot = ctx?.lastCards ?? null
+
+      console.warn('💡 [提示结果] 后端提示不可用，使用本地提示兜底。错误信息:', error)
+      if (error) {
+        appendSystemMessage(`AI 提示失败：${String(error)}`)
+      }
+
+      if (!myCardsSnapshot || myCardsSnapshot.length === 0) {
+        console.log('💡 [提示兜底] 当前没有手牌或没有可用上下文')
+        return
+      }
+
+      const fallbackHint = CardHintHelper.getHint(myCardsSnapshot, lastCardsSnapshot)
+      if (!fallbackHint || fallbackHint.length === 0) {
+        console.log('💡 [提示兜底] 没有可供提示的出牌方案')
+        return
+      }
+
+      dispatch(clearSelection())
+      fallbackHint.forEach((card) => {
+        dispatch(toggleCardSelection(card))
+      })
+
+      console.log('💡 [提示兜底] 已为你选择一手本地推荐出牌:', fallbackHint)
+    }
+
     socket.on('connect', handleConnect)
     socket.on('reconnect', handleConnect)
     socket.on('disconnect', handleDisconnect)
+    socket.on('hint_result', handleHintResult)
 
     // 如果已经连接，立即标记为已连接并加入房间
     if (socket.connected) {
@@ -299,6 +420,7 @@ export default function GameRoom() {
       socket.off('connect', handleConnect)
       socket.off('reconnect', handleConnect)
       socket.off('disconnect', handleDisconnect)
+      socket.off('hint_result', handleHintResult)
       soundManager.stopBackgroundMusic()
     }
   }, [user, roomId, dispatch])
@@ -315,7 +437,7 @@ export default function GameRoom() {
     // 房间加入成功
     const handleRoomJoined = (data: any) => {
       console.log('✅ 加入房间成功:', data)
-      Toast.show({ content: '加入房间成功', icon: 'success' })
+      appendSystemMessage('已加入房间')
     }
 
     // 加入游戏成功
@@ -357,7 +479,7 @@ export default function GameRoom() {
     // 恢复游戏状态（重连）
     const handleGameStateRestored = (data: any) => {
       console.log('🔄 [恢复游戏状态] 收到数据:', data)
-      Toast.show({ content: '游戏状态已恢复，继续游戏', icon: 'success' })
+      appendSystemMessage('游戏状态已恢复，继续游戏')
       
       if (!data) return
       
@@ -414,7 +536,7 @@ export default function GameRoom() {
       // 恢复当前回合（复用 handleTurnToPlay 逻辑来设置倒计时等）
       if (data.currentPlayerId) {
         console.log('✅ [恢复游戏状态] 当前应出牌玩家:', data.currentPlayerId)
-        const currentPlayerInfo = data.players?.find((p: any) => 
+        const currentPlayerInfo = data.players?.find((p: any) =>
           p.id === data.currentPlayerId || p.name === data.currentPlayerId
         )
         handleTurnToPlay({
@@ -425,17 +547,6 @@ export default function GameRoom() {
         })
       }
       
-      console.log(`📋 当前阶段: ${data.phase || '未知'}`)
-    }
-
-    // 玩家加入
-    const handlePlayerJoined = (data: any) => {
-      console.log('👤 玩家加入:', data)
-      // 参考 frontend: onPlayerJoined
-      if (data.playerName !== user?.name) {
-        Toast.show({ content: `${data.playerName || '玩家'} 加入房间`, icon: 'success' })
-      }
-      
       // 如果服务器发送了完整的玩家列表，使用它来更新
       if (data.players && Array.isArray(data.players)) {
         console.log('📋 收到完整玩家列表，更新房间玩家:', data.players)
@@ -443,6 +554,30 @@ export default function GameRoom() {
         const players = data.players.map((p: any) => ({
           ...p,
           isReady: p.isReady !== undefined ? p.isReady : p.ready
+        }))
+        dispatch(updatePlayers(players))
+      }
+    }
+
+    // 玩家加入
+    const handlePlayerJoined = (data: any) => {
+      console.log('👤 玩家加入:', data)
+
+      // 将提示写入聊天消息框，仅在其他玩家加入时提示
+      if (data.playerName && data.playerName !== user?.name) {
+        setChatMessages((prev) => [
+          ...prev,
+          { sender: '系统', message: `${data.playerName} 加入房间` },
+        ])
+      }
+
+      // 如果服务器发送了完整的玩家列表，使用它来更新
+      if (data.players && Array.isArray(data.players)) {
+        console.log('📋 收到完整玩家列表，更新房间玩家:', data.players)
+        // 转换 ready 字段为 isReady
+        const players = data.players.map((p: any) => ({
+          ...p,
+          isReady: p.isReady !== undefined ? p.isReady : p.ready,
         }))
         dispatch(updatePlayers(players))
       }
@@ -513,7 +648,7 @@ export default function GameRoom() {
       console.log('🎮 游戏开始:', data)
       setShowSettlement(false)
       dispatch(prepareNextGame())
-      Toast.show({ content: '🎮 游戏开始！所有玩家已准备完毕', icon: 'success' })
+      appendSystemMessage('🎮 游戏开始！所有玩家已准备完毕')
     }
 
     // 发牌事件（房间广播版本）
@@ -554,7 +689,7 @@ export default function GameRoom() {
           console.log('✅ 更新所有玩家牌数:', playersWithInfo)
         }
         
-        Toast.show({ content: '🎴 发牌完成，开始叫地主', icon: 'success' })
+        appendSystemMessage('🎴 发牌完成，开始叫地主')
       } else {
         console.error('❌ 未找到我的牌数据，currentPlayerId:', user?.id || user?.name)
         console.error('❌ 所有玩家数据:', data.players)
@@ -812,7 +947,7 @@ export default function GameRoom() {
       }
 
       console.log('🔍 [前端调试] 显示错误提示:', message)
-      Toast.show({ content: message, icon: 'fail' })
+      appendSystemMessage(`出牌失败：${message}`)
     }
 
     // 回合变化
@@ -1003,23 +1138,70 @@ export default function GameRoom() {
     const socket = globalSocket.getSocket()
     if (!socket) return
 
+    const isQuickRoom = typeof roomId === 'string' && roomId.startsWith('K')
+    const settings = getGameSettings()
+    const delayMs = isQuickRoom ? settings.quickBotDelayMs || 0 : 0
+
     autoReadySentRef.current = true
-    const playerId = myId
-    console.log('🎮 [自动准备] 进入房间后自动为当前玩家发送 player_ready', {
+
+    if (delayMs <= 0) {
+      const playerId = myId
+      console.log('🎮 [自动准备] 立即为当前玩家发送 player_ready', {
+        roomId,
+        userId: myId,
+      })
+      dispatch(updatePlayerStatus({ playerId, isReady: true }))
+      socket.emit('player_ready', {
+        roomId,
+        userId: myId,
+      })
+      return
+    }
+
+    if (autoReadyTimerRef.current != null) {
+      window.clearTimeout(autoReadyTimerRef.current)
+      autoReadyTimerRef.current = null
+    }
+
+    console.log('🎮 [自动准备] 延迟自动准备以等待真人加入', {
       roomId,
       userId: myId,
+      delayMs,
     })
-    dispatch(updatePlayerStatus({ playerId, isReady: true }))
-    socket.emit('player_ready', {
-      roomId,
-      userId: myId,
-    })
+
+    autoReadyTimerRef.current = window.setTimeout(() => {
+      const latestSocket = globalSocket.getSocket()
+      if (!latestSocket) return
+
+      const latestPlayers = Array.isArray(players) ? players : []
+      const stillMe = latestPlayers.find((p: any) =>
+        p && (p.id === myId || p.userId === myId || p.name === user.name),
+      )
+      if (!stillMe || stillMe.isReady) {
+        return
+      }
+
+      const playerId = myId
+      console.log('🎮 [自动准备] 到达延迟时间，为当前玩家发送 player_ready', {
+        roomId,
+        userId: myId,
+      })
+      dispatch(updatePlayerStatus({ playerId, isReady: true }))
+      latestSocket.emit('player_ready', {
+        roomId,
+        userId: myId,
+      })
+    }, delayMs)
   }, [user, roomId, players, gameStatus, dispatch])
 
   // 每次回到等待状态时，允许自动准备逻辑在新的一局重新生效
   useEffect(() => {
     if (gameStatus === 'waiting') {
       autoReadySentRef.current = false
+      if (autoReadyTimerRef.current != null) {
+        window.clearTimeout(autoReadyTimerRef.current)
+        autoReadyTimerRef.current = null
+      }
     }
   }, [gameStatus])
 
@@ -1041,6 +1223,10 @@ export default function GameRoom() {
       if (dealAnimationTimeoutRef.current) {
         clearTimeout(dealAnimationTimeoutRef.current)
         dealAnimationTimeoutRef.current = null
+      }
+      if (autoReadyTimerRef.current != null) {
+        window.clearTimeout(autoReadyTimerRef.current)
+        autoReadyTimerRef.current = null
       }
     }
   }, [])
@@ -1082,7 +1268,7 @@ export default function GameRoom() {
       if (autoHint && autoHint.length > 0) {
         console.log('⏰ [超时处理] 自动出牌:', autoHint)
         doPlayCards(autoHint)
-        Toast.show({ content: '⏰ 时间到，已为你自动出牌', icon: 'success' })
+        appendSystemMessage('⏰ 时间到，已为你自动出牌')
       } else {
         // 首轮出牌且没有可出的牌：强制出最小的一张牌
         console.error('⏰ [超时处理] 无可出牌型，强制出最小的一张牌避免卡死')
@@ -1096,7 +1282,7 @@ export default function GameRoom() {
           ])
         } else {
           console.error('⏰ [超时处理] 手牌为空或无法获取最小牌，游戏可能卡住')
-          Toast.show({ content: '⏰ 时间到，但没有可出的牌', icon: 'fail' })
+          appendSystemMessage('⏰ 时间到，但没有可出的牌')
         }
       }
     }
@@ -1163,7 +1349,7 @@ export default function GameRoom() {
     
     const socket = globalSocket.getSocket()
     if (!socket) {
-      Toast.show({ content: 'Socket 未连接', icon: 'fail' })
+      appendSystemMessage('错误：Socket 未连接')
       return
     }
     
@@ -1203,22 +1389,22 @@ export default function GameRoom() {
   const doPlayCards = (cardsToPlay: string[]) => {
     const socket = globalSocket.getSocket()
     if (!socket || !roomId || !user) {
-      Toast.show({ content: 'Socket 未连接', icon: 'fail' })
+      appendSystemMessage('错误：Socket 未连接，无法出牌')
       return
     }
 
     if (cardsToPlay.length === 0) {
-      Toast.show({ content: '请选择要出的牌', icon: 'fail' })
+      appendSystemMessage('请选择要出的牌')
       return
     }
 
     if (!isMyTurn) {
-      Toast.show({ content: '还没轮到你出牌', icon: 'fail' })
+      appendSystemMessage('还没轮到你出牌')
       return
     }
 
     if (playPendingRef.current) {
-      Toast.show({ content: '正在等待服务器确认...', icon: 'loading' })
+      appendSystemMessage('正在等待服务器确认...')
       return
     }
 
@@ -1263,17 +1449,17 @@ export default function GameRoom() {
   const handlePass = () => {
     const socket = globalSocket.getSocket()
     if (!socket || !roomId || !user) {
-      Toast.show({ content: 'Socket 未连接', icon: 'fail' })
+      appendSystemMessage('错误：Socket 未连接，无法执行不出')
       return
     }
 
     if (!isMyTurn) {
-      Toast.show({ content: '还没轮到你出牌', icon: 'fail' })
+      appendSystemMessage('还没轮到你出牌，不能不出')
       return
     }
 
     if (!canPass) {
-      Toast.show({ content: '不能不出', icon: 'fail' })
+      appendSystemMessage('当前轮次不能不出')
       return
     }
 
@@ -1299,7 +1485,7 @@ export default function GameRoom() {
   const handleBid = (bid: boolean) => {
     const socket = globalSocket.getSocket()
     if (!socket || !roomId || !user) {
-      Toast.show({ content: 'Socket 未连接', icon: 'fail' })
+      appendSystemMessage('错误：Socket 未连接，无法抢地主')
       return
     }
 
@@ -1323,18 +1509,27 @@ export default function GameRoom() {
       bid: bid, // true = 抢，false = 不抢
     })
 
-    // 显示消息
+    // 显示消息到聊天框
     const bidText = bid ? '抢地主' : '不抢'
-    Toast.show({ content: `您选择：${bidText}`, icon: 'success' })
+    appendSystemMessage(`您选择：${bidText}`)
   }
 
-  // 提示 - 参考 frontend 实现（接入简化版 CardHintHelper）
+  // 提示 - 先用本地 CardHintHelper 计算候选
+  // 规则：
+  // 1) 跟牌且 canPass，为 0 个候选时，自动不出，不调用大模型
+  // 2) 只有 1 个候选时，直接选中该组合，不调用大模型
+  // 3) 候选 >= 2 时，再调用后端大模型做进一步分析
   const handleHint = () => {
     // 播放提示音效
     soundManager.playHint()
-    
+
     if (!isMyTurn) {
       console.log('💡 [提示] 还没轮到你出牌，忽略提示操作')
+      return
+    }
+
+    if (!roomId || !user) {
+      appendSystemMessage('房间信息或用户信息缺失，无法请求提示')
       return
     }
 
@@ -1343,30 +1538,85 @@ export default function GameRoom() {
       return
     }
 
-    // 根据当前是否允许“不要”，决定是否参考上家牌型
-    // canPass === false 视为新一轮首家出牌，不参考 lastPlayedCards
-    const isFollowPlay = !!lastPlayedCards && !!lastPlayedCards.cards && lastPlayedCards.cards.length > 0 && canPass
-    const lastCards: string[] | null = isFollowPlay ? lastPlayedCards!.cards : null
-
-    const hint = CardHintHelper.getHint(myCards, lastCards)
-
-    if (!hint || hint.length === 0) {
-      // 跟牌场景下，如果没有任何可以压过上家的牌，自动选择“不出”
-      if (isFollowPlay && canPass) {
-        handlePass()
-        return
-      }
-
-      console.log('💡 [提示] 当前没有可供提示的出牌方案')
+    const socket = globalSocket.getSocket()
+    if (!socket) {
+      appendSystemMessage('错误：Socket 未连接，无法请求出牌提示')
       return
     }
 
-    // 清空之前的选牌，只选中提示中的牌
-    dispatch(clearSelection())
-    hint.forEach((card) => {
-      dispatch(toggleCardSelection(card))
+    // 根据当前是否允许“不要”，决定是否参考上家牌型
+    // canPass === false 视为新一轮首家出牌，不参考 lastPlayedCards
+    const isFollowPlay =
+      !!lastPlayedCards && !!lastPlayedCards.cards && lastPlayedCards.cards.length > 0 && canPass
+    const lastCards: string[] | null = isFollowPlay ? (lastPlayedCards!.cards as string[]) : null
+
+    // 先用本地提示系统计算所有候选
+    const allHints = CardHintHelper.getAllHints(myCards, lastCards)
+    console.log('💡 [提示] 本地候选出牌列表:', allHints)
+
+    // 情况 1：跟牌且可不出，但本地没有任何能压过上家的牌 → 直接不出
+    if (isFollowPlay && canPass && (!allHints || allHints.length === 0)) {
+      console.log('🤖 [提示] 本地判断没有牌能压过上家，直接执行不出，不调用大模型')
+      handlePass()
+      appendSystemMessage('智能判断：没有牌能压过上家，已自动不出')
+      return
+    }
+
+    // 情况 2：只有一个本地候选 → 直接选中，不调用大模型
+    if (allHints && allHints.length === 1) {
+      const onlyHint = allHints[0]
+      console.log('🤖 [提示] 仅有一个本地候选，直接选中:', onlyHint)
+
+      dispatch(clearSelection())
+      onlyHint.forEach((card) => dispatch(toggleCardSelection(card)))
+
+      appendSystemMessage('已根据本地算法选出唯一推荐出牌')
+      return
+    }
+
+    // 情况 3：候选 >= 2
+    const llmSettings = getLlmSettings()
+
+    // 3.a 如果玩家在设置里关闭了大模型提示，则完全使用本地循环提示
+    if (!llmSettings.enabled) {
+      console.log('💡 [提示] 大模型提示已关闭，使用本地循环提示逻辑')
+      const localHint = CardHintHelper.getHint(myCards, lastCards)
+      if (!localHint || localHint.length === 0) {
+        console.log('💡 [提示] 本地循环提示也没有找到合适出牌方案')
+        return
+      }
+
+      dispatch(clearSelection())
+      localHint.forEach((card) => dispatch(toggleCardSelection(card)))
+      appendSystemMessage('已根据本地算法选出推荐出牌')
+      return
+    }
+
+    // 3.b 候选 >= 2，且启用了大模型提示 → 调用后端做深入分析
+
+    // 记录本次提示请求的上下文，便于后端失败时兜底
+    hintContextRef.current = {
+      myCards: [...myCards],
+      lastCards: lastCards ? [...lastCards] : null,
+    }
+
+    console.log('💡 [提示] 候选 >= 2，向后端请求出牌提示:', {
+      roomId,
+      userId: user.id || user.name,
+      isFollowPlay,
+      lastCards,
+      candidateCount: allHints?.length ?? 0,
+      llmSettings,
     })
-    console.log('💡 [提示] 已为你选择一手推荐出牌:', hint)
+
+    socket.emit('request_hint', {
+      roomId,
+      userId: user.id || user.name,
+      llmConfig: {
+        model: llmSettings.model,
+        customPrompt: llmSettings.customPrompt,
+      },
+    })
   }
 
   // 根据目标状态更新某张牌是否选中（避免重复 toggle）
@@ -1752,7 +2002,9 @@ export default function GameRoom() {
   // 游戏结束后在桌面上显示“再来一局(倒计时)”和“返回大厅”
   useEffect(() => {
     if (gameStatus === 'finished' && gameState.gameResult) {
-      // 进入结算状态：启动 30 秒倒计时
+      // 进入结算状态：清空 AI 提示历史，启动 30 秒倒计时
+      setAiHintHistory([])
+      aiHintCounterRef.current = 0
       setAutoReplayCountdown(30)
 
       if (autoReplayTimerRef.current != null) {
@@ -1871,52 +2123,81 @@ export default function GameRoom() {
                 </div>
               )}
               <div className="played-cards-area">
-                {passedPlayers[leftPlayer.id] ? (
+                {gameStatus === 'finished' && leftRemainingCards && leftRemainingCards.length > 0 ? (
+                  <div className="played-cards-container">
+                    {leftRemainingCards.map((cardStr: string, index: number) => {
+                      const { rank, suit, isJoker } = parseCard(cardStr)
+                      const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
+                      return (
+                        <div key={index} className={`card ${isRed ? 'red' : 'black'}`}>
+                          <div
+                            className={`card-value ${isJoker ? 'joker-text' : ''}`}
+                            style={
+                              isJoker ? { color: isJoker === 'big' ? '#d32f2f' : '#000' } : undefined
+                            }
+                          >
+                            {isJoker ? 'JOKER' : rank}
+                          </div>
+                          {!isJoker && <div className="card-suit">{suit}</div>}
+                          {landlordId && (
+                            <div
+                              className={`card-landlord-mark ${
+                                isLeftLandlord ? 'landlord' : 'farmer'
+                              }`}
+                            >
+                              {isLeftLandlord ? '地主' : '农民'}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : passedPlayers[leftPlayer.id] ? (
                   <div className="pass-text">不出</div>
                 ) : (
                   lastPlayedCards &&
                   lastPlayedCards.playerId === leftPlayer.id && (
                     <div className="played-cards-container">
-                        {lastPlayedCards.cards.map((cardStr: string, index: number) => {
-                          const { rank, suit, isJoker } = parseCard(cardStr)
-                          const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
-                          return (
-                            <motion.div
-                              key={index}
-                              className={`card ${isRed ? 'red' : 'black'}`}
-                              initial={{ opacity: 0, scale: 0.6 }}
-                              animate={{ opacity: 1, scale: 0.85 }}
-                              exit={{ opacity: 0, scale: 0.6, transition: { duration: 0.2 } }}
-                              transition={{
-                                delay: index * 0.03,
-                                type: 'spring',
-                                stiffness: 280,
-                                damping: 20,
-                              }}
+                      {lastPlayedCards.cards.map((cardStr: string, index: number) => {
+                        const { rank, suit, isJoker } = parseCard(cardStr)
+                        const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
+                        return (
+                          <motion.div
+                            key={index}
+                            className={`card ${isRed ? 'red' : 'black'}`}
+                            initial={{ opacity: 0, scale: 0.6 }}
+                            animate={{ opacity: 1, scale: 0.85 }}
+                            exit={{ opacity: 0, scale: 0.6, transition: { duration: 0.2 } }}
+                            transition={{
+                              delay: index * 0.03,
+                              type: 'spring',
+                              stiffness: 280,
+                              damping: 20,
+                            }}
+                          >
+                            <div
+                              className={`card-value ${isJoker ? 'joker-text' : ''}`}
+                              style={
+                                isJoker
+                                  ? { color: isJoker === 'big' ? '#d32f2f' : '#000' }
+                                  : undefined
+                              }
                             >
+                              {isJoker ? 'JOKER' : rank}
+                            </div>
+                            {!isJoker && <div className="card-suit">{suit}</div>}
+                            {landlordId && (
                               <div
-                                className={`card-value ${isJoker ? 'joker-text' : ''}`}
-                                style={
-                                  isJoker
-                                    ? { color: isJoker === 'big' ? '#d32f2f' : '#000' }
-                                    : undefined
-                                }
+                                className={`card-landlord-mark ${
+                                  isLeftLandlord ? 'landlord' : 'farmer'
+                                }`}
                               >
-                                {isJoker ? 'JOKER' : rank}
+                                {isLeftLandlord ? '地主' : '农民'}
                               </div>
-                              {!isJoker && <div className="card-suit">{suit}</div>}
-                              {landlordId && (
-                                <div
-                                  className={`card-landlord-mark ${
-                                    isLeftLandlord ? 'landlord' : 'farmer'
-                                  }`}
-                                >
-                                  {isLeftLandlord ? '地主' : '农民'}
-                                </div>
-                              )}
-                            </motion.div>
-                          )
-                        })}
+                            )}
+                          </motion.div>
+                        )
+                      })}
                     </div>
                   )
                 )}
@@ -1958,7 +2239,36 @@ export default function GameRoom() {
                 </div>
               )}
               <div className="played-cards-area">
-                {passedPlayers[rightPlayer.id] ? (
+                {gameStatus === 'finished' && rightRemainingCards && rightRemainingCards.length > 0 ? (
+                  <div className="played-cards-container">
+                    {rightRemainingCards.map((cardStr: string, index: number) => {
+                      const { rank, suit, isJoker } = parseCard(cardStr)
+                      const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
+                      return (
+                        <div key={index} className={`card ${isRed ? 'red' : 'black'}`}>
+                          <div
+                            className={`card-value ${isJoker ? 'joker-text' : ''}`}
+                            style={
+                              isJoker ? { color: isJoker === 'big' ? '#d32f2f' : '#000' } : undefined
+                            }
+                          >
+                            {isJoker ? 'JOKER' : rank}
+                          </div>
+                          {!isJoker && <div className="card-suit">{suit}</div>}
+                          {landlordId && (
+                            <div
+                              className={`card-landlord-mark ${
+                                isRightLandlord ? 'landlord' : 'farmer'
+                              }`}
+                            >
+                              {isRightLandlord ? '地主' : '农民'}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : passedPlayers[rightPlayer.id] ? (
                   <div className="pass-text">不出</div>
                 ) : (
                   lastPlayedCards &&
@@ -2062,68 +2372,70 @@ export default function GameRoom() {
             </div>
           )}
 
-          {lastPlayedCards &&
-            currentPlayer &&
-            lastPlayedCards.playerId === currentPlayer.id &&
-            lastPlayedCards.cards &&
-            lastPlayedCards.cards.length > 0 && (
-              <div className="played-cards-area bottom-player-cards">
-                <div className="played-cards-container">
-                  {lastPlayedCards.cards.map((cardStr: string, index: number) => {
-                    const { rank, suit, isJoker } = parseCard(cardStr)
-                    const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
-                    return (
-                      <motion.div
-                        key={`${cardStr}-${index}`}
-                        className={`card ${isRed ? 'red' : 'black'}`}
-                        initial={{ opacity: 0, y: -160, scale: 0.6, rotate: -6 }}
-                        animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }}
-                        exit={{
-                          opacity: 0,
-                          y: 40,
-                          scale: 0.9,
-                          rotate: 6,
-                          transition: { duration: 0.2 },
-                        }}
-                        transition={{
-                          y: {
-                            delay: isDealingAnimation ? index * 0.05 : 0,
-                            type: 'spring',
-                            stiffness: 280,
-                            damping: 22,
-                          },
-                          opacity: {
-                            delay: isDealingAnimation ? index * 0.05 : 0,
-                            duration: 0.16,
-                          },
-                        }}
-                      >
-                        <div
-                          className={`card-value ${isJoker ? 'joker-text' : ''}`}
-                          style={
-                            isJoker
-                              ? { color: isJoker === 'big' ? '#d32f2f' : '#000' }
-                              : undefined
-                          }
+          {currentPlayer && (
+            <div className="played-cards-area bottom-player-cards">
+              {gameStatus !== 'finished' &&
+                lastPlayedCards &&
+                lastPlayedCards.playerId === currentPlayer.id &&
+                lastPlayedCards.cards &&
+                lastPlayedCards.cards.length > 0 && (
+                  <div className="played-cards-container">
+                    {lastPlayedCards.cards.map((cardStr: string, index: number) => {
+                      const { rank, suit, isJoker } = parseCard(cardStr)
+                      const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
+                      return (
+                        <motion.div
+                          key={`${cardStr}-${index}`}
+                          className={`card ${isRed ? 'red' : 'black'}`}
+                          initial={{ opacity: 0, y: -160, scale: 0.6, rotate: -6 }}
+                          animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }}
+                          exit={{
+                            opacity: 0,
+                            y: 40,
+                            scale: 0.9,
+                            rotate: 6,
+                            transition: { duration: 0.2 },
+                          }}
+                          transition={{
+                            y: {
+                              delay: isDealingAnimation ? index * 0.05 : 0,
+                              type: 'spring',
+                              stiffness: 280,
+                              damping: 22,
+                            },
+                            opacity: {
+                              delay: isDealingAnimation ? index * 0.05 : 0,
+                              duration: 0.16,
+                            },
+                          }}
                         >
-                          {rank}
-                        </div>
-                        {!isJoker && <div className="card-suit">{suit}</div>}
-                        {landlordId && (
                           <div
-                            className={`card-landlord-mark ${
-                              isBottomLandlord ? 'landlord' : 'farmer'
-                            }`}
+                            className={`card-value ${isJoker ? 'joker-text' : ''}`}
+                            style={
+                              isJoker
+                                ? { color: isJoker === 'big' ? '#d32f2f' : '#000' }
+                                : undefined
+                            }
                           >
-                            {isBottomLandlord ? '地主' : '农民'}
+                            {rank}
                           </div>
-                        )}
-                      </motion.div>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
+                          {!isJoker && <div className="card-suit">{suit}</div>}
+                          {landlordId && (
+                            <div
+                              className={`card-landlord-mark ${
+                                isBottomLandlord ? 'landlord' : 'farmer'
+                              }`}
+                            >
+                              {isBottomLandlord ? '地主' : '农民'}
+                            </div>
+                          )}
+                        </motion.div>
+                      )
+                    })}
+                  </div>
+                )}
+            </div>
+          )}
         </div>
 
         {/* 当前玩家信息 - 左下角 */}
@@ -2362,14 +2674,126 @@ export default function GameRoom() {
         </div>
       </aside>
 
-      {/* 右下角UI组：倍数+聊天 */}
-      {!chatVisible && (
+      {/* AI 分析面板 */}
+      {showAiPanel && (
+        <>
+          {/* 透明遮罩层，点击关闭面板 */}
+          <div 
+            className="ai-panel-overlay"
+            onClick={() => setShowAiPanel(false)}
+          />
+          <aside className="ai-panel">
+          <div className="ai-panel-header">
+            <h3>🤖 AI 提示历史</h3>
+            <div className="ai-panel-actions">
+              {aiHintHistory.length > 0 && (
+                <button 
+                  className="ai-clear-btn"
+                  onClick={() => {
+                    setAiHintHistory([])
+                    aiHintCounterRef.current = 0
+                  }}
+                  title="清空历史"
+                >
+                  🗑️
+                </button>
+              )}
+              <button 
+                className="ai-close-btn"
+                onClick={() => setShowAiPanel(false)}
+                title="关闭面板"
+              >
+                ✖️
+              </button>
+            </div>
+          </div>
+          <div className="ai-panel-content">
+            {aiHintHistory.length === 0 ? (
+              <div className="ai-empty-state">
+                <div className="ai-empty-icon">💡</div>
+                <p>还没有使用AI提示</p>
+                <p className="ai-empty-hint">点击“提示”按钮获取AI分析</p>
+              </div>
+            ) : (
+              <div className="ai-history-list">
+                {aiHintHistory.map((record) => (
+                  <div key={record.id} className="ai-hint-card">
+                    <div className="ai-hint-header">
+                      <span className="ai-hint-number">#{record.id}</span>
+                      <span className="ai-hint-time">{record.timestamp}</span>
+                    </div>
+                    
+                    {record.analysis && (
+                      <div className="ai-hint-section">
+                        <div className="ai-section-title">🧠 深度分析</div>
+                        <div className="ai-section-content">{record.analysis}</div>
+                      </div>
+                    )}
+                    
+                    {typeof record.winRate === 'number' && (
+                      <div className="ai-hint-section">
+                        <div className="ai-section-title">🎯 胜率估计</div>
+                        <div className="ai-winrate-bar">
+                          <div 
+                            className="ai-winrate-fill"
+                            style={{ width: `${record.winRate}%` }}
+                          />
+                          <span className="ai-winrate-text">{record.winRate}%</span>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="ai-hint-section">
+                      <div className="ai-section-title">🎴 推荐出牌</div>
+                      <div className="ai-section-content">
+                        {record.isPass ? (
+                          <span className="ai-pass-tag">不出 (PASS)</span>
+                        ) : (
+                          <div className="ai-cards-display">
+                            {record.cards.map((card, idx) => (
+                              <span key={idx} className="ai-mini-card">{card}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {record.reason && (
+                      <div className="ai-hint-footer">
+                        <span className="ai-reason-label">📝</span>
+                        <span className="ai-reason-text">{record.reason}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </aside>
+        </>
+      )}
+
+      {/* 右下角UI组：倍数+AI+聊天 */}
+      {!chatVisible && !showAiPanel && (
         <div className="bottom-right-ui">
           {/* 倍数显示 */}
           <div className="game-multiplier" title="当前倍数">
             <span className="multiplier-icon">🎲</span>
             <span className="multiplier-value">30万</span>
           </div>
+          {/* AI 分析切换按钮 */}
+          {aiHintHistory.length > 0 && (
+            <button 
+              className="ai-toggle-btn"
+              onClick={() => setShowAiPanel(true)}
+              title="查看AI分析"
+            >
+              🤖
+              {aiHintHistory.length > 0 && (
+                <span className="ai-badge">{aiHintHistory.length}</span>
+              )}
+            </button>
+          )}
           {/* 聊天切换按钮 */}
           <button 
             className="chat-toggle-btn"

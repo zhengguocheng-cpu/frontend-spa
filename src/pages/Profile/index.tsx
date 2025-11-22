@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { globalSocket } from '@/services/socket'
+import AvatarSelector from '@/components/AvatarSelector'
 import './style.css'
 
 interface ProfileStats {
@@ -59,11 +60,68 @@ export default function Profile() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [achievementsLoading, setAchievementsLoading] = useState(false)
+  
+  // 头像选择器状态
+  const [showAvatarSelector, setShowAvatarSelector] = useState(false)
+  const [currentAvatar, setCurrentAvatar] = useState(1) // 默认头像编号
+
+  // 昵称编辑状态
+  const [displayName, setDisplayName] = useState(user?.name || '')
+  const [editingName, setEditingName] = useState(false)
+  const [savingName, setSavingName] = useState(false)
+
+  // 左侧垂直 Tab：资料 / 战绩 / 历史记录
+  const [activeTab, setActiveTab] = useState<'profile' | 'stats' | 'history'>('profile')
 
   const status = globalSocket.getStatus()
 
   const handleGoBack = () => {
     navigate(-1)
+  }
+
+  const handleSelectAvatar = async (avatarId: number) => {
+    setCurrentAvatar(avatarId)
+    
+    // TODO: 调用后端 API 保存头像
+    try {
+      const baseUrl =
+        window.location.hostname === 'localhost'
+          ? 'http://localhost:3000'
+          : window.location.origin
+      
+      await fetch(`${baseUrl}/api/user/avatar`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ avatarId }),
+      })
+      console.log('头像已保存:', avatarId)
+    } catch (error) {
+      console.error('保存头像失败:', error)
+    }
+  }
+
+  const handleStartEditName = () => {
+    setEditingName(true)
+  }
+
+  const handleCancelEditName = () => {
+    setEditingName(false)
+    setDisplayName(user?.name || '')
+  }
+
+  const handleSaveName = () => {
+    const trimmed = displayName.trim()
+    if (!trimmed) return
+
+    setSavingName(true)
+    try {
+      setDisplayName(trimmed)
+      // 先保存到 sessionStorage，刷新后会通过 AuthContext 恢复
+      sessionStorage.setItem('userName', trimmed)
+      setEditingName(false)
+    } finally {
+      setSavingName(false)
+    }
   }
 
   if (!user) {
@@ -197,11 +255,52 @@ export default function Profile() {
       <Card className="profile-card" bordered={false}>
         <div className="profile-header">
           <div className="profile-header-left">
-            <div className="profile-avatar-large">
-              <div className="profile-avatar-img" />
+            <div
+              className="profile-avatar-large"
+              onClick={() => setShowAvatarSelector(true)}
+              title="点击更换头像"
+            >
+              <div className={`profile-avatar-img avatar-sprite avatar-${currentAvatar}`} />
             </div>
             <div className="profile-basic">
-              <div className="profile-name">{user.name}</div>
+              <div className="profile-name-row">
+                {editingName ? (
+                  <>
+                    <input
+                      className="profile-name-input"
+                      value={displayName}
+                      maxLength={16}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="profile-name-btn save"
+                      onClick={handleSaveName}
+                      disabled={savingName || !displayName.trim()}
+                    >
+                      保存
+                    </button>
+                    <button
+                      type="button"
+                      className="profile-name-btn cancel"
+                      onClick={handleCancelEditName}
+                    >
+                      取消
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="profile-name">{displayName || user.name}</div>
+                    <button
+                      type="button"
+                      className="profile-name-edit"
+                      onClick={handleStartEditName}
+                    >
+                      编辑
+                    </button>
+                  </>
+                )}
+              </div>
               <div className="profile-id">ID: {user.id}</div>
             </div>
           </div>
@@ -219,114 +318,164 @@ export default function Profile() {
                 : '请检查网络或重新登录'}
             </div>
           </div>
-        </div>
+          </div>
 
         <div className="profile-main">
-          <div className="profile-stats-card">
-            <div className="profile-stats-title">对局概览</div>
-            <div className="profile-stats-grid">
-              <div className="profile-stat-item">
-                <div className="label">当前积分</div>
-                <div className="value">{stats ? stats.totalScore : '--'}</div>
-              </div>
-              <div className="profile-stat-item">
-                <div className="label">总场次</div>
-                <div className="value">{stats ? stats.gamesPlayed : '--'}</div>
-              </div>
-              <div className="profile-stat-item">
-                <div className="label">胜率</div>
-                <div className="value">{winRateText}</div>
-              </div>
-              <div className="profile-stat-item">
-                <div className="label">当前连胜</div>
-                <div className="value">{stats ? stats.currentStreak : '--'}</div>
-              </div>
-            </div>
+          <div className="profile-tabs-vertical">
+            <button
+              type="button"
+              className={
+                'profile-tab-item' + (activeTab === 'profile' ? ' active' : '')
+              }
+              onClick={() => setActiveTab('profile')}
+            >
+              资料
+            </button>
+            <button
+              type="button"
+              className={
+                'profile-tab-item' + (activeTab === 'stats' ? ' active' : '')
+              }
+              onClick={() => setActiveTab('stats')}
+            >
+              战绩
+            </button>
+            <button
+              type="button"
+              className={
+                'profile-tab-item' + (activeTab === 'history' ? ' active' : '')
+              }
+              onClick={() => setActiveTab('history')}
+            >
+              历史记录
+            </button>
           </div>
 
-          <div className="profile-achievements-card">
-            <div className="profile-achievements-header">
-              <div className="title">我的成就</div>
-              {achievementsLoading && <span className="sub">加载中...</span>}
+          <div className="profile-tab-panel">
+            {/* 资料：以对局概览为主 */}
+            <div
+              className={
+                'profile-stats-card' +
+                (activeTab === 'profile' || activeTab === 'stats' ? '' : ' hidden')
+              }
+            >
+              <div className="profile-stats-title">对局概览</div>
+              <div className="profile-stats-grid">
+                <div className="profile-stat-item">
+                  <div className="label">当前积分</div>
+                  <div className="value">{stats ? stats.totalScore : '--'}</div>
+                </div>
+                <div className="profile-stat-item">
+                  <div className="label">总场次</div>
+                  <div className="value">{stats ? stats.gamesPlayed : '--'}</div>
+                </div>
+                <div className="profile-stat-item">
+                  <div className="label">胜率</div>
+                  <div className="value">{winRateText}</div>
+                </div>
+                <div className="profile-stat-item">
+                  <div className="label">当前连胜</div>
+                  <div className="value">{stats ? stats.currentStreak : '--'}</div>
+                </div>
+              </div>
             </div>
-            {!achievementsLoading && achievements.length === 0 && (
-              <div className="profile-empty">暂无成就，继续加油～</div>
-            )}
-            {achievements.length > 0 && (
-              <div className="achievements-grid">
-                {achievements.map((a) => (
-                  <div
-                    key={a.id}
-                    className={
-                      'achievement-item ' + (a.isUnlocked ? 'unlocked' : 'locked')
-                    }
-                    title={a.description}
-                  >
-                    <div className="achievement-icon">{a.icon}</div>
-                    <div className="achievement-name">{a.name}</div>
-                    <div className="achievement-desc">
-                      {a.isUnlocked ? '已解锁' : `${Math.round(a.progress || 0)}%`}
+
+            {/* 战绩：展示成就 */}
+            <div
+              className={
+                'profile-achievements-card' +
+                (activeTab === 'stats' ? '' : ' hidden')
+              }
+            >
+              <div className="profile-achievements-header">
+                <div className="title">我的成就</div>
+                {achievementsLoading && <span className="sub">加载中...</span>}
+              </div>
+              {!achievementsLoading && achievements.length === 0 && (
+                <div className="profile-empty">暂无成就，继续加油～</div>
+              )}
+              {achievements.length > 0 && (
+                <div className="achievements-grid">
+                  {achievements.map((a) => (
+                    <div
+                      key={a.id}
+                      className={
+                        'achievement-item ' + (a.isUnlocked ? 'unlocked' : 'locked')
+                      }
+                      title={a.description}
+                    >
+                      <div className="achievement-icon">{a.icon}</div>
+                      <div className="achievement-name">{a.name}</div>
+                      <div className="achievement-desc">
+                        {a.isUnlocked ? '已解锁' : `${Math.round(a.progress || 0)}%`}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="profile-history-card">
-            <div className="profile-history-header">
-              <div className="title">最近战绩</div>
-              {loading && <span className="sub">加载中...</span>}
-              {!loading && !error && history.length > 0 && (
-                <span className="sub">共 {history.length} 场，展示最近 10 场</span>
+                  ))}
+                </div>
               )}
             </div>
-            {error && (
-              <div className="profile-error-text">{error}</div>
-            )}
-            {!error && history.length === 0 && !loading && (
-              <div className="profile-empty">暂无游戏记录，打一局试试吧～</div>
-            )}
-            {!error && history.length > 0 && (
-              <div className="profile-history-list">
-                {history.slice(0, 10).map((game, idx) => {
-                  const time = new Date(game.timestamp).toLocaleString('zh-CN', {
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })
-                  const roleText = game.role === 'landlord' ? '地主' : '农民'
-                  const resultPrefix = game.isWinner ? '✅' : '❌'
-                  const scoreChange = Number(game.scoreChange || 0)
-                  const scoreText = scoreChange > 0 ? `+${scoreChange}` : `${scoreChange}`
-                  const tags: string[] = Array.isArray(game.tags) ? game.tags : []
 
-                  return (
-                    <div key={idx} className="profile-history-item">
-                      <div className="info">
-                        <div className="time">{time}</div>
-                        <div className="role">
-                          {resultPrefix} {roleText}
-                        </div>
-                        {tags.length > 0 && (
-                          <div className="tags">
-                            {tags.map((tag) => (
-                              <span key={tag} className="tag">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <div className={scoreChange >= 0 ? 'score positive' : 'score negative'}>
-                        {scoreText}
-                      </div>
-                    </div>
-                  )
-                })}
+            {/* 历史记录 */}
+            <div
+              className={
+                'profile-history-card' +
+                (activeTab === 'history' ? '' : ' hidden')
+              }
+            >
+              <div className="profile-history-header">
+                <div className="title">最近战绩</div>
+                {loading && <span className="sub">加载中...</span>}
+                {!loading && !error && history.length > 0 && (
+                  <span className="sub">共 {history.length} 场，展示最近 10 场</span>
+                )}
               </div>
-            )}
+              {error && (
+                <div className="profile-error-text">{error}</div>
+              )}
+              {!error && history.length === 0 && !loading && (
+                <div className="profile-empty">暂无游戏记录，打一局试试吧～</div>
+              )}
+              {!error && history.length > 0 && (
+                <div className="profile-history-list">
+                  {history.slice(0, 10).map((game, idx) => {
+                    const time = new Date(game.timestamp).toLocaleString('zh-CN', {
+                      month: '2-digit',
+                      day: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })
+                    const roleText = game.role === 'landlord' ? '地主' : '农民'
+                    const resultPrefix = game.isWinner ? '✅' : '❌'
+                    const scoreChange = Number(game.scoreChange || 0)
+                    const scoreText = scoreChange > 0 ? `+${scoreChange}` : `${scoreChange}`
+                    const tags: string[] = Array.isArray(game.tags) ? game.tags : []
+
+                    return (
+                      <div key={idx} className="profile-history-item">
+                        <div className="info">
+                          <div className="time">{time}</div>
+                          <div className="role">
+                            {resultPrefix} {roleText}
+                          </div>
+                          {tags.length > 0 && (
+                            <div className="tags">
+                              {tags.map((tag) => (
+                                <span key={tag} className="tag">
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className={scoreChange >= 0 ? 'score positive' : 'score negative'}>
+                          {scoreText}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -340,6 +489,15 @@ export default function Profile() {
           </Button>
         </div>
       </Card>
+
+      {/* 头像选择器弹窗 */}
+      {showAvatarSelector && (
+        <AvatarSelector
+          currentAvatar={currentAvatar}
+          onSelect={handleSelectAvatar}
+          onClose={() => setShowAvatarSelector(false)}
+        />
+      )}
     </div>
   )
 }

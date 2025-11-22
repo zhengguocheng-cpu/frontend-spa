@@ -5,6 +5,7 @@
 class SoundManager {
   private audioContext: AudioContext | null = null
   private soundEnabled: boolean = true
+  private musicEnabled: boolean = true
   private initialized: boolean = false
   private backgroundAudio: HTMLAudioElement | null = null
 
@@ -179,7 +180,7 @@ class SoundManager {
   }
 
   playBackgroundMusic() {
-    if (!this.soundEnabled) {
+    if (!this.musicEnabled) {
       return
     }
 
@@ -213,10 +214,6 @@ class SoundManager {
    */
   setSoundEnabled(enabled: boolean) {
     this.soundEnabled = enabled
-
-    if (!enabled) {
-      this.stopBackgroundMusic()
-    }
   }
 
   /**
@@ -224,6 +221,17 @@ class SoundManager {
    */
   isSoundEnabled(): boolean {
     return this.soundEnabled
+  }
+
+  setMusicEnabled(enabled: boolean) {
+    this.musicEnabled = enabled
+    if (!enabled) {
+      this.stopBackgroundMusic()
+    }
+  }
+
+  isMusicEnabled(): boolean {
+    return this.musicEnabled
   }
 }
 
