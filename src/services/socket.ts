@@ -336,6 +336,15 @@ class GlobalSocketManager {
     }
   }
 
+  updateUser(user: { id: string; name: string; avatar: string }) {
+    this.userId = user.id
+    this.userName = user.name
+    this.playerAvatar = user.avatar
+    sessionStorage.setItem('userId', user.id)
+    sessionStorage.setItem('userName', user.name)
+    sessionStorage.setItem('playerAvatar', user.avatar)
+  }
+
   clearAuth() {
     // 清除会话存储
     sessionStorage.removeItem('sessionId')

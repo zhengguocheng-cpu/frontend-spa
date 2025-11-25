@@ -7,6 +7,7 @@ import { getOrCreateGuestIdentity } from '@/utils/guestIdentity'
 import { getLevelByScore } from '@/utils/playerLevel'
 import { getLlmSettings, saveLlmSettings, type LlmSettings } from '@/utils/llmSettings'
 import { getGameSettings, saveGameSettings, type GameSettings } from '@/utils/gameSettings'
+import { soundManager } from '@/utils/sound'
 import './style.css'
 
 export default function LobbyHome() {
@@ -154,6 +155,22 @@ export default function LobbyHome() {
     }
   }, [user])
 
+  useEffect(() => {
+    soundManager.setSoundEnabled(gameSettings.sfxEnabled)
+    soundManager.setMusicEnabled(gameSettings.bgmEnabled)
+    if (gameSettings.bgmEnabled) {
+      soundManager.playBackgroundMusic()
+    } else {
+      soundManager.stopBackgroundMusic()
+    }
+  }, [gameSettings.bgmEnabled, gameSettings.sfxEnabled])
+
+  useEffect(() => {
+    return () => {
+      soundManager.stopBackgroundMusic()
+    }
+  }, [])
+
   const handleQuickStart = async () => {
     if (!user) {
       Toast.show({ content: '请先登录后再开始游戏', icon: 'info' })
@@ -250,11 +267,11 @@ export default function LobbyHome() {
       case 'vip':
         Toast.show({ content: '会员中心暂未开放', icon: 'info' })
         break
-      case 'forum':
-        Toast.show({ content: '论坛暂未开放', icon: 'info' })
+      case 'leaderboard':
+        navigate('/leaderboard')
         break
-      case 'more':
-        Toast.show({ content: '更多功能开发中', icon: 'info' })
+      case 'feedback':
+        navigate('/feedback')
         break
     }
   }
@@ -306,6 +323,10 @@ export default function LobbyHome() {
             点击同步微信信息
           </button>
         )}
+      </div>
+
+      <div className="lobby-model-slot">
+        <div className="lobby-model-image" />
       </div>
 
       <div className="lobby-main-cards">
@@ -360,22 +381,22 @@ export default function LobbyHome() {
         <button
           type="button"
           className="bottom-nav-item"
-          onClick={() => handleBottomClick('forum')}
+          onClick={() => handleBottomClick('leaderboard')}
         >
           <span className="bottom-nav-icon" aria-hidden>
-            📊
+            🏆
           </span>
-          <span className="bottom-nav-label">论坛</span>
+          <span className="bottom-nav-label">排行榜</span>
         </button>
         <button
           type="button"
           className="bottom-nav-item"
-          onClick={() => handleBottomClick('more')}
+          onClick={() => handleBottomClick('feedback')}
         >
           <span className="bottom-nav-icon" aria-hidden>
-            ⋯
+            💬
           </span>
-          <span className="bottom-nav-label">更多</span>
+          <span className="bottom-nav-label">反馈</span>
         </button>
       </div>
 
@@ -387,7 +408,7 @@ export default function LobbyHome() {
               e.stopPropagation()
             }}
           >
-            <div className="lobby-settings-header">系统设置</div>
+            <div className="lobby-settings-header"></div>
             <div className="lobby-settings-body">
               <div className="lobby-settings-tabs-vertical">
                 <button

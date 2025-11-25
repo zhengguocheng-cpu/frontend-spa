@@ -1,4 +1,4 @@
-import { Card, Button } from 'antd'
+import { Card } from 'antd'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
@@ -32,6 +32,15 @@ interface AchievementItem {
   unlockedAt?: string | Date | null
 }
 
+interface LeaderboardEntry {
+  rank: number
+  userId: string
+  username?: string
+  value: number
+  gamesPlayed: number
+  winRate: number
+}
+
 // 按成就ID定义一个展示优先级：首胜 -> 连胜类 -> 其它里程碑
 const ACHIEVEMENT_ORDER: Record<string, number> = {
   first_win: 1,
@@ -51,7 +60,7 @@ function getAchievementOrder(a: AchievementItem): number {
 }
 
 export default function Profile() {
-  const { user } = useAuth()
+  const { user, updateUser } = useAuth()
   const navigate = useNavigate()
 
   const [stats, setStats] = useState<ProfileStats | null>(null)
@@ -60,10 +69,22 @@ export default function Profile() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [achievementsLoading, setAchievementsLoading] = useState(false)
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false)
+  const [leaderboardError, setLeaderboardError] = useState<string | null>(null)
   
   // 头像选择器状态
   const [showAvatarSelector, setShowAvatarSelector] = useState(false)
-  const [currentAvatar, setCurrentAvatar] = useState(1) // 默认头像编号
+  const [currentAvatar, setCurrentAvatar] = useState(() => {
+    if (user && typeof user.avatar === 'string') {
+      const match = user.avatar.match(/^avatar-(\d+)$/)
+      if (match) {
+        const id = Number(match[1])
+        if (!Number.isNaN(id) && id > 0) return id
+      }
+    }
+    return 1
+  }) // 默认头像编号
 
   // 昵称编辑状态
   const [displayName, setDisplayName] = useState(user?.name || '')
@@ -80,6 +101,7 @@ export default function Profile() {
   }
 
   const handleSelectAvatar = async (avatarId: number) => {
+    if (!user) return
     setCurrentAvatar(avatarId)
     
     // TODO: 调用后端 API 保存头像
@@ -88,13 +110,31 @@ export default function Profile() {
         window.location.hostname === 'localhost'
           ? 'http://localhost:3000'
           : window.location.origin
-      
-      await fetch(`${baseUrl}/api/user/avatar`, {
+      const avatarKey = `avatar-${avatarId}`
+      const nameToUse = (displayName || user.name || '').trim() || user.name
+      const res = await fetch(`${baseUrl}/api/user/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ avatarId }),
+        body: JSON.stringify({
+          userId: user.id,
+          username: nameToUse,
+          avatar: avatarKey,
+        }),
       })
-      console.log('头像已保存:', avatarId)
+      let json: any = null
+      try {
+        json = await res.json()
+      } catch {}
+      if (!res.ok || !json?.success) {
+        console.warn('保存头像失败:', res.status, json?.message)
+        return
+      }
+      const nextName: string =
+        (typeof json.data?.username === 'string' && json.data.username.trim()) || nameToUse
+      const nextAvatar: string =
+        (typeof json.data?.avatar === 'string' && json.data.avatar.trim()) || avatarKey
+      setDisplayName(nextName)
+      updateUser({ name: nextName, avatar: nextAvatar })
     } catch (error) {
       console.error('保存头像失败:', error)
     }
@@ -109,16 +149,46 @@ export default function Profile() {
     setDisplayName(user?.name || '')
   }
 
-  const handleSaveName = () => {
+  const handleSaveName = async () => {
     const trimmed = displayName.trim()
-    if (!trimmed) return
+    if (!trimmed || !user) return
 
     setSavingName(true)
     try {
-      setDisplayName(trimmed)
-      // 先保存到 sessionStorage，刷新后会通过 AuthContext 恢复
-      sessionStorage.setItem('userName', trimmed)
+      const baseUrl =
+        window.location.hostname === 'localhost'
+          ? 'http://localhost:3000'
+          : window.location.origin
+      const currentAvatarKey =
+        (user.avatar && /^avatar-\d+$/.test(user.avatar))
+          ? user.avatar
+          : `avatar-${currentAvatar}`
+      const res = await fetch(`${baseUrl}/api/user/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          username: trimmed,
+          avatar: currentAvatarKey,
+        }),
+      })
+      let json: any = null
+      try {
+        json = await res.json()
+      } catch {}
+      if (!res.ok || !json?.success) {
+        console.warn('保存昵称失败:', res.status, json?.message)
+        return
+      }
+      const nextName: string =
+        (typeof json.data?.username === 'string' && json.data.username.trim()) || trimmed
+      const nextAvatar: string =
+        (typeof json.data?.avatar === 'string' && json.data.avatar.trim()) || currentAvatarKey
+      setDisplayName(nextName)
+      updateUser({ name: nextName, avatar: nextAvatar })
       setEditingName(false)
+    } catch (error) {
+      console.error('保存昵称失败:', error)
     } finally {
       setSavingName(false)
     }
@@ -172,6 +242,23 @@ export default function Profile() {
             currentStreak: data.currentStreak ?? 0,
           })
           setHistory(Array.isArray(data.gameHistory) ? data.gameHistory : [])
+          // 从后端记录恢复昵称与头像
+          if (typeof data.username === 'string' && data.username.trim()) {
+            const backendName = data.username.trim()
+            setDisplayName(backendName)
+            updateUser({ name: backendName })
+          }
+          if (typeof data.avatar === 'string' && data.avatar.trim()) {
+            const avatarStr: string = data.avatar.trim()
+            const match = avatarStr.match(/^avatar-(\d+)$/)
+            if (match) {
+              const id = Number(match[1])
+              if (!Number.isNaN(id) && id > 0) {
+                setCurrentAvatar(id)
+              }
+            }
+            updateUser({ avatar: avatarStr })
+          }
         } else {
           // 返回结构异常也当作暂无记录
           console.warn('加载战绩返回结构异常:', json)
@@ -239,8 +326,49 @@ export default function Profile() {
       }
     }
 
+    const loadLeaderboard = async () => {
+      try {
+        setLeaderboardLoading(true)
+        setLeaderboardError(null)
+
+        const baseUrl =
+          window.location.hostname === 'localhost'
+            ? 'http://localhost:3000'
+            : window.location.origin
+
+        const res = await fetch(
+          `${baseUrl}/api/score/leaderboard/score?limit=10`,
+          {
+            signal: controller.signal,
+          }
+        )
+
+        let json: any = null
+        try {
+          json = await res.json()
+        } catch {}
+
+        if (!res.ok || !json?.success || !Array.isArray(json.data)) {
+          console.warn('加载排行榜失败或返回结构异常:', res.status, json?.message)
+          setLeaderboard([])
+          setLeaderboardError('加载排行榜失败')
+          return
+        }
+
+        setLeaderboard(json.data as LeaderboardEntry[])
+      } catch (err: any) {
+        if (err?.name === 'AbortError') return
+        console.error('加载排行榜失败:', err)
+        setLeaderboard([])
+        setLeaderboardError('加载排行榜失败')
+      } finally {
+        setLeaderboardLoading(false)
+      }
+    }
+
     loadScoreAndHistory()
     loadAchievements()
+    loadLeaderboard()
 
     return () => {
       controller.abort()
@@ -250,9 +378,24 @@ export default function Profile() {
   const winRateText =
     stats && stats.winRate != null ? `${Number(stats.winRate).toFixed(1)}%` : '--'
 
+  const formatLeaderboardWinRate = (v: number | null | undefined) => {
+    if (v == null) return '0.0%'
+    return `${Number(v).toFixed(1)}%`
+  }
+
   return (
     <div className="profile-page">
       <Card className="profile-card" bordered={false}>
+        <div className="profile-back-row">
+          <button
+            type="button"
+            className="profile-back-btn"
+            onClick={handleGoBack}
+          >
+            
+            返回
+          </button>
+        </div>
         <div className="profile-header">
           <div className="profile-header-left">
             <div
@@ -415,6 +558,54 @@ export default function Profile() {
               )}
             </div>
 
+            <div
+              className={
+                'profile-leaderboard-card' +
+                (activeTab === 'stats' ? '' : ' hidden')
+              }
+            >
+              <div className="profile-leaderboard-header">
+                <div className="title">积分排行榜</div>
+                {leaderboardLoading && <span className="sub">加载中...</span>}
+              </div>
+              {leaderboardError && (
+                <div className="profile-error-text">{leaderboardError}</div>
+              )}
+              {!leaderboardError && leaderboard.length === 0 && !leaderboardLoading && (
+                <div className="profile-empty">暂无排行榜数据</div>
+              )}
+              {!leaderboardError && leaderboard.length > 0 && (
+                <div className="profile-leaderboard-table">
+                  {leaderboard.slice(0, 5).map((entry) => {
+                    const isMe = entry.userId === user.id
+                    const rankIcon =
+                      entry.rank === 1
+                        ? '🥇'
+                        : entry.rank === 2
+                        ? '🥈'
+                        : entry.rank === 3
+                        ? '🥉'
+                        : entry.rank
+                    const scoreText = entry.value ?? 0
+                    const winRateLocal = formatLeaderboardWinRate(entry.winRate)
+                    return (
+                      <div
+                        key={entry.userId + '-' + entry.rank}
+                        className={
+                          'profile-leaderboard-row' + (isMe ? ' me' : '')
+                        }
+                      >
+                        <div className="col-rank">{rankIcon}</div>
+                        <div className="col-player">{entry.username || entry.userId}</div>
+                        <div className="col-score">{scoreText}</div>
+                        <div className="col-winrate">{winRateLocal}</div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
             {/* 历史记录 */}
             <div
               className={
@@ -479,15 +670,6 @@ export default function Profile() {
           </div>
         </div>
 
-        <div className="profile-actions">
-          <Button onClick={handleGoBack}>返回</Button>
-          <Button type="primary" onClick={() => navigate('/leaderboard')}>
-            查看排行榜
-          </Button>
-          <Button onClick={() => navigate('/feedback')}>
-            意见反馈
-          </Button>
-        </div>
       </Card>
 
       {/* 头像选择器弹窗 */}

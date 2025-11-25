@@ -14,6 +14,7 @@ interface AuthContextValue {
   loading: boolean
   login: (options: ConnectOptions) => Promise<AuthUser>
   logout: () => void
+  updateUser: (patch: Partial<Pick<AuthUser, 'name' | 'avatar'>>) => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -109,6 +110,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const updateUser = useCallback(
+    (patch: Partial<Pick<AuthUser, 'name' | 'avatar'>>) => {
+      setUser((prev) => {
+        if (!prev) return prev
+        const next: AuthUser = {
+          ...prev,
+          ...patch,
+        }
+
+        sessionStorage.setItem('userId', next.id)
+        sessionStorage.setItem('userName', next.name)
+        sessionStorage.setItem('playerAvatar', next.avatar)
+
+        try {
+          globalSocket.updateUser(next)
+        } catch (error) {
+          console.error('更新 Socket 用户信息失败:', error)
+        }
+
+        return next
+      })
+    },
+    [],
+  )
+
   const logout = useCallback(() => {
     globalSocket.clearAuth()
     
@@ -123,8 +149,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, loading, login, logout }),
-    [user, loading, login, logout]
+    () => ({ user, loading, login, logout, updateUser }),
+    [user, loading, login, logout, updateUser]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

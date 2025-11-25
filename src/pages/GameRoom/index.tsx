@@ -209,7 +209,6 @@ export default function GameRoom() {
 
   const leftRemainingCards = getRemainingCardsForPlayer(leftPlayer)
   const rightRemainingCards = getRemainingCardsForPlayer(rightPlayer)
-  const bottomRemainingCards = getRemainingCardsForPlayer(currentPlayer)
 
   const isLeftLandlord = isLandlordPlayer(leftPlayer)
   const isRightLandlord = isLandlordPlayer(rightPlayer)
