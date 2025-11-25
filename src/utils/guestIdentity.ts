@@ -48,3 +48,13 @@ export function getOrCreateGuestIdentity(): GuestIdentity {
 
   return { id, name }
 }
+
+// 更新本地缓存的游客昵称，供后续自动登录时使用
+export function setGuestName(name: string) {
+  try {
+    const storage = getGuestStorage()
+    storage.setItem(GUEST_NAME_KEY, name)
+  } catch (e) {
+    // 忽略本地存储异常，避免影响登录流程
+  }
+}

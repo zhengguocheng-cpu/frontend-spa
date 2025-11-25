@@ -266,31 +266,36 @@
 
 .player-slot .result-score {
   position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 48px; /* 加大字号 */
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, 120%); /* 位于头像区域正下方，避免挡住出牌区域 */
+  font-size: 40px; /* 略收一点字号，为背景条腾空间 */
   font-weight: 900;
-  text-shadow: 0 6px 16px rgba(0, 0, 0, 0.9), 0 0 30px rgba(255, 215, 0, 0.5);
+  padding: 6px 18px;
+  border-radius: 999px;
+  min-width: 120px;
+  text-align: center;
+  text-shadow: 0 4px 10px rgba(0, 0, 0, 0.85);
   pointer-events: none;
   z-index: 100;
 }
 
-.player-slot.left .result-score {
-  left: 100%;
-  margin-left: 12px;
-}
-
+.player-slot.left .result-score,
 .player-slot.right .result-score {
-  right: 100%;
-  margin-right: 12px;
+  margin-left: 0;
+  margin-right: 0;
 }
 
 .result-score.win {
-  color: #ffd700; /* 胜利金黄色 */
+  color: #ffffff; /* 文字使用白色，搭配亮色底 */
+  background: linear-gradient(135deg, #facc15, #f97316);
+  box-shadow: 0 6px 18px rgba(248, 181, 85, 0.7);
 }
 
 .result-score.lose {
-  color: #ffffff; /* 失败白色 */
+  color: #e5e7eb;
+  background: linear-gradient(135deg, #4f46e5, #a855f7);
+  box-shadow: 0 6px 18px rgba(129, 140, 248, 0.7);
 }
 
 /* 出牌区域样式 */
@@ -421,10 +426,54 @@
   margin-left: -20px; /* 适当减小重叠，让牌面点数更清晰 */
 }
 
-/* 左右玩家：在出牌区空间内允许多行布局，最多扩展到桌面中央 */
-.player-slot.left .played-cards-container,
-.player-slot.right .played-cards-container {
-  max-width: 500px; /* 控制左右玩家出牌区的水平宽度，让多行向桌面中央扩展 */
+/* 左右玩家：结算时亮出剩余手牌（remaining-cards）
+   - 各自区域不能超过窗口中线
+   - 可以多行显示，牌略微缩小，避免遮挡 */
+.player-slot.left .played-cards-container.remaining-cards,
+.player-slot.right .played-cards-container.remaining-cards {
+  max-width: 28vw; /* 左右各自最多占屏幕约一半，不跨过中线 */
+  flex-wrap: wrap; /* 允许多行 */
+  overflow: hidden;
+}
+
+/* 剩余手牌较少（例如 <=7 张）时，强制一行显示，避免不必要换行 */
+.player-slot.left .played-cards-container.remaining-cards.single-row,
+.player-slot.right .played-cards-container.remaining-cards.single-row {
+  flex-wrap: nowrap;
+}
+
+.player-slot.left .played-cards-container.remaining-cards .card,
+.player-slot.right .played-cards-container.remaining-cards .card {
+  width: 40px;
+  height: 58px;
+  font-size: 11px;
+}
+
+.player-slot.left .played-cards-container.remaining-cards .card:not(:first-child),
+.player-slot.right .played-cards-container.remaining-cards .card:not(:first-child) {
+  margin-left: -18px;
+}
+
+/* 左右玩家：正常对局时最近一手出牌（last-played）
+   - 一行显示
+   - 可以延伸到对面玩家那一侧，方便看清牌型 */
+.player-slot.left .played-cards-container.last-played,
+.player-slot.right .played-cards-container.last-played {
+  max-width: 65vw; /* 可延伸到对面玩家附近 */
+  flex-wrap: nowrap; /* 强制一行显示 */
+  overflow: visible;
+}
+
+.player-slot.left .played-cards-container.last-played .card,
+.player-slot.right .played-cards-container.last-played .card {
+  width: 42px;
+  height: 60px;
+  font-size: 12px;
+}
+
+.player-slot.left .played-cards-container.last-played .card:not(:first-child),
+.player-slot.right .played-cards-container.last-played .card:not(:first-child) {
+  margin-left: -16px;
 }
 
 .bottom-cards,
@@ -507,17 +556,25 @@
 
 .current-player-info .result-score-bottom {
   margin-left: 8px;
-  font-size: 42px; /* 底部玩家分数加大 */
+  font-size: 38px; /* 底部玩家分数加大 */
   font-weight: 900;
-  text-shadow: 0 6px 16px rgba(0, 0, 0, 0.9), 0 0 30px rgba(255, 215, 0, 0.5);
+  padding: 6px 18px;
+  border-radius: 999px;
+  min-width: 140px;
+  text-align: center;
+  text-shadow: 0 4px 10px rgba(0, 0, 0, 0.85);
 }
 
 .current-player-info .result-score-bottom.win {
-  color: #ffd700; /* 胜利金黄色 */
+  color: #ffffff; /* 胜利使用亮色底 + 白字 */
+  background: linear-gradient(135deg, #facc15, #f97316);
+  box-shadow: 0 6px 18px rgba(248, 181, 85, 0.7);
 }
 
 .current-player-info .result-score-bottom.lose {
-  color: #ffffff; /* 失败白色 */
+  color: #e5e7eb;
+  background: linear-gradient(135deg, #4f46e5, #a855f7);
+  box-shadow: 0 6px 18px rgba(129, 140, 248, 0.7);
 }
 
 /* 当前出牌玩家高亮和倒计时标志 */

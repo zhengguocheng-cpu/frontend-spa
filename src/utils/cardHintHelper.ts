@@ -1480,6 +1480,10 @@ export class CardHintHelper {
 
     const sortByPriority = (combos: Card[][]): Card[][] => {
       return combos.sort((a, b) => {
+        const OPENING_HIGH_THRESHOLD = RANK_VALUES['10']
+        const hasHighA = a.some((c) => getCardValue(c) >= OPENING_HIGH_THRESHOLD)
+        const hasHighB = b.some((c) => getCardValue(c) >= OPENING_HIGH_THRESHOLD)
+        if (hasHighA !== hasHighB) return hasHighA ? 1 : -1
         const minA = getMinValue(a)
         const minB = getMinValue(b)
         if (minA !== minB) return minA - minB

@@ -367,9 +367,30 @@ const gameSlice = createSlice({
       // 如果是我出的牌，从手牌中移除
       const myId = sessionStorage.getItem('userId') || localStorage.getItem('userId') ||
         sessionStorage.getItem('userName') || localStorage.getItem('userName')
-      if (action.payload.playerId === myId) {
+      const myName = sessionStorage.getItem('userName') || localStorage.getItem('userName')
+      
+      // 同时检查 playerId 和 playerName，因为后端可能用不同的标识
+      const isMyPlay = action.payload.playerId === myId || 
+        action.payload.playerId === myName ||
+        action.payload.playerName === myId ||
+        action.payload.playerName === myName
+      
+      console.log('🎴 [Redux playCards] 判断是否是自己出牌:', {
+        myId,
+        myName,
+        playerId: action.payload.playerId,
+        playerName: action.payload.playerName,
+        isMyPlay,
+        cardsToRemove: action.payload.cards,
+        currentMyCards: state.myCards,
+      })
+      
+      if (isMyPlay) {
         // 卡牌现在是字符串，直接比较
+        const before = state.myCards.length
         state.myCards = state.myCards.filter((c) => !action.payload.cards.includes(c))
+        const after = state.myCards.length
+        console.log(`🎴 [Redux playCards] 手牌从 ${before} 张减少到 ${after} 张`)
         state.selectedCards = []
       }
       

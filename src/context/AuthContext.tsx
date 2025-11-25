@@ -2,6 +2,7 @@ import { createContext, useContext, useMemo, useState, useCallback, useEffect } 
 import type { ReactNode } from 'react'
 import { Toast } from 'antd-mobile'
 import { globalSocket, type ConnectOptions } from '@/services/socket'
+import { setGuestName } from '@/utils/guestIdentity'
 
 export interface AuthUser {
   id: string
@@ -102,6 +103,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sessionStorage.setItem('playerAvatar', authUser.avatar)
       console.log('💾 用户信息已保存到 sessionStorage')
 
+      // 同步更新本地游客昵称缓存，确保下次自动登录显示最新昵称
+      try {
+        setGuestName(authUser.name)
+      } catch (e) {
+        console.warn('更新本地游客昵称失败:', e)
+      }
+
       setUser(authUser)
       Toast.show({ content: '登录成功，正在进入大厅', icon: 'success' })
       return authUser
@@ -122,6 +130,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         sessionStorage.setItem('userId', next.id)
         sessionStorage.setItem('userName', next.name)
         sessionStorage.setItem('playerAvatar', next.avatar)
+
+        // 更新游客昵称缓存，保证下次自动登录时使用最新昵称
+        try {
+          setGuestName(next.name)
+        } catch (e) {
+          console.warn('更新本地游客昵称失败:', e)
+        }
 
         try {
           globalSocket.updateUser(next)

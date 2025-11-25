@@ -30,10 +30,23 @@ class SoundManager {
   private getAudioSrcForSound(soundName: string): string | null {
     switch (soundName) {
       case 'bomb':
-      case 'rocket':
         return '/sounds/zhadan.mp3'
+      case 'rocket':
+        return '/sounds/王炸.mp3'
       case 'bid':
         return '/sounds/jiaodizhu.mp3'
+      case 'plane':
+        return '/sounds/飞机.mp3'
+      case 'deal':
+        return '/sounds/发牌.mp3'
+      case 'pass':
+        return '/sounds/要不起.mp3'
+      case 'win':
+        return '/sounds/赢牌.mp3'
+      case 'lose':
+        return '/sounds/输牌.mp3'
+      case 'triple_with_single':
+        return '/sounds/三带一.mp3'
       default:
         return null
     }
@@ -168,6 +181,54 @@ class SoundManager {
     }
   }
 
+  playVoice(text: string) {
+    if (!this.soundEnabled) {
+      return
+    }
+    if (!text) {
+      return
+    }
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const w = window as any
+    const synth: SpeechSynthesis | null =
+      (w.speechSynthesis as SpeechSynthesis | undefined) ||
+      (w.webkitSpeechSynthesis as SpeechSynthesis | undefined) ||
+      null
+
+    if (!synth || typeof SpeechSynthesisUtterance === 'undefined') {
+      return
+    }
+
+    try {
+      synth.cancel()
+      const utterance = new SpeechSynthesisUtterance(text)
+      utterance.lang = 'zh-CN'
+      try {
+        const voices = typeof synth.getVoices === 'function' ? synth.getVoices() : []
+        if (voices && voices.length > 0) {
+          const zhVoices = voices.filter((v) => v && typeof v.lang === 'string' && v.lang.toLowerCase().startsWith('zh'))
+          const preferred =
+            zhVoices.find((v) =>
+              typeof v.name === 'string' && /female|女|xiaoyi|xiaolei|huihui|yaoyao/i.test(v.name),
+            ) || zhVoices[0] || voices[0]
+          if (preferred) {
+            utterance.voice = preferred
+          }
+        }
+      } catch (e) {
+      }
+
+      utterance.rate = 1.1
+      utterance.pitch = 1.1
+      synth.speak(utterance)
+    } catch (error) {
+      console.error('❌ 语音播报失败:', error)
+    }
+  }
+
   /**
    * 根据牌型播放音效
    */
@@ -191,6 +252,9 @@ class SoundManager {
       case 'plane_plus_wings':
         this.playSound('plane')
         break
+      case 'triple_with_single':
+        this.playSound('triple_with_single')
+        break
       default:
         this.playSound('play')
     }
@@ -204,6 +268,16 @@ class SoundManager {
   /** 简单封装：不出音效 */
   playPass() {
     this.playSound('pass')
+  }
+
+  /** 简单封装：赢牌音效 */
+  playWin() {
+    this.playSound('win')
+  }
+
+  /** 简单封装：输牌音效 */
+  playLose() {
+    this.playSound('lose')
   }
 
   /** 简单封装：抢地主音效 */

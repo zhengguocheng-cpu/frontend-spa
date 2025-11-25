@@ -264,6 +264,68 @@ export default function GameRoom() {
   const STRAIGHT_RANKS = ['3','4','5','6','7','8','9','10','J','Q','K','A']
   const ALL_RANKS_FOR_ORDER = [...STRAIGHT_RANKS, '2']
 
+  const RANK_SPOKEN_MAP: Record<string, string> = {
+    '3': '三',
+    '4': '四',
+    '5': '五',
+    '6': '六',
+    '7': '七',
+    '8': '八',
+    '9': '九',
+    '10': '十',
+    J: '勾',
+    Q: '圈',
+    K: '开',
+    A: '尖',
+    '2': '二',
+    JOKER: '王',
+  }
+
+  const getSpokenRankFromRank = (rank: string | null | undefined): string => {
+    if (!rank) return ''
+    return RANK_SPOKEN_MAP[rank] || rank
+  }
+
+  const getSpokenRankFromCard = (card: string): string => {
+    const parsed = parseCard(card)
+    if (parsed.rank === 'JOKER') {
+      if (parsed.isJoker === 'big') return '大王'
+      if (parsed.isJoker === 'small') return '小王'
+      return '王'
+    }
+    return getSpokenRankFromRank(parsed.rank)
+  }
+
+  const getPlayVoiceText = (pattern: any, cards: string[]): string | null => {
+    const typeRaw = (pattern?.type || pattern?.TYPE || '').toString().toLowerCase()
+    const cardList: string[] =
+      Array.isArray(pattern?.cards) && pattern.cards.length > 0
+        ? pattern.cards
+        : Array.isArray(cards)
+        ? cards
+        : []
+
+    if (!cardList.length) {
+      return null
+    }
+
+    switch (typeRaw) {
+      case 'single': {
+        // 单张：只读点数
+        return getSpokenRankFromCard(cardList[0])
+      }
+      case 'pair': {
+        // 对子：读“对”+点数
+        const text = getSpokenRankFromCard(cardList[0])
+        return text ? `对${text}` : null
+      }
+      default: {
+        // 其余牌型不做语音播报
+        return null
+      }
+    }
+  }
+
   const isStraightRanks = (ranks: string[]): boolean => {
     if (!ranks || ranks.length < 5) return false
     const indices = ranks
@@ -661,6 +723,9 @@ export default function GameRoom() {
       
       if (myCards && myCards.cards && myCards.cards.length > 0) {
         console.log('🎴 找到我的牌，开始发牌，牌数:', myCards.cards.length)
+
+        // 播放发牌音效
+        soundManager.playSound('deal')
         
         // 更新手牌
         dispatch(startGame({ myCards: myCards.cards }))
@@ -885,11 +950,7 @@ export default function GameRoom() {
           console.log('🎯 [轮到出牌] 首次出牌:', isFirst)
           console.log('🎯 [轮到出牌] 上家出牌:', lastPlayedCards)
           console.log('🎯 [轮到出牌] isMyTurn 已设置为 true')
-          
-          // 播放轮到出牌提示音
-          soundManager.playTurnStart()
-
-          // 将提示写入聊天消息，而不是使用 Toast 遮挡牌面
+          // 将提示写入聊天消息，而不是使用 Toast 或额外音效
           setChatMessages((prev) => [
             ...prev,
             { sender: '系统', message: '轮到你出牌了！' },
@@ -967,6 +1028,25 @@ export default function GameRoom() {
       if (data.playerId && data.cards) {
         // 播放出牌音效
         soundManager.playCardTypeSound(data.cardType)
+        const typeRaw = (data.cardType?.type || data.cardType?.TYPE || '')
+          .toString()
+          .toLowerCase()
+        const hasDedicatedSound =
+          typeRaw === 'bomb' ||
+          typeRaw === 'rocket' ||
+          typeRaw === 'airplane' ||
+          typeRaw === 'airplane_with_wings' ||
+          typeRaw === 'plane' ||
+          typeRaw === 'plane_plus_wings' ||
+          typeRaw === 'triple_with_single'
+
+        // 如果该牌型已经有独立 mp3 音效（如炸弹/王炸/飞机），则只播音效，不再播 TTS
+        if (!hasDedicatedSound) {
+          const voiceText = getPlayVoiceText(data.cardType, data.cards)
+          if (voiceText) {
+            soundManager.playVoice(voiceText)
+          }
+        }
         
         // 更新 Redux 状态
         dispatch(playCardsAction({
@@ -1014,7 +1094,7 @@ export default function GameRoom() {
     const handlePlayerPassed = (data: any) => {
       console.log('⏭️ 玩家不出:', data)
       if (data.playerId) {
-        // 播放不出音效
+        // 播放不出/要不起音效（仅使用预置 mp3，不再额外播 TTS）
         soundManager.playPass()
         
         dispatch(passAction(data.playerId))
@@ -1043,6 +1123,16 @@ export default function GameRoom() {
       
       // 更新 Redux 状态
       dispatch(endGame(data))
+
+      // 播放赢/输牌音效
+      const myId = user?.id || user?.name
+      const isWinner =
+        !!myId && (data.winnerId === myId || data.winnerName === user?.name)
+      if (isWinner) {
+        soundManager.playWin()
+      } else {
+        soundManager.playLose()
+      }
       
       // 将游戏结束结果写入聊天消息框（不再使用 Toast 遮挡牌面）
       const winnerName = data.winnerName || '未知玩家'
@@ -1149,11 +1239,12 @@ export default function GameRoom() {
         roomId,
         userId: myId,
       })
-      dispatch(updatePlayerStatus({ playerId, isReady: true }))
       socket.emit('player_ready', {
         roomId,
         userId: myId,
+        botDelayMs: 0,
       })
+      dispatch(updatePlayerStatus({ playerId, isReady: true }))
       return
     }
 
@@ -1189,6 +1280,7 @@ export default function GameRoom() {
       latestSocket.emit('player_ready', {
         roomId,
         userId: myId,
+        botDelayMs: 0,
       })
     }, delayMs)
   }, [user, roomId, players, gameStatus, dispatch])
@@ -1196,6 +1288,7 @@ export default function GameRoom() {
   // 每次回到等待状态时，允许自动准备逻辑在新的一局重新生效
   useEffect(() => {
     if (gameStatus === 'waiting') {
+      // ...
       autoReadySentRef.current = false
       if (autoReadyTimerRef.current != null) {
         window.clearTimeout(autoReadyTimerRef.current)
@@ -2123,7 +2216,11 @@ export default function GameRoom() {
               )}
               <div className="played-cards-area">
                 {gameStatus === 'finished' && leftRemainingCards && leftRemainingCards.length > 0 ? (
-                  <div className="played-cards-container">
+                  <div
+                    className={`played-cards-container remaining-cards ${
+                      leftRemainingCards.length <= 10 ? 'single-row' : ''
+                    }`}
+                  >
                     {leftRemainingCards.map((cardStr: string, index: number) => {
                       const { rank, suit, isJoker } = parseCard(cardStr)
                       const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
@@ -2156,7 +2253,7 @@ export default function GameRoom() {
                 ) : (
                   lastPlayedCards &&
                   lastPlayedCards.playerId === leftPlayer.id && (
-                    <div className="played-cards-container">
+                    <div className="played-cards-container last-played">
                       {lastPlayedCards.cards.map((cardStr: string, index: number) => {
                         const { rank, suit, isJoker } = parseCard(cardStr)
                         const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
@@ -2239,7 +2336,11 @@ export default function GameRoom() {
               )}
               <div className="played-cards-area">
                 {gameStatus === 'finished' && rightRemainingCards && rightRemainingCards.length > 0 ? (
-                  <div className="played-cards-container">
+                  <div
+                    className={`played-cards-container remaining-cards ${
+                      rightRemainingCards.length <= 10 ? 'single-row' : ''
+                    }`}
+                  >
                     {rightRemainingCards.map((cardStr: string, index: number) => {
                       const { rank, suit, isJoker } = parseCard(cardStr)
                       const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
@@ -2272,7 +2373,7 @@ export default function GameRoom() {
                 ) : (
                   lastPlayedCards &&
                   lastPlayedCards.playerId === rightPlayer.id && (
-                    <div className="played-cards-container">
+                    <div className="played-cards-container last-played">
                       {lastPlayedCards.cards.map((cardStr: string, index: number) => {
                         const { rank, suit, isJoker } = parseCard(cardStr)
                         const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
