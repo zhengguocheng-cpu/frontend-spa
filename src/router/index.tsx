@@ -3,7 +3,7 @@ import { lazy, Suspense } from 'react'
 import { SpinLoading } from 'antd-mobile'
 
 // 使用懒加载提高性能
-const Home = lazy(() => import('../pages/Home'))
+const LobbyHome = lazy(() => import('../pages/LobbyHome'))
 const GameRoom = lazy(() => import('../pages/GameRoom'))
 const Login = lazy(() => import('../pages/Login'))
 const Register = lazy(() => import('../pages/Register'))
@@ -29,7 +29,7 @@ export const router = createBrowserRouter([
     path: '/',
     element: (
       <Suspense fallback={<Loading />}>
-        <Home />
+        <LobbyHome />
       </Suspense>
     ),
   },

@@ -47,6 +47,14 @@ export interface GameResultPayload {
   landlordWin: boolean
   score?: SettlementScore
   achievements?: SettlementAchievements
+  // 各玩家剩余手牌（由后端在 game_over 中提供）
+  remainingHands?: {
+    [playerId: string]: {
+      playerId: string
+      playerName: string
+      cards: Card[]
+    }
+  }
 }
 
 const CARD_RANK_VALUE: Record<string, number> = {

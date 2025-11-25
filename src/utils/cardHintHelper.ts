@@ -1321,6 +1321,33 @@ export class CardHintHelper {
   }
 
   /**
+   * 获取当前局面下的所有候选出牌组合（不做轮换）
+   * 用于在调用大模型前做本地预判：0 个候选自动不出，1 个候选直接使用
+   */
+  static getAllHints(playerHand: Card[], lastPlayed: Card[] | null): Card[][] {
+    if (!playerHand || playerHand.length === 0) return []
+
+    const hand = sortCardsAsc(playerHand)
+    let allHints: Card[][] = []
+
+    if (!lastPlayed || lastPlayed.length === 0) {
+      // 首次出牌或新一轮：给出所有可选组合
+      allHints = this.getAllFirstPlayHints(hand)
+    } else {
+      const pattern = detectSimplePattern(lastPlayed)
+      if (!pattern) {
+        // 复杂牌型暂时只提示炸弹/王炸
+        allHints = this.getBombAndRocketHints(hand)
+      } else {
+        allHints = this.getAllBeatingHints(hand, pattern)
+      }
+    }
+
+    if (!allHints || allHints.length === 0) return []
+    return allHints
+  }
+
+  /**
    * 如果整手牌本身就是一个完整牌型，返回这手牌（按排序后的顺序）
    * 用于只剩一手牌时的自动出牌
    */
@@ -1383,26 +1410,7 @@ export class CardHintHelper {
    * @param lastPlayed 上家出的牌（只用 cards 来推断简单牌型），为空表示新一轮/首次出牌
    */
   static getHint(playerHand: Card[], lastPlayed: Card[] | null): Card[] | null {
-    if (!playerHand || playerHand.length === 0) {
-      return null
-    }
-
-    const hand = sortCardsAsc(playerHand)
-    let allHints: Card[][] = []
-
-    if (!lastPlayed || lastPlayed.length === 0) {
-      // 首次出牌或新一轮：给出所有可选组合
-      allHints = this.getAllFirstPlayHints(hand)
-    } else {
-      const pattern = detectSimplePattern(lastPlayed)
-      if (!pattern) {
-        // 复杂牌型暂时只提示炸弹/王炸
-        allHints = this.getBombAndRocketHints(hand)
-      } else {
-        allHints = this.getAllBeatingHints(hand, pattern)
-      }
-    }
-
+    const allHints = this.getAllHints(playerHand, lastPlayed)
     if (!allHints || allHints.length === 0) {
       return null
     }

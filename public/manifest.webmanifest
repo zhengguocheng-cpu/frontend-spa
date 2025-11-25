@@ -8,12 +8,12 @@
   "description": "多人在线欢乐斗地主小游戏",
   "icons": [
     {
-      "src": "/imgs/doudizhu.png",
+      "src": "/imgs/card-quick-02.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/imgs/doudizhu.png",
+      "src": "/imgs/card-quick-02.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

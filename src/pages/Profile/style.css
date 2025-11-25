@@ -4,7 +4,8 @@
   justify-content: center;
   align-items: center;
   padding: 24px;
-  background: radial-gradient(circle at top, #1e3a8a 0%, #020617 55%, #0f172a 100%);
+  /* 玩家信息页整体背景：改为接近参考图的浅蓝色渐变 */
+  background: linear-gradient(135deg, #cfe3ff 0%, #e6f0ff 40%, #f9fbff 100%);
 }
 
 .profile-card.ant-card {
@@ -18,6 +19,24 @@
 
 .profile-card .ant-card-body {
   padding: 24px 28px;
+}
+
+.profile-back-row {
+  margin-bottom: 8px;
+}
+
+.profile-back-btn {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(15, 23, 42, 0.9);
+  color: #e5e7eb;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.profile-back-btn:hover {
+  background: rgba(15, 23, 42, 1);
 }
 
 .profile-header {
@@ -44,6 +63,19 @@
   justify-content: center;
   font-size: 32px;
   box-shadow: 0 10px 25px rgba(251, 191, 36, 0.45);
+  cursor: pointer; /* 仅增加点击手势，不改变视觉 */
+}
+
+.profile-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 18px;
+}
+
+/* 覆盖全局 avatar-sprite 尺寸，让个人资料页头像铺满容器 */
+.profile-avatar-large .avatar-sprite {
+  width: 100%;
+  height: 100%;
 }
 
 .profile-basic {
@@ -52,10 +84,54 @@
   gap: 4px;
 }
 
+.profile-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .profile-name {
   font-size: 20px;
   font-weight: 700;
   color: #f9fafb;
+}
+
+.profile-name-input {
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.9);
+  font-size: 14px;
+  background: rgba(15, 23, 42, 0.9);
+  color: #e5e7eb;
+  outline: none;
+}
+
+.profile-name-btn {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: none;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.profile-name-btn.save {
+  background: linear-gradient(135deg, #4ade80, #16a34a);
+  color: #022c22;
+}
+
+.profile-name-btn.cancel {
+  background: rgba(15, 23, 42, 0.9);
+  color: #e5e7eb;
+}
+
+.profile-name-edit {
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: none;
+  font-size: 12px;
+  cursor: pointer;
+  background: rgba(15, 23, 42, 0.9);
+  color: #e5e7eb;
 }
 
 .profile-id {
@@ -94,13 +170,55 @@
 
 .profile-main {
   display: grid;
-  grid-template-columns: minmax(0, 1fr); /* 三个主块按行竖直排列 */
+  grid-template-columns: 180px minmax(0, 1fr);
   gap: 20px;
+  align-items: flex-start;
+}
+
+.profile-tabs-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 10px;
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.8);
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.35);
+}
+
+.profile-tab-item {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 999px;
+  border: none;
+  text-align: left;
+  font-size: 14px;
+  font-weight: 600;
+  color: #e5e7eb;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.profile-tab-item.active {
+  background: linear-gradient(135deg, #fef3c7, #fed7aa);
+  color: #7c2d12;
+  box-shadow: 0 4px 12px rgba(248, 181, 85, 0.5);
+}
+
+.profile-tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.profile-tab-panel .hidden {
+  display: none;
 }
 
 .profile-stats-card,
 .profile-history-card,
-.profile-achievements-card {
+.profile-achievements-card,
+.profile-leaderboard-card {
   background: rgba(15, 23, 42, 0.72);
   border-radius: 16px;
   padding: 16px 18px;
@@ -116,6 +234,53 @@
   font-weight: 600;
   color: #e5e7eb;
   margin-bottom: 14px;
+}
+
+.profile-leaderboard-card {
+  margin-top: 10px;
+  padding: 12px 14px;
+}
+
+.profile-leaderboard-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.profile-leaderboard-table {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.profile-leaderboard-row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 70px 70px;
+  align-items: center;
+  padding: 4px 6px;
+  border-radius: 10px;
+  font-size: 13px;
+  color: #e5e7eb;
+}
+
+.profile-leaderboard-row.me {
+  background: rgba(56, 189, 248, 0.25);
+}
+
+.profile-leaderboard-row .col-rank {
+  text-align: left;
+}
+
+.profile-leaderboard-row .col-player {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-leaderboard-row .col-score,
+.profile-leaderboard-row .col-winrate {
+  text-align: right;
 }
 
 .profile-stats-grid {

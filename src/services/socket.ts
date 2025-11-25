@@ -77,18 +77,20 @@ class GlobalSocketManager {
   }
 
   private ensureUser(options?: ConnectOptions) {
-    if (options?.userName) {
+    const rawUserId = options?.userId ?? options?.userName
+    const rawUserName = options?.userName ?? options?.userId
+
+    if (rawUserId && rawUserName) {
       // 生成唯一的会话 ID（时间戳 + 随机字符串）
       this.sessionId = `${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
-      this.userName = options.userName
-      // userId 使用 userName 作为唯一标识
-      this.userId =  options.userName
-      this.playerAvatar = options.playerAvatar ?? this.playerAvatar ?? '👑'
-      
+      this.userId = rawUserId
+      this.userName = rawUserName
+      this.playerAvatar = options?.playerAvatar ?? this.playerAvatar ?? '👑'
+
       // 仅存储当前会话信息，不用于自动登录
       sessionStorage.setItem('sessionId', this.sessionId)
-      sessionStorage.setItem('userId', this.userId)  // 保存 userId
-      sessionStorage.setItem('userName', options.userName)
+      sessionStorage.setItem('userId', this.userId)
+      sessionStorage.setItem('userName', this.userName)
       sessionStorage.setItem('playerAvatar', this.playerAvatar)
     } else {
       // SPA 架构不应该自动从缓存恢复用户，必须重新登录
@@ -332,6 +334,15 @@ class GlobalSocketManager {
       name: this.userName,
       avatar: this.playerAvatar ?? '👑',
     }
+  }
+
+  updateUser(user: { id: string; name: string; avatar: string }) {
+    this.userId = user.id
+    this.userName = user.name
+    this.playerAvatar = user.avatar
+    sessionStorage.setItem('userId', user.id)
+    sessionStorage.setItem('userName', user.name)
+    sessionStorage.setItem('playerAvatar', user.avatar)
   }
 
   clearAuth() {

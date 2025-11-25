@@ -5,8 +5,10 @@
 class SoundManager {
   private audioContext: AudioContext | null = null
   private soundEnabled: boolean = true
+  private musicEnabled: boolean = true
   private initialized: boolean = false
   private backgroundAudio: HTMLAudioElement | null = null
+  private soundMap: Record<string, HTMLAudioElement> = {}
 
   /**
    * 初始化音频系统
@@ -25,16 +27,52 @@ class SoundManager {
     }
   }
 
+  private getAudioSrcForSound(soundName: string): string | null {
+    switch (soundName) {
+      case 'bomb':
+      case 'rocket':
+        return '/sounds/zhadan.mp3'
+      case 'bid':
+        return '/sounds/jiaodizhu.mp3'
+      default:
+        return null
+    }
+  }
+
   /**
    * 播放音效
    */
   playSound(soundName: string) {
-    // 懒初始化，避免调用方重复手动 init
+    if (!this.soundEnabled) {
+      return
+    }
+
+    const audioSrc = this.getAudioSrcForSound(soundName)
+    if (audioSrc) {
+      try {
+        let audio = this.soundMap[soundName]
+        if (!audio) {
+          audio = new Audio(audioSrc)
+          audio.volume = 0.8
+          this.soundMap[soundName] = audio
+        }
+        audio.currentTime = 0
+        audio
+          .play()
+          .catch((error) => {
+            console.error('❌ 播放音效失败:', error)
+          })
+        return
+      } catch (error) {
+        console.error('❌ 播放音效失败:', error)
+      }
+    }
+
     if (!this.initialized) {
       this.init()
     }
 
-    if (!this.initialized || !this.soundEnabled || !this.audioContext) {
+    if (!this.initialized || !this.audioContext) {
       return
     }
 
@@ -179,7 +217,7 @@ class SoundManager {
   }
 
   playBackgroundMusic() {
-    if (!this.soundEnabled) {
+    if (!this.musicEnabled) {
       return
     }
 
@@ -213,10 +251,6 @@ class SoundManager {
    */
   setSoundEnabled(enabled: boolean) {
     this.soundEnabled = enabled
-
-    if (!enabled) {
-      this.stopBackgroundMusic()
-    }
   }
 
   /**
@@ -224,6 +258,17 @@ class SoundManager {
    */
   isSoundEnabled(): boolean {
     return this.soundEnabled
+  }
+
+  setMusicEnabled(enabled: boolean) {
+    this.musicEnabled = enabled
+    if (!enabled) {
+      this.stopBackgroundMusic()
+    }
+  }
+
+  isMusicEnabled(): boolean {
+    return this.musicEnabled
   }
 }
 
