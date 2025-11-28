@@ -14,6 +14,11 @@
   overflow-y: visible; /* 垂直方向允许溢出（选中的牌向上） */
   padding: 0;
   z-index: 3; /* 降低层级，让出牌区（z-index: 5）显示在手牌上方 */
+  /* 滑动选牌关键样式 */
+  touch-action: none; /* 禁止浏览器默认触摸行为 */
+  user-select: none; /* 禁止文字选择 */
+  -webkit-user-select: none;
+  -webkit-touch-callout: none; /* iOS禁止长按菜单 */
 }
 
 .player-hand {
@@ -47,7 +52,7 @@
   justify-content: flex-start;
   padding: 5px 5px 5px 5px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease; /* 更快的过渡动画 */
   box-shadow: 0 2px 4px rgba(0,0,0,0.2);
   position: relative;
   /* margin-left 由 JS 动态计算 */
@@ -56,6 +61,11 @@
   overflow: hidden;
   flex-shrink: 0;
   z-index: 1; /* 默认层级 */
+  /* 滑动选牌关键样式 */
+  touch-action: none; /* 禁止浏览器默认触摸行为 */
+  user-select: none; /* 禁止文字选择 */
+  -webkit-user-select: none;
+  -webkit-touch-callout: none; /* iOS禁止长按菜单 */
 }
 
 /* 悬停效果 - 向上移动并放大 */
@@ -239,39 +249,76 @@
   z-index: auto;
 }
 
+/* JJ斗地主风格按钮 */
 .game-actions button {
-  padding: 12px 30px;
+  padding: 10px 28px;
   font-size: 18px;
   font-weight: bold;
-  border: none;
-  border-radius: 8px;
+  border: 3px solid rgba(255, 255, 255, 0.4);
+  border-radius: 25px; /* 更圆润 */
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+  transition: all 0.15s ease;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
 }
 
 .game-actions button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.45);
 }
 
 .game-actions button:active {
-  transform: translateY(0);
+  transform: translateY(0) scale(0.98);
 }
 
+/* 出牌按钮 - 白色背景黑字 */
 .btn-play {
-  background: #27ae60;
-  color: white;
+  background: linear-gradient(180deg, #ffffff 0%, #f0f0f0 100%);
+  color: #333;
+  border-color: rgba(0, 0, 0, 0.15);
 }
 
+.btn-play:hover {
+  background: linear-gradient(180deg, #ffffff 0%, #e8e8e8 100%);
+}
+
+/* 不出按钮 - 绿色 */
 .btn-pass {
-  background: #95a5a6;
+  background: linear-gradient(180deg, #4ade80 0%, #22c55e 100%);
   color: white;
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
+.btn-pass:hover {
+  background: linear-gradient(180deg, #5eef92 0%, #34d674 100%);
+}
+
+/* 提示按钮 - 黄色 */
 .btn-hint {
-  background: #3498db;
-  color: white;
+  background: linear-gradient(180deg, #fcd34d 0%, #f59e0b 100%);
+  color: #333;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.btn-hint:hover {
+  background: linear-gradient(180deg, #fde68a 0%, #fbbf24 100%);
+}
+
+/* 倒计时样式 - 黄色圆形 */
+.turn-timer {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #fcd34d 0%, #f59e0b 100%);
+  color: #333;
+  font-size: 18px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+  animation: none; /* 移除原有动画 */
 }
 
 .btn-bid {
@@ -385,6 +432,19 @@
   text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
 }
 
+/* 紧凑模式：当只显示分数倍数时（底牌隐藏后） */
+.bottom-meta.compact {
+  margin-left: 0;
+  padding: 4px 12px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 999px;
+}
+
+.bottom-meta.compact span {
+  font-size: 11px;
+  font-weight: 600;
+}
+
 /* 上家出牌显示区域 - 照抄 frontend */
 .played-cards-area {
   position: absolute;
@@ -443,34 +503,9 @@
   margin-left: 0;
 }
 
-/* 出牌操作按钮 - 照抄 frontend */
-.game-actions {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 15px;
-  padding: 20px;
-}
-
-.turn-timer {
-  font-size: 24px;
-  font-weight: bold;
-  color: #e74c3c;
-  animation: pulse 1s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.1);
-  }
-}
-
 .game-buttons {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   justify-content: center;
   align-items: center;
 }

@@ -87,6 +87,10 @@ export default function GameRoom() {
   const autoReplayTimerRef = useRef<number | null>(null)
   // 提示请求上下文（用于后端失败时回退到本地提示）
   const hintContextRef = useRef<{ myCards: string[]; lastCards: string[] | null } | null>(null)
+  // 当前游戏中的炸弹数量（用于实时显示倍数）
+  const [currentBombCount, setCurrentBombCount] = useState(0)
+  // 是否隐藏底牌（出牌后隐藏，但分数倍数继续显示）
+  const [hideBottomCards, setHideBottomCards] = useState(false)
   
   // AI 提示历史记录
   interface AiHintRecord {
@@ -261,9 +265,6 @@ export default function GameRoom() {
     return result
   }
 
-  const STRAIGHT_RANKS = ['3','4','5','6','7','8','9','10','J','Q','K','A']
-  const ALL_RANKS_FOR_ORDER = [...STRAIGHT_RANKS, '2']
-
   const RANK_SPOKEN_MAP: Record<string, string> = {
     '3': '三',
     '4': '四',
@@ -325,20 +326,6 @@ export default function GameRoom() {
       }
     }
   }
-
-  const isStraightRanks = (ranks: string[]): boolean => {
-    if (!ranks || ranks.length < 5) return false
-    const indices = ranks
-      .map((r) => STRAIGHT_RANKS.indexOf(r))
-      .filter((idx) => idx >= 0)
-      .sort((a, b) => a - b)
-    if (indices.length !== ranks.length) return false
-    for (let i = 1; i < indices.length; i++) {
-      if (indices[i] !== indices[i - 1] + 1) return false
-    }
-    return true
-  }
-
 
   // 初始化房间
   useEffect(() => {
@@ -709,6 +696,9 @@ export default function GameRoom() {
       console.log('🎮 游戏开始:', data)
       setShowSettlement(false)
       dispatch(prepareNextGame())
+      // 重置炸弹计数和底牌显示状态
+      setCurrentBombCount(0)
+      setHideBottomCards(false)
       appendSystemMessage('🎮 游戏开始！所有玩家已准备完毕')
     }
 
@@ -1079,7 +1069,20 @@ export default function GameRoom() {
         // 清除所有玩家的不出状态（因为有人出牌了）
         setPassedPlayers({})
         
-        // 每次出牌后立即隐藏底牌（只在第一次出牌时）
+        // 第一次出牌时隐藏底牌（但分数倍数继续显示）
+        if (!hideBottomCards) {
+          setHideBottomCards(true)
+        }
+        
+        // 检测炸弹/王炸，更新炸弹计数
+        const typeRawForBomb = (data.cardType?.type || data.cardType?.TYPE || '')
+          .toString()
+          .toLowerCase()
+        if (typeRawForBomb === 'bomb' || typeRawForBomb === 'rocket') {
+          setCurrentBombCount(prev => prev + 1)
+          console.log('💣 检测到炸弹/王炸，当前炸弹数:', currentBombCount + 1)
+        }
+        
         if (data.playerId !== (user?.id || user?.name)) {
           const cardTypeDesc = data.cardType ? data.cardType.description : ''
           setChatMessages(prev => [
@@ -1723,177 +1726,25 @@ export default function GameRoom() {
     }
   }
 
+  // 记录上次处理的卡牌，避免重复处理
+  const lastProcessedCardRef = useRef<string | null>(null)
+
   // 指针按下：开始拖选或单选
+  // 简化逻辑：移除跟牌阶段的智能选牌，让用户可以自由拖选
   const handleCardPointerDown = (cardStr: string, ev: any) => {
     ev.preventDefault()
-    console.log('🎴 PointerDown 手牌:', cardStr)
-
-    // 是否在跟牌阶段：参考 handleHint 的逻辑
-    const isFollowPlay = !!lastPlayedCards && !!lastPlayedCards.cards && lastPlayedCards.cards.length > 0 && canPass
-
-    if (isFollowPlay) {
-      const lastCards = lastPlayedCards.cards as string[]
-      const lastRanks = lastCards.map((c) => parseCard(c).rank)
-
-      const isLastPair = lastCards.length === 2 && lastRanks[0] === lastRanks[1]
-      const isLastStraight = isStraightRanks(lastRanks)
-      const rankCountMap: Record<string, number> = {}
-      lastRanks.forEach((r) => {
-        rankCountMap[r] = (rankCountMap[r] || 0) + 1
-      })
-      const countValues = Object.values(rankCountMap).sort((a, b) => a - b)
-      const isLastTripleWithSingle =
-        lastCards.length === 4 && countValues.length === 2 && countValues[0] === 1 && countValues[1] === 3
-      const isLastTripleWithPair =
-        lastCards.length === 5 && countValues.length === 2 && countValues[0] === 2 && countValues[1] === 3
-
-      // 1) 上家是对子：点一张牌时整对选中/取消
-      if (isLastPair) {
-        const { rank } = parseCard(cardStr)
-        const sameRankCards = myCards.filter((c: string) => parseCard(c).rank === rank)
-        if (sameRankCards.length >= 2) {
-          const pairCards = sameRankCards.slice(0, 2)
-          const allSelected = pairCards.every((c: string) => selectedCards.includes(c))
-          const mode: 'select' | 'deselect' = allSelected ? 'deselect' : 'select'
-
-          setIsDragSelecting(true)
-          setDragSelectMode(mode)
-          if (mode === 'select') {
-            // 选择新的一对时，先清空之前的选牌，再只选中当前这一对
-            dispatch(clearSelection())
-            pairCards.forEach((c: string) => dispatch(toggleCardSelection(c)))
-          } else {
-            // 取消当前这一对的选中状态，保持其它牌的选中状态不变
-            pairCards.forEach((c: string) => updateCardSelection(c, false))
-          }
-          return
-        }
-      }
-
-      // 2) 上家是顺子：点中某张牌时，尝试从该点数开始选出同长度顺子
-      if (isLastStraight) {
-        const { rank } = parseCard(cardStr)
-        const startIdx = STRAIGHT_RANKS.indexOf(rank)
-        const needLen = lastCards.length
-
-        if (startIdx >= 0 && startIdx + needLen <= STRAIGHT_RANKS.length) {
-          const needRanks = STRAIGHT_RANKS.slice(startIdx, startIdx + needLen)
-          const comboCards: string[] = []
-
-          for (const r of needRanks) {
-            const candidates = myCards.filter((c: string) => parseCard(c).rank === r)
-            if (candidates.length === 0) {
-              comboCards.length = 0
-              break
-            }
-            // 优先使用尚未选中的牌，避免干扰其它结构
-            const notSelected = candidates.find((c: string) => !selectedCards.includes(c))
-            comboCards.push(notSelected || candidates[0])
-          }
-
-          if (comboCards.length === needLen) {
-            const allSelected = comboCards.every((c: string) => selectedCards.includes(c))
-            const mode: 'select' | 'deselect' = allSelected ? 'deselect' : 'select'
-
-            setIsDragSelecting(true)
-            setDragSelectMode(mode)
-
-            comboCards.forEach((c: string) => updateCardSelection(c, mode === 'select'))
-            return
-          }
-        }
-      }
-
-      // 3) 上家是三带一：点击三张点数时，自动选择“三张+最小一张单牌”
-      if (isLastTripleWithSingle) {
-        const { rank } = parseCard(cardStr)
-        const sameRankCards = myCards.filter((c: string) => parseCard(c).rank === rank)
-        if (sameRankCards.length >= 3) {
-          const tripleCards = sameRankCards.slice(0, 3)
-          const remaining = myCards.filter((c: string) => !tripleCards.includes(c))
-
-          const remainingGroups: Record<string, string[]> = {}
-          remaining.forEach((c: string) => {
-            const r = parseCard(c).rank
-            if (r === rank) return
-            if (!remainingGroups[r]) remainingGroups[r] = []
-            remainingGroups[r].push(c)
-          })
-
-          const singleRanks = Object.entries(remainingGroups)
-            .filter(([, cards]) => cards.length >= 1)
-            .map(([r]) => r)
-            .sort((a, b) => {
-              const ia = ALL_RANKS_FOR_ORDER.indexOf(a)
-              const ib = ALL_RANKS_FOR_ORDER.indexOf(b)
-              if (ia === -1 && ib === -1) return a.localeCompare(b)
-              if (ia === -1) return 1
-              if (ib === -1) return -1
-              return ia - ib
-            })
-
-          if (singleRanks.length > 0) {
-            const singleRank = singleRanks[0]
-            const singleCard = remainingGroups[singleRank][0]
-            const comboCards = [...tripleCards, singleCard]
-
-            const allSelected = comboCards.every((c: string) => selectedCards.includes(c))
-            const mode: 'select' | 'deselect' = allSelected ? 'deselect' : 'select'
-
-            setIsDragSelecting(true)
-            setDragSelectMode(mode)
-
-            comboCards.forEach((c: string) => updateCardSelection(c, mode === 'select'))
-            return
-          }
-        }
-      }
-
-      // 4) 上家是三带二：点击三张点数时，自动选择“三张+最小一对”
-      if (isLastTripleWithPair) {
-        const { rank } = parseCard(cardStr)
-        const sameRankCards = myCards.filter((c: string) => parseCard(c).rank === rank)
-        if (sameRankCards.length >= 3) {
-          const tripleCards = sameRankCards.slice(0, 3)
-          // 剩余牌中找最小的一对，点数不能与三张相同
-          const remaining = myCards.filter((c: string) => !tripleCards.includes(c))
-          const remainingGroups: Record<string, string[]> = {}
-          remaining.forEach((c: string) => {
-            const r = parseCard(c).rank
-            if (r === rank) return
-            if (!remainingGroups[r]) remainingGroups[r] = []
-            remainingGroups[r].push(c)
-          })
-
-          const pairRanks = Object.entries(remainingGroups)
-            .filter(([, cards]) => cards.length >= 2)
-            .map(([r]) => r)
-            .sort((a, b) => {
-              const ia = ALL_RANKS_FOR_ORDER.indexOf(a)
-              const ib = ALL_RANKS_FOR_ORDER.indexOf(b)
-              if (ia === -1 && ib === -1) return a.localeCompare(b)
-              if (ia === -1) return 1
-              if (ib === -1) return -1
-              return ia - ib
-            })
-
-          if (pairRanks.length > 0) {
-            const pairRank = pairRanks[0]
-            const pairCards = remainingGroups[pairRank].slice(0, 2)
-            const comboCards = [...tripleCards, ...pairCards]
-
-            const allSelected = comboCards.every((c) => selectedCards.includes(c))
-            const mode: 'select' | 'deselect' = allSelected ? 'deselect' : 'select'
-
-            setIsDragSelecting(true)
-            setDragSelectMode(mode)
-
-            comboCards.forEach((c) => updateCardSelection(c, mode === 'select'))
-            return
-          }
-        }
+    ev.stopPropagation()
+    
+    // 捕获指针，确保后续事件都发送到这个元素
+    if (ev.target && ev.target.setPointerCapture) {
+      try {
+        ev.target.releasePointerCapture(ev.pointerId)
+      } catch (e) {
+        // 忽略释放失败
       }
     }
+    
+    console.log('🎴 PointerDown 手牌:', cardStr)
 
     // 默认：按单张牌进行选中/取消，并可继续拖选
     const isSelected = selectedCards.includes(cardStr)
@@ -1901,14 +1752,38 @@ export default function GameRoom() {
 
     setIsDragSelecting(true)
     setDragSelectMode(mode)
+    lastProcessedCardRef.current = cardStr
     updateCardSelection(cardStr, mode === 'select')
   }
 
   // 指针滑过其它牌：根据当前模式批量选中/取消
   const handleCardPointerEnter = (cardStr: string, ev: any) => {
     if (!isDragSelecting || !dragSelectMode) return
+    if (lastProcessedCardRef.current === cardStr) return // 避免重复处理
+    
     ev.preventDefault()
+    lastProcessedCardRef.current = cardStr
     updateCardSelection(cardStr, dragSelectMode === 'select')
+  }
+
+  // 指针移动：用于触摸设备上的滑动选牌
+  const handleHandPointerMove = (ev: React.PointerEvent) => {
+    if (!isDragSelecting || !dragSelectMode) return
+    
+    // 获取当前触摸/鼠标位置下的元素
+    const element = document.elementFromPoint(ev.clientX, ev.clientY)
+    if (!element) return
+    
+    // 向上查找卡牌元素
+    const cardElement = element.closest('.card') as HTMLElement
+    if (!cardElement) return
+    
+    // 从 data 属性或 key 获取卡牌标识
+    const cardKey = cardElement.getAttribute('data-card')
+    if (!cardKey || lastProcessedCardRef.current === cardKey) return
+    
+    lastProcessedCardRef.current = cardKey
+    updateCardSelection(cardKey, dragSelectMode === 'select')
   }
 
   // 指针抬起或离开手牌区域：结束拖选
@@ -1916,6 +1791,7 @@ export default function GameRoom() {
     if (!isDragSelecting) return
     setIsDragSelecting(false)
     setDragSelectMode(null)
+    lastProcessedCardRef.current = null
   }
 
   // 发送聊天消息
@@ -2149,31 +2025,36 @@ export default function GameRoom() {
             aria-label="返回"
           ></button>
         </div>
-        {/* 底牌显示区域 - 桌面顶端中间 */}
-        {landlordCards.length > 0 && (
+        {/* 底牌和分数倍数显示区域 - 桌面顶端中间 */}
+        {/* 分数倍数在确定地主后一直显示，底牌在出牌后隐藏 */}
+        {landlordId && (
           <div className="bottom-cards-display">
             <div className="bottom-info-bar">
-              <div className="bottom-cards-container">
-                {landlordCards.map((cardStr: string, index: number) => {
-                  const { rank, suit, isJoker } = parseCard(cardStr)
-                  const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
+              {/* 底牌：出牌前显示，出牌后隐藏 */}
+              {!hideBottomCards && landlordCards.length > 0 && (
+                <div className="bottom-cards-container">
+                  {landlordCards.map((cardStr: string, index: number) => {
+                    const { rank, suit, isJoker } = parseCard(cardStr)
+                    const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
 
-                  return (
-                    <div key={index} className={`bottom-card ${isRed ? 'red' : 'black'}`}>
-                      <div
-                        className={`card-value ${isJoker ? 'joker-text' : ''}`}
-                        style={isJoker ? { color: isJoker === 'big' ? '#d32f2f' : '#000' } : undefined}
-                      >
-                        {rank}
+                    return (
+                      <div key={index} className={`bottom-card ${isRed ? 'red' : 'black'}`}>
+                        <div
+                          className={`card-value ${isJoker ? 'joker-text' : ''}`}
+                          style={isJoker ? { color: isJoker === 'big' ? '#d32f2f' : '#000' } : undefined}
+                        >
+                          {rank}
+                        </div>
+                        {!isJoker && <div className="card-suit">{suit}</div>}
                       </div>
-                      {!isJoker && <div className="card-suit">{suit}</div>}
-                    </div>
-                  )
-                })}
-              </div>
-              <div className="bottom-meta">
-                <span>基数: {settlementScore?.baseScore ?? 100}</span>
-                <span>倍数: {settlementScore?.bombCount ? settlementScore.bombCount : 3}</span>
+                    )
+                  })}
+                </div>
+              )}
+              {/* 分数倍数：确定地主后一直显示，字体稍小，与积分系统对齐 */}
+              <div className="bottom-meta compact">
+                <span>基数: {settlementScore?.baseScore ?? 10000}</span>
+                <span>倍数: ×{Math.pow(2, currentBombCount)}</span>
               </div>
             </div>
           </div>
@@ -2581,6 +2462,7 @@ export default function GameRoom() {
             className="player-hand-section"
             onPointerUp={handleHandPointerUp}
             onPointerLeave={handleHandPointerUp}
+            onPointerMove={handleHandPointerMove}
           >
             <div className="player-hand">
               <AnimatePresence initial={false}>
@@ -2593,6 +2475,7 @@ export default function GameRoom() {
                   return (
                     <motion.div
                       key={`${cardStr}-${index}`}
+                      data-card={cardStr}
                       className={`card ${isRed ? 'red' : 'black'} ${
                         isSelected ? 'selected' : ''
                       }`}
@@ -2689,10 +2572,20 @@ export default function GameRoom() {
           })()}
           {gameStatus === 'playing' && isMyTurn && (
             <div className="game-actions" id="gameActions">
-              {turnTimer > 0 && (
-                <div className="turn-timer">⏰ {turnTimer}秒</div>
-              )}
               <div className="game-buttons">
+                {/* 按JJ斗地主顺序：不出 - 倒计时 - 提示 - 出牌 */}
+                {canPass && (
+                  <button
+                    type="button"
+                    className="btn-pass"
+                    onClick={handlePass}
+                  >
+                    不出
+                  </button>
+                )}
+                {turnTimer > 0 && (
+                  <div className="turn-timer">{turnTimer}</div>
+                )}
                 <button
                   type="button"
                   className="btn-hint"
@@ -2708,15 +2601,6 @@ export default function GameRoom() {
                 >
                   出牌
                 </button>
-                {canPass && (
-                  <button
-                    type="button"
-                    className="btn-pass"
-                    onClick={handlePass}
-                  >
-                    不出
-                  </button>
-                )}
               </div>
             </div>
           )}
@@ -2873,14 +2757,9 @@ export default function GameRoom() {
         </>
       )}
 
-      {/* 右下角UI组：倍数+AI+聊天 */}
+      {/* 右下角UI组：AI+聊天（移除倍数显示） */}
       {!chatVisible && !showAiPanel && (
         <div className="bottom-right-ui">
-          {/* 倍数显示 */}
-          <div className="game-multiplier" title="当前倍数">
-            <span className="multiplier-icon">🎲</span>
-            <span className="multiplier-value">30万</span>
-          </div>
           {/* AI 分析切换按钮 */}
           {aiHintHistory.length > 0 && (
             <button 

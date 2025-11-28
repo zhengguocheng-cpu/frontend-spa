@@ -158,12 +158,12 @@
 .player-slot {
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: rgba(0, 0, 0, 0.4);
-  padding: 8px 12px;
-  border-radius: 12px;
-  min-width: 120px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 6px 10px;
+  border-radius: 10px;
+  min-width: 90px; /* 缩小最小宽度 */
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
   backdrop-filter: blur(8px);
   transition: all 0.3s ease;
   position: relative;
@@ -190,23 +190,26 @@
 }
 
 .player-avatar {
-  width: 40px;
-  height: 40px;
+  width: 32px; /* 缩小头像 */
+  height: 32px;
   border-radius: 50%;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
-  border: 2px solid #fff;
+  font-size: 16px; /* 缩小表情 */
+  border: 1.5px solid #fff;
   flex-shrink: 0;
 }
 
 .player-name {
-  font-size: 13px;
+  font-size: 11px; /* 缩小字体 */
   color: white;
   font-weight: bold;
   white-space: nowrap;
+  max-width: 70px; /* 限制最大宽度 */
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .card-count {
@@ -217,7 +220,7 @@
 
 /* 玩家状态（准备状态或张数） */
 .player-status {
-  font-size: 12px;
+  font-size: 10px; /* 缩小字体 */
   color: #ffd700;
   white-space: nowrap;
 }
@@ -464,16 +467,46 @@
   overflow: visible;
 }
 
+/* 左右玩家出牌缩小，模拟欢乐斗地主的远景透视效果 */
 .player-slot.left .played-cards-container.last-played .card,
 .player-slot.right .played-cards-container.last-played .card {
-  width: 42px;
-  height: 60px;
-  font-size: 12px;
+  /* 牌面大小约为手牌的 50%，营造远景效果 */
+  width: 28px;
+  height: 40px;
+  font-size: 9px;
+  border-width: 1px;
+  border-radius: 4px;
+  padding: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
 .player-slot.left .played-cards-container.last-played .card:not(:first-child),
 .player-slot.right .played-cards-container.last-played .card:not(:first-child) {
-  margin-left: -16px;
+  margin-left: -12px;
+}
+
+/* 左右玩家出牌区的点数和花色也缩小 */
+.player-slot.left .played-cards-container.last-played .card .card-value,
+.player-slot.right .played-cards-container.last-played .card .card-value {
+  font-size: 12px;
+  margin-bottom: 1px;
+}
+
+.player-slot.left .played-cards-container.last-played .card .card-suit,
+.player-slot.right .played-cards-container.last-played .card .card-suit {
+  font-size: 10px;
+}
+
+.player-slot.left .played-cards-container.last-played .card .card-value.joker-text,
+.player-slot.right .played-cards-container.last-played .card .card-value.joker-text {
+  font-size: 5px;
+  letter-spacing: 0.3px;
+}
+
+/* 隐藏左右玩家出牌区的角色标识，避免遮挡小牌 */
+.player-slot.left .played-cards-container.last-played .card .card-landlord-mark,
+.player-slot.right .played-cards-container.last-played .card .card-landlord-mark {
+  display: none;
 }
 
 .bottom-cards,

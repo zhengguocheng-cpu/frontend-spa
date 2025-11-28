@@ -547,7 +547,7 @@ const findBiggerSingles = (hand: Card[], minValue: number): Card[][] => {
   // 计算当前手牌中所有可能顺子涉及到的点数（用于判断某张单牌是否是顺子关键点）
   const { straight, pairSequence, airplaneTriple } = getStructureValueSets(hand)
 
-  type SingleCandidate = { card: Card; value: number; cost: number }
+  type SingleCandidate = { card: Card; value: number; cost: number; groupSize: number }
   const candidates: SingleCandidate[] = []
 
   for (const value of values) {
@@ -563,20 +563,33 @@ const findBiggerSingles = (hand: Card[], minValue: number): Card[][] => {
     const isAirplaneCritical = groupSize === 3 && airplaneTriple.has(value)
     const isCriticalSingle = isStraightCritical || isPairSeqCritical || isAirplaneCritical
 
+    // 修改代价模型：真正的单牌（groupSize=1）代价最低
+    // 拆对子和三张的代价大幅提高，确保优先使用真正的单牌
     const baseCost =
-      groupSize === 1 ? 0 : groupSize === 2 ? 1 : groupSize === 3 ? 2 : 3
+      groupSize === 1 ? 0 : groupSize === 2 ? 50 : groupSize === 3 ? 80 : 100
     const isHighPower = isHighPowerValue(value)
-    const fullCost = baseCost + (isCriticalSingle ? 100 : 0) + (isHighPower ? 120 : 0)
+    // 高牌惩罚降低，避免因为高牌惩罚导致拆对子
+    const fullCost = baseCost + (isCriticalSingle ? 200 : 0) + (isHighPower ? 30 : 0)
 
-    for (const card of cardsOfValue) {
-      candidates.push({ card, value, cost: fullCost })
-    }
+    // 每个点数只添加一张牌（最小的那张），避免重复
+    candidates.push({ card: cardsOfValue[0], value, cost: fullCost, groupSize })
   }
 
+  // 排序优先级：
+  // 1. 优先使用真正的单牌（groupSize=1）
+  // 2. 在单牌中，优先使用点数小的（不管是否破坏结构）
+  // 3. 最后才考虑拆对子/三张
   candidates.sort((a, b) => {
+    // 首先按 groupSize 分组：单牌 < 对子 < 三张
+    if (a.groupSize !== b.groupSize) return a.groupSize - b.groupSize
+    // 单牌之间：直接按点数从小到大，忽略 cost
+    if (a.groupSize === 1 && b.groupSize === 1) {
+      return a.value - b.value
+    }
+    // 对子/三张之间：按 cost 排序
     if (a.cost !== b.cost) return a.cost - b.cost
-    if (a.value !== b.value) return a.value - b.value
-    return getCardValue(a.card) - getCardValue(b.card)
+    // 同 cost 按点数从小到大
+    return a.value - b.value
   })
 
   return candidates.map((c) => [c.card])
@@ -606,20 +619,22 @@ const findBiggerPairs = (hand: Card[], minValue: number): Card[][] => {
     const breaksPairSequence = remainingAfterPair < 2 && pairSequence.has(value)
     const breaksAirplane = airplaneTriple.has(value) && groupSize === 3
 
-    const baseCost = groupSize === 2 ? 1 : groupSize === 3 ? 2 : 3
+    // 修改代价模型：降低高牌惩罚，优先按点数从小到大
+    const baseCost = groupSize === 2 ? 0 : groupSize === 3 ? 1 : 2
     const isHighPower = isHighPowerValue(value)
     const fullCost =
       baseCost +
       (breaksStraight || breaksPairSequence || breaksAirplane ? 100 : 0) +
-      (isHighPower ? 120 : 0)
+      (isHighPower ? 10 : 0) // 降低高牌惩罚，让点数排序更重要
 
     candidates.push({ cards: pair, value, cost: fullCost })
   }
 
+  // 排序：先按 cost，再按点数从小到大
   candidates.sort((a, b) => {
     if (a.cost !== b.cost) return a.cost - b.cost
-    if (a.value !== b.value) return a.value - b.value
-    return getCardValue(a.cards[0]) - getCardValue(b.cards[0])
+    // 关键：点数从小到大排序，确保 QQ 在 22 前面
+    return a.value - b.value
   })
 
   return candidates.map((c) => c.cards)
