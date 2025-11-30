@@ -12,7 +12,6 @@ import {
   initGame,
   updatePlayers,
   updatePlayerStatus,
-  setGameStatus,
   startGame,
   toggleCardSelection,
   playCards as playCardsAction,
