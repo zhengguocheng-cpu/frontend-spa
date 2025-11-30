@@ -4,6 +4,7 @@ import { Card } from 'antd'
 import { SpinLoading } from 'antd-mobile'
 import { useAuth } from '@/context/AuthContext'
 import { globalSocket } from '@/services/socket'
+import { formatScore } from '@/utils/scoreFormatter'
 import './style.css'
 
  type RankType = 'score' | 'winRate'
@@ -125,26 +126,20 @@ export default function Leaderboard() {
           <div className="leaderboard-header-center">
             <h1 className="leaderboard-title">🏆 排行榜</h1>
           </div>
-          <div className="leaderboard-header-right">
-            <button className="lb-header-btn secondary" onClick={() => navigate('/profile')}>
-              我的资料
+          <div className="leaderboard-tabs">
+            <button
+              className={"lb-tab-btn " + (type === 'score' ? 'active' : '')}
+              onClick={() => handleChangeType('score')}
+            >
+              积分排行
+            </button>
+            <button
+              className={"lb-tab-btn " + (type === 'winRate' ? 'active' : '')}
+              onClick={() => handleChangeType('winRate')}
+            >
+              胜率排行
             </button>
           </div>
-        </div>
-
-        <div className="leaderboard-tabs">
-          <button
-            className={"lb-tab-btn " + (type === 'score' ? 'active' : '')}
-            onClick={() => handleChangeType('score')}
-          >
-            积分排行
-          </button>
-          <button
-            className={"lb-tab-btn " + (type === 'winRate' ? 'active' : '')}
-            onClick={() => handleChangeType('winRate')}
-          >
-            胜率排行
-          </button>
         </div>
 
         <div className="leaderboard-table">
@@ -183,7 +178,7 @@ export default function Leaderboard() {
                         : entry.rank
 
                 const scoreText =
-                  type === 'score' ? `${entry.value ?? 0}` : formatWinRate(entry.value)
+                  type === 'score' ? formatScore(entry.value ?? 0) : formatWinRate(entry.value)
 
                 return (
                   <div

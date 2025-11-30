@@ -5,10 +5,22 @@
   align-items: flex-start;
   padding: 20px 16px;
   box-sizing: border-box;
-  /* 深邃蓝黑星空背景 */
-  background: radial-gradient(circle at 50% 0%, #1e3a8a 0%, #0f172a 60%, #020617 100%);
+  /* 背景与大厅统一：使用同一张大图，叠加深色模糊遮罩 */
+  background: url('/imgs/bk-2.jpg') center/cover no-repeat;
   width: 100%;
   overflow-x: hidden;
+  position: relative;
+  overflow: hidden;
+}
+
+.leaderboard-page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.82);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  z-index: -1;
 }
 
 .leaderboard-card.ant-card {
@@ -24,25 +36,25 @@
 }
 
 .leaderboard-card .ant-card-body {
-  padding: 24px;
+  padding: 16px 20px;
 }
 
 .leaderboard-header-row {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 24px;
+  gap: 16px;
+  margin-bottom: 12px;
 }
 
 .leaderboard-header-center {
-  flex: 1;
-  justify-content: center;
+  display: flex;
+  align-items: center;
 }
 
 .leaderboard-title {
   margin: 0;
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 800;
   background: linear-gradient(to bottom, #ffffff, #cbd5e1);
   -webkit-background-clip: text;
@@ -73,13 +85,10 @@
   display: flex;
   justify-content: center;
   gap: 8px;
-  margin-bottom: 24px;
   background: rgba(0, 0, 0, 0.2);
   padding: 4px;
   border-radius: 999px;
   width: fit-content;
-  margin-left: auto;
-  margin-right: auto;
 }
 
 .lb-tab-btn {
@@ -110,21 +119,21 @@
   display: grid;
   grid-template-columns: 60px minmax(0, 2fr) 80px 80px 80px;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 10px 14px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.05);
   font-size: 13px;
   font-weight: 600;
   color: #94a3b8;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   text-transform: uppercase;
   letter-spacing: 1px;
 }
 
 .leaderboard-table-body {
   /* 动态计算高度，留出头部空间，确保可视区域内滚动 */
-  max-height: calc(100vh - 280px); 
-  min-height: 300px;
+  max-height: calc(100vh - 180px); 
+  min-height: 400px;
   overflow-y: auto;
   padding-right: 4px; /* 给滚动条留空 */
 }
@@ -150,7 +159,7 @@
   display: grid;
   grid-template-columns: 60px minmax(0, 2fr) 80px 80px 80px;
   gap: 12px;
-  padding: 16px;
+  padding: 12px;
   border-radius: 16px;
   background: rgba(30, 41, 59, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.03);
@@ -171,19 +180,19 @@
   border: 1px solid rgba(251, 191, 36, 0.3);
   box-shadow: 0 4px 20px rgba(251, 191, 36, 0.1);
 }
-.leaderboard-row.top1 .col-rank { font-size: 24px; }
+.leaderboard-row.top1 .col-rank { font-size: 22px; }
 
 .leaderboard-row.top2 {
   background: linear-gradient(135deg, rgba(226, 232, 240, 0.15), rgba(203, 213, 225, 0.05));
   border: 1px solid rgba(226, 232, 240, 0.3);
 }
-.leaderboard-row.top2 .col-rank { font-size: 22px; }
+.leaderboard-row.top2 .col-rank { font-size: 20px; }
 
 .leaderboard-row.top3 {
   background: linear-gradient(135deg, rgba(180, 83, 9, 0.15), rgba(146, 64, 14, 0.05));
   border: 1px solid rgba(180, 83, 9, 0.3);
 }
-.leaderboard-row.top3 .col-rank { font-size: 20px; }
+.leaderboard-row.top3 .col-rank { font-size: 18px; }
 
 /* 自己 */
 .leaderboard-row.me {
@@ -204,7 +213,7 @@
 .col-rank {
   text-align: center;
   font-weight: 800;
-  font-size: 16px;
+  font-size: 14px;
   color: #94a3b8;
   font-family: 'DIN Alternate', sans-serif;
 }
@@ -217,8 +226,8 @@
 }
 
 .player-avatar {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: linear-gradient(135deg, #e2e8f0, #94a3b8);
   display: flex;
@@ -230,7 +239,7 @@
 }
 
 .player-name {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
   color: #f1f5f9;
   white-space: nowrap;
@@ -240,7 +249,7 @@
 
 .col-score {
   text-align: center;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   color: #fbbf24; /* 金色积分 */
   font-family: 'DIN Alternate', sans-serif;
@@ -249,7 +258,7 @@
 .col-games,
 .col-winrate {
   text-align: center;
-  font-size: 14px;
+  font-size: 12px;
   color: #cbd5e1;
 }
 

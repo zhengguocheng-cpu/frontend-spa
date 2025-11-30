@@ -8,6 +8,7 @@ class SoundManager {
   private musicEnabled: boolean = true
   private initialized: boolean = false
   private backgroundAudio: HTMLAudioElement | null = null
+  private victoryAudio: HTMLAudioElement | null = null
   private soundMap: Record<string, HTMLAudioElement> = {}
 
   /**
@@ -47,6 +48,8 @@ class SoundManager {
         return '/sounds/输牌.mp3'
       case 'triple_with_single':
         return '/sounds/三带一.mp3'
+      case 'card_select':
+        return '/sounds/card_select.mp3'
       default:
         return null
     }
@@ -104,6 +107,15 @@ class SoundManager {
           gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.1)
           oscillator.start()
           oscillator.stop(this.audioContext.currentTime + 0.1)
+          break
+
+        case 'select':
+          // 选牌音效 - 清脆短促
+          oscillator.frequency.value = 1200
+          gainNode.gain.setValueAtTime(0.15, this.audioContext.currentTime)
+          gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.05)
+          oscillator.start()
+          oscillator.stop(this.audioContext.currentTime + 0.05)
           break
 
         case 'play':
@@ -320,6 +332,37 @@ class SoundManager {
     }
   }
 
+  /** 胜利循环音乐：仅在玩家获胜后播放，直到再来一局或返回大厅 */
+  playVictoryMusic() {
+    if (!this.musicEnabled) {
+      return
+    }
+
+    try {
+      if (!this.victoryAudio) {
+        this.victoryAudio = new Audio('/sounds/赢牌.mp3')
+        this.victoryAudio.loop = true
+        this.victoryAudio.volume = 0.6
+      }
+
+      this.victoryAudio.currentTime = 0
+      this.victoryAudio
+        .play()
+        .catch((error) => {
+          console.error('❌ 播放胜利音乐失败:', error)
+        })
+    } catch (error) {
+      console.error('❌ 初始化胜利音乐失败:', error)
+    }
+  }
+
+  stopVictoryMusic() {
+    if (this.victoryAudio) {
+      this.victoryAudio.pause()
+      this.victoryAudio.currentTime = 0
+    }
+  }
+
   /**
    * 设置音效开关
    */
@@ -338,6 +381,7 @@ class SoundManager {
     this.musicEnabled = enabled
     if (!enabled) {
       this.stopBackgroundMusic()
+      this.stopVictoryMusic()
     }
   }
 

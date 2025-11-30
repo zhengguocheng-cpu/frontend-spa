@@ -8,11 +8,14 @@ import { getLevelByScore } from '@/utils/playerLevel'
 import { getLlmSettings, saveLlmSettings, type LlmSettings } from '@/utils/llmSettings'
 import { getGameSettings, saveGameSettings, type GameSettings } from '@/utils/gameSettings'
 import { soundManager } from '@/utils/sound'
+import { formatScore } from '@/utils/scoreFormatter'
+import '@/styles/avatars.css'
 import './style.css'
 
 export default function LobbyHome() {
   const { user, login, loading } = useAuth()
   const navigate = useNavigate()
+  const appVersion = (import.meta as any).env?.VITE_APP_BUILD_VERSION || 'dev'
   const [autoLoggingIn, setAutoLoggingIn] = useState(false)
   const [walletScore, setWalletScore] = useState<number | null>(null)
   const [settingsVisible, setSettingsVisible] = useState(false)
@@ -155,6 +158,16 @@ export default function LobbyHome() {
     }
   }, [user])
 
+  // 同步当前积分到 sessionStorage，供其他页面（如房间列表）做积分校验
+  useEffect(() => {
+    if (walletScore == null) return
+    try {
+      sessionStorage.setItem('lastWalletScore', String(walletScore))
+    } catch {
+      // ignore storage error
+    }
+  }, [walletScore])
+
   useEffect(() => {
     soundManager.setSoundEnabled(gameSettings.sfxEnabled)
     soundManager.setMusicEnabled(gameSettings.bgmEnabled)
@@ -174,6 +187,12 @@ export default function LobbyHome() {
   const handleQuickStart = async () => {
     if (!user) {
       Toast.show({ content: '请先登录后再开始游戏', icon: 'info' })
+      return
+    }
+
+    // 积分不足时禁止开始游戏
+    if (walletScore !== null && walletScore <= 0) {
+      Toast.show({ content: '积分不足，请前往积分中心充值', icon: 'info' })
       return
     }
 
@@ -278,15 +297,30 @@ export default function LobbyHome() {
 
   const formatAmount = (value: number | null) => {
     const safe = typeof value === 'number' && value >= 0 ? value : 0
-    if (safe >= 10000) {
-      return `${(safe / 10000).toFixed(2)}万`
-    }
-    return String(safe)
+    return formatScore(safe)
   }
 
   const displayName = user?.name ?? '未登录玩家'
   const displayId = user?.id ?? '--'
   const { name: playerLevelName, icon: playerLevelIcon } = getLevelByScore(walletScore)
+
+  const renderUserAvatar = () => {
+    const raw = (user?.avatar || '').trim()
+    if (!raw) {
+      return <div className="lobby-avatar-img" />
+    }
+
+    const match = raw.match(/^avatar-(\d+)$/)
+    if (match) {
+      const id = Number(match[1])
+      if (!Number.isNaN(id) && id > 0) {
+        return <div className={`avatar-sprite avatar-${id} avatar-sprite-small`} />
+      }
+    }
+
+    // 兼容旧的 emoji 头像
+    return <span className="lobby-avatar-emoji">{raw}</span>
+  }
 
   return (
     <div className="lobby-container">
@@ -294,7 +328,7 @@ export default function LobbyHome() {
         <div className="lobby-header">
           <button className="lobby-user" onClick={handleGoProfile} type="button">
             <div className="lobby-user-avatar">
-              <div className="lobby-avatar-img" />
+              {renderUserAvatar()}
             </div>
             <div className="lobby-user-info">
               <div className="lobby-user-level">
@@ -399,6 +433,8 @@ export default function LobbyHome() {
           <span className="bottom-nav-label">反馈</span>
         </button>
       </div>
+
+      <div className="lobby-version">版本：{appVersion}</div>
 
       {settingsVisible && (
         <div className="lobby-settings-mask" onClick={closeSettings}>

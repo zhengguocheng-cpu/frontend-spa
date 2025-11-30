@@ -124,6 +124,18 @@ export default function RoomList() {
   const handleJoin = async (roomId: string) => {
     if (!user) return
 
+    // 简单积分校验：优先使用 sessionStorage 中的 lastWalletScore（由大厅/房间写入），为 0 或以下时禁止加入
+    try {
+      const stored = sessionStorage.getItem('lastWalletScore')
+      const parsed = stored != null ? Number(stored) : NaN
+      if (!Number.isNaN(parsed) && parsed <= 0) {
+        Toast.show({ content: '积分不足，请前往积分中心充值', icon: 'info' })
+        return
+      }
+    } catch {
+      // ignore storage errors
+    }
+
     setJoiningRoomId(roomId)
     try {
       await globalSocket.joinGame(

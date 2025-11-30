@@ -202,6 +202,12 @@
   flex-shrink: 0;
 }
 
+.player-avatar .avatar-sprite {
+  width: 100%;
+  height: 100%;
+  background-size: 300% 400%;
+}
+
 .player-name {
   font-size: 11px; /* 缩小字体 */
   color: white;
@@ -291,14 +297,23 @@
 
 .result-score.win {
   color: #ffffff; /* 文字使用白色，搭配亮色底 */
-  background: linear-gradient(135deg, #facc15, #f97316);
-  box-shadow: 0 6px 18px rgba(248, 181, 85, 0.7);
+  /* 调整为更淡的半透明渐变，削弱阴影，让气泡更融入背景 */
+  background: linear-gradient(
+    135deg,
+    rgba(250, 204, 21, 0.18),
+    rgba(249, 115, 22, 0.32)
+  );
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.65);
 }
 
 .result-score.lose {
   color: #e5e7eb;
-  background: linear-gradient(135deg, #4f46e5, #a855f7);
-  box-shadow: 0 6px 18px rgba(129, 140, 248, 0.7);
+  background: linear-gradient(
+    135deg,
+    rgba(79, 70, 229, 0.2),
+    rgba(168, 85, 247, 0.35)
+  );
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.6);
 }
 
 /* 出牌区域样式 */
@@ -430,31 +445,42 @@
 }
 
 /* 左右玩家：结算时亮出剩余手牌（remaining-cards）
-   - 各自区域不能超过窗口中线
-   - 可以多行显示，牌略微缩小，避免遮挡 */
+   - 两行显示，每行最多10张
+   - 重叠度更大，最多到窗口中间位置 */
 .player-slot.left .played-cards-container.remaining-cards,
 .player-slot.right .played-cards-container.remaining-cards {
-  max-width: 28vw; /* 左右各自最多占屏幕约一半，不跨过中线 */
+  max-width: 48vw; /* 左右各自最多占屏幕约一半，到中线 */
   flex-wrap: wrap; /* 允许多行 */
-  overflow: hidden;
-}
-
-/* 剩余手牌较少（例如 <=7 张）时，强制一行显示，避免不必要换行 */
-.player-slot.left .played-cards-container.remaining-cards.single-row,
-.player-slot.right .played-cards-container.remaining-cards.single-row {
-  flex-wrap: nowrap;
+  overflow: visible; /* 允许溢出，确保所有牌都可见 */
+  row-gap: 4px; /* 行间距 */
 }
 
 .player-slot.left .played-cards-container.remaining-cards .card,
 .player-slot.right .played-cards-container.remaining-cards .card {
-  width: 40px;
-  height: 58px;
-  font-size: 11px;
+  width: 30px; /* 稍微缩小 */
+  height: 44px;
+  font-size: 9px;
 }
 
 .player-slot.left .played-cards-container.remaining-cards .card:not(:first-child),
 .player-slot.right .played-cards-container.remaining-cards .card:not(:first-child) {
-  margin-left: -18px;
+  margin-left: -20px; /* 增加重叠度，能显示更多牌 */
+}
+
+.player-slot.left .played-cards-container.remaining-cards .card .card-value,
+.player-slot.right .played-cards-container.remaining-cards .card .card-value {
+  font-size: 11px; /* 点数稍大一些，保持清晰 */
+}
+
+.player-slot.left .played-cards-container.remaining-cards .card .card-suit,
+.player-slot.right .played-cards-container.remaining-cards .card .card-suit {
+  font-size: 9px;
+}
+
+/* 每行最多10张牌后强制换行 */
+.player-slot.left .played-cards-container.remaining-cards .card:nth-child(11),
+.player-slot.right .played-cards-container.remaining-cards .card:nth-child(11) {
+  margin-left: 0; /* 第11张牌开始新行，不重叠 */
 }
 
 /* 左右玩家：正常对局时最近一手出牌（last-played）
@@ -1354,23 +1380,24 @@
 .chat-messages {
   flex: 1;
   overflow-y: auto;
-  padding: 12px;
+  padding: 8px; /* 减小内边距 */
   background: #fafafa;
 }
 
 .chat-message {
-  margin-bottom: 12px;
-  padding: 8px 12px;
+  margin-bottom: 6px; /* 减小间距 */
+  padding: 6px 10px; /* 减小内边距 */
   background: white;
-  border-radius: 8px;
-  font-size: 13px;
+  border-radius: 6px; /* 减小圆角 */
+  font-size: 12px; /* 减小字体 */
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .chat-message-sender {
   font-weight: bold;
   color: #1890ff;
-  margin-bottom: 4px;
+  margin-bottom: 2px; /* 减小间距 */
+  font-size: 11px; /* 减小字体 */
 }
 
 .chat-input-area {

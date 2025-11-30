@@ -484,19 +484,34 @@ const findAllTripleWithSingles = (hand: Card[]): Card[][] => {
 
 const findAllTripleWithPairs = (hand: Card[]): Card[][] => {
   const groups = groupByValue(hand)
-  const entries = Array.from(groups.entries())
+  const entries = Array.from(groups.entries()).sort(([a], [b]) => a - b)
   const results: Card[][] = []
+  const totalLen = hand.length
 
   for (const [value, cardsOfValue] of entries) {
     // 三张部分只使用恰好三张的点数，避免从炸弹中拆三张
     if (cardsOfValue.length === 3) {
       const triple = sortCardsAsc(cardsOfValue).slice(0, 3)
 
-      for (const [pairValue, pairCards] of entries) {
-        if (pairValue === value) continue
+      const pairCandidates = entries.filter(([pairValue, pairCards]) => {
+        if (pairValue === value) return false
         // 带的对子只从2张或3张中取，避免从炸弹拆对子
-        if (pairCards.length === 2 || pairCards.length === 3) {
-          const sortedPair = sortCardsAsc(pairCards)
+        return pairCards.length === 2 || pairCards.length === 3
+      })
+
+      if (pairCandidates.length === 0) continue
+
+      if (pairCandidates.length > 1) {
+        // 有不止一个对子时，直接用最小的对子
+        const [, smallPairCards] = pairCandidates[0]
+        const sortedPair = sortCardsAsc(smallPairCards)
+        results.push([...triple, sortedPair[0], sortedPair[1]])
+      } else {
+        // 只有一个对子时，如果出完这手后牌已经很少，可以接受用这个对子；否则交给三带一去用小单
+        const [, onlyPairCards] = pairCandidates[0]
+        const remainingAfterTriplePair = totalLen - 5
+        if (remainingAfterTriplePair <= 3) {
+          const sortedPair = sortCardsAsc(onlyPairCards)
           results.push([...triple, sortedPair[0], sortedPair[1]])
         }
       }
@@ -542,7 +557,6 @@ const findAllFourWithTwo = (hand: Card[]): Card[][] => {
 
 const findBiggerSingles = (hand: Card[], minValue: number): Card[][] => {
   const groups = groupByValue(hand)
-  const values = Array.from(groups.keys()).sort((a, b) => a - b)
 
   // 计算当前手牌中所有可能顺子涉及到的点数（用于判断某张单牌是否是顺子关键点）
   const { straight, pairSequence, airplaneTriple } = getStructureValueSets(hand)
@@ -550,9 +564,9 @@ const findBiggerSingles = (hand: Card[], minValue: number): Card[][] => {
   type SingleCandidate = { card: Card; value: number; cost: number; groupSize: number }
   const candidates: SingleCandidate[] = []
 
-  for (const value of values) {
+  // 遍历所有点数，收集候选单牌
+  for (const [value, cardsOfValue] of groups.entries()) {
     if (value <= minValue) continue
-    const cardsOfValue = sortCardsAsc(groups.get(value) || [])
     const groupSize = cardsOfValue.length
     if (groupSize === 0) continue
     // 不从炸弹中拆单牌
@@ -563,33 +577,31 @@ const findBiggerSingles = (hand: Card[], minValue: number): Card[][] => {
     const isAirplaneCritical = groupSize === 3 && airplaneTriple.has(value)
     const isCriticalSingle = isStraightCritical || isPairSeqCritical || isAirplaneCritical
 
-    // 修改代价模型：真正的单牌（groupSize=1）代价最低
-    // 拆对子和三张的代价大幅提高，确保优先使用真正的单牌
+    // 代价模型：
+    // - 真正的单牌（groupSize=1）代价最低
+    // - 拆对子和三张的代价大幅提高
+    // - 破坏结构的牌代价极高
     const baseCost =
-      groupSize === 1 ? 0 : groupSize === 2 ? 50 : groupSize === 3 ? 80 : 100
-    const isHighPower = isHighPowerValue(value)
-    // 高牌惩罚降低，避免因为高牌惩罚导致拆对子
-    const fullCost = baseCost + (isCriticalSingle ? 200 : 0) + (isHighPower ? 30 : 0)
+      groupSize === 1 ? 0 : groupSize === 2 ? 100 : groupSize === 3 ? 200 : 300
+    const structurePenalty = isCriticalSingle ? 500 : 0
+    const fullCost = baseCost + structurePenalty
 
     // 每个点数只添加一张牌（最小的那张），避免重复
-    candidates.push({ card: cardsOfValue[0], value, cost: fullCost, groupSize })
+    const sorted = sortCardsAsc(cardsOfValue)
+    candidates.push({ card: sorted[0], value, cost: fullCost, groupSize })
   }
 
-  // 排序优先级：
+  // 排序优先级（关键修复）：
   // 1. 优先使用真正的单牌（groupSize=1）
-  // 2. 在单牌中，优先使用点数小的（不管是否破坏结构）
-  // 3. 最后才考虑拆对子/三张
+  // 2. 在同类型中，优先使用点数小的（刚好能压过即可）
+  // 3. 破坏结构的牌排在最后
   candidates.sort((a, b) => {
     // 首先按 groupSize 分组：单牌 < 对子 < 三张
     if (a.groupSize !== b.groupSize) return a.groupSize - b.groupSize
-    // 单牌之间：直接按点数从小到大，忽略 cost
-    if (a.groupSize === 1 && b.groupSize === 1) {
-      return a.value - b.value
-    }
-    // 对子/三张之间：按 cost 排序
-    if (a.cost !== b.cost) return a.cost - b.cost
-    // 同 cost 按点数从小到大
-    return a.value - b.value
+    // 同类型中，先按点数从小到大（关键！）
+    if (a.value !== b.value) return a.value - b.value
+    // 点数相同时，按 cost 排序（虽然点数相同的情况很少）
+    return a.cost - b.cost
   })
 
   return candidates.map((c) => [c.card])
@@ -601,7 +613,7 @@ const findBiggerPairs = (hand: Card[], minValue: number): Card[][] => {
   // 计算手牌中所有可能顺子涉及到的点数，用于判断拆掉某对是否会破坏顺子
   const { straight, pairSequence, airplaneTriple } = getStructureValueSets(hand)
 
-  type PairCandidate = { cards: Card[]; value: number; cost: number }
+  type PairCandidate = { cards: Card[]; value: number; cost: number; groupSize: number }
   const candidates: PairCandidate[] = []
 
   for (const [value, cards] of groups.entries()) {
@@ -627,14 +639,17 @@ const findBiggerPairs = (hand: Card[], minValue: number): Card[][] => {
       (breaksStraight || breaksPairSequence || breaksAirplane ? 100 : 0) +
       (isHighPower ? 10 : 0) // 降低高牌惩罚，让点数排序更重要
 
-    candidates.push({ cards: pair, value, cost: fullCost })
+    candidates.push({ cards: pair, value, cost: fullCost, groupSize })
   }
 
-  // 排序：先按 cost，再按点数从小到大
+  // 排序优先级（关键）：
+  // 1. 先按 groupSize：真对子（2张）在前，拆三张（3张）在后
+  // 2. 同一 groupSize 内，按点数从小到大（先 88，再 99，再 10 10 ...）
+  // 3. 点数相同时再看 cost，尽量少破坏顺子/连对/飞机
   candidates.sort((a, b) => {
-    if (a.cost !== b.cost) return a.cost - b.cost
-    // 关键：点数从小到大排序，确保 QQ 在 22 前面
-    return a.value - b.value
+    if (a.groupSize !== b.groupSize) return a.groupSize - b.groupSize
+    if (a.value !== b.value) return a.value - b.value
+    return a.cost - b.cost
   })
 
   return candidates.map((c) => c.cards)
@@ -1408,6 +1423,21 @@ export class CardHintHelper {
 
     const lastPattern = detectSimplePattern(lastPlayed)
     if (!lastPattern) return false
+
+    // 炸弹自动出牌规则：
+    // - 对方不是炸弹/王炸：可以直接压过
+    // - 双方都是炸弹：点数大的可以压过
+    // - 对方是王炸：无法压过
+    if (selfPattern.type === 'bomb') {
+      if (lastPattern.type === 'rocket') {
+        return false
+      }
+      if (lastPattern.type !== 'bomb') {
+        return true
+      }
+      // 双方都是炸弹时，比点数
+      return selfPattern.value > lastPattern.value
+    }
 
     // 只在“牌型相同”的前提下自动出牌
     if (selfPattern.type !== lastPattern.type) return false

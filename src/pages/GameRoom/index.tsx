@@ -7,6 +7,7 @@ import { useSocketStatus } from '@/hooks/useSocketStatus'
 import { globalSocket } from '@/services/socket'
 import type { RootState } from '@/store'
 import { getLevelByScore } from '@/utils/playerLevel'
+import { formatScore } from '@/utils/scoreFormatter'
 import {
   initGame,
   updatePlayers,
@@ -30,6 +31,7 @@ import { soundManager } from '@/utils/sound'
 import { getLlmSettings } from '@/utils/llmSettings'
 import { getGameSettings } from '@/utils/gameSettings'
 import { motion, AnimatePresence } from 'framer-motion'
+import '@/styles/avatars.css'
 import './style.css'
 import './game.css'
 import './ai-panel.css'
@@ -87,8 +89,12 @@ export default function GameRoom() {
   const autoReplayTimerRef = useRef<number | null>(null)
   // 提示请求上下文（用于后端失败时回退到本地提示）
   const hintContextRef = useRef<{ myCards: string[]; lastCards: string[] | null } | null>(null)
-  // 当前游戏中的炸弹数量（用于实时显示倍数）
+  const autoFullHandPlayedRef = useRef(false)
+  // 跟牌轮到自己时是否已经自动选中过一手提示牌
+  const autoFollowHintAppliedRef = useRef(false)
+  // 当前游戏中的炸弹 / 王炸数量（用于实时显示倍数）
   const [currentBombCount, setCurrentBombCount] = useState(0)
+  const [currentRocketCount, setCurrentRocketCount] = useState(0)
   // 是否隐藏底牌（出牌后隐藏，但分数倍数继续显示）
   const [hideBottomCards, setHideBottomCards] = useState(false)
   
@@ -225,6 +231,19 @@ export default function GameRoom() {
         ? '地主获胜'
         : '农民获胜'
       : ''
+
+  const renderPlayerAvatar = (avatar: string | undefined) => {
+    const raw = (avatar || '').trim()
+    const match = raw.match(/^avatar-(\d+)$/)
+    if (match) {
+      const id = Number(match[1])
+      if (!Number.isNaN(id) && id > 0) {
+        return <div className={`avatar-sprite avatar-${id} avatar-sprite-small`} />
+      }
+    }
+    // 兼容旧的 emoji / 字符头像
+    return <span>{raw || '👤'}</span>
+  }
 
   // 解析卡牌 - 照抄 frontend/public/room/js/room-simple.js 第 2065-2093 行
   const parseCard = (card: string) => {
@@ -909,12 +928,6 @@ export default function GameRoom() {
       console.log('🎯 [轮到出牌] 事件中的玩家ID:', data.playerId)
       console.log('🎯 [轮到出牌] 当前 gameStatus:', gameStatus)
       
-      // 收到 turn_to_play 说明游戏已开始，强制确保 gameStatus 为 playing
-      if (gameStatus !== 'playing') {
-        console.warn('⚠️ [轮到出牌] gameStatus 不是 playing，强制修正为 playing')
-        dispatch(setGameStatus('playing'))
-      }
-      
       if (data.playerId) {
         dispatch(setCurrentPlayer(data.playerId))
 
@@ -926,8 +939,10 @@ export default function GameRoom() {
           playPendingRef.current = false
           setPlayPending(false)
 
-          // 每次轮到自己出牌时，重置提示索引，保证提示序列从头开始
+          // 每次轮到自己出牌时，重置提示索引和自动出牌/自动提示标记
           CardHintHelper.resetHintIndex()
+          autoFullHandPlayedRef.current = false
+          autoFollowHintAppliedRef.current = false
           
           // 判断是否可以不出
           // 如果是首次出牌或新一轮开始，不能不出
@@ -940,6 +955,7 @@ export default function GameRoom() {
           console.log('🎯 [轮到出牌] 首次出牌:', isFirst)
           console.log('🎯 [轮到出牌] 上家出牌:', lastPlayedCards)
           console.log('🎯 [轮到出牌] isMyTurn 已设置为 true')
+
           // 将提示写入聊天消息，而不是使用 Toast 或额外音效
           setChatMessages((prev) => [
             ...prev,
@@ -1074,13 +1090,16 @@ export default function GameRoom() {
           setHideBottomCards(true)
         }
         
-        // 检测炸弹/王炸，更新炸弹计数
+        // 检测炸弹/王炸，更新计数（用于顶部倍数近似显示）
         const typeRawForBomb = (data.cardType?.type || data.cardType?.TYPE || '')
           .toString()
           .toLowerCase()
-        if (typeRawForBomb === 'bomb' || typeRawForBomb === 'rocket') {
-          setCurrentBombCount(prev => prev + 1)
-          console.log('💣 检测到炸弹/王炸，当前炸弹数:', currentBombCount + 1)
+        if (typeRawForBomb === 'bomb') {
+          setCurrentBombCount((prev) => prev + 1)
+          console.log('💣 检测到炸弹，当前炸弹数:', currentBombCount + 1)
+        } else if (typeRawForBomb === 'rocket') {
+          setCurrentRocketCount((prev) => prev + 1)
+          console.log('🃏 检测到王炸，当前王炸数:', currentRocketCount + 1)
         }
         
         if (data.playerId !== (user?.id || user?.name)) {
@@ -1132,7 +1151,10 @@ export default function GameRoom() {
       const isWinner =
         !!myId && (data.winnerId === myId || data.winnerName === user?.name)
       if (isWinner) {
+        // 胜利方：先播一次赢牌音效，然后切换到循环胜利音乐
         soundManager.playWin()
+        soundManager.stopBackgroundMusic()
+        soundManager.playVictoryMusic()
       } else {
         soundManager.playLose()
       }
@@ -1326,6 +1348,59 @@ export default function GameRoom() {
     }
   }, [])
 
+  // 自动出“整手牌就是完整牌型”的情况（只要这手牌在当前局面下是合法出牌）
+  useEffect(() => {
+    if (!isMyTurn) return
+    if (!myCards || myCards.length === 0) return
+    if (autoFullHandPlayedRef.current) return
+
+    const fullHandPattern = CardHintHelper.getFullHandIfSinglePattern(myCards)
+    if (!fullHandPattern || fullHandPattern.length !== myCards.length) return
+
+    const lastCards: string[] | null = !canPass
+      ? null
+      : lastPlayedCards && lastPlayedCards.cards && lastPlayedCards.cards.length > 0
+        ? lastPlayedCards.cards
+        : null
+
+    const canPlayFullHand = CardHintHelper.canFullHandBeatLast(fullHandPattern, lastCards)
+    if (!canPlayFullHand) return
+
+    autoFullHandPlayedRef.current = true
+    console.log('🎯 [自动出牌] 整手牌是完整牌型且当前可以合法出牌，自动出牌:', fullHandPattern)
+
+    setTimeout(() => {
+      doPlayCards(fullHandPattern)
+    }, 500)
+  }, [isMyTurn, myCards, lastPlayedCards, canPass])
+
+  // 跟牌轮到自己时，自动选中一手本地提示牌（不直接出牌）
+  useEffect(() => {
+    if (!isMyTurn) return
+    // 仅在可以“不出”的跟牌场景下自动选提示牌，首家出牌交给玩家自己决定
+    if (!canPass) return
+    if (autoFollowHintAppliedRef.current) return
+    if (!myCards || myCards.length === 0) return
+
+    const hasLastCards =
+      !!lastPlayedCards &&
+      !!lastPlayedCards.cards &&
+      lastPlayedCards.cards.length > 0
+    if (!hasLastCards) return
+
+    const lastCards = lastPlayedCards!.cards as string[]
+    const hint = CardHintHelper.getHint(myCards, lastCards)
+    if (!hint || hint.length === 0) return
+
+    autoFollowHintAppliedRef.current = true
+
+    // 清空之前的选牌，只选中当前这手提示牌
+    dispatch(clearSelection())
+    hint.forEach((card) => {
+      dispatch(toggleCardSelection(card))
+    })
+  }, [isMyTurn, canPass, myCards, lastPlayedCards, dispatch])
+
   useEffect(() => {
     if (!isMyTurn) return
     if (turnTimer !== 0) return
@@ -1385,9 +1460,7 @@ export default function GameRoom() {
 
   // 智能自动不出：当轮到自己出牌、可以不出、且没有任何牌能打过上家时，自动不出
   useEffect(() => {
-    if (!isMyTurn) return
-    if (!canPass) return // 必须能不出
-    if (playPendingRef.current) return
+    if (!isMyTurn || !canPass) return
     if (!myCards || myCards.length === 0) return
     
     // 检查是否有上家出的牌
@@ -1398,11 +1471,11 @@ export default function GameRoom() {
     
     if (!lastCards) return // 没有上家牌，不自动不出
     
-    // 尝试获取提示，看是否有牌能打
-    const hint = CardHintHelper.getHint(myCards, lastCards)
+    // 使用 getAllHints 只检测“是否有能压过的牌”，避免消耗提示索引
+    const allHints = CardHintHelper.getAllHints(myCards, lastCards)
     
     // 如果没有任何提示（即没有牌能打过上家），自动不出
-    if (!hint || hint.length === 0) {
+    if (!allHints || allHints.length === 0) {
       console.log('🤖 [智能不出] 没有牌能打过上家，自动不出')
       // 延迟1秒自动不出，给玩家一点思考时间
       setTimeout(() => {
@@ -1422,6 +1495,8 @@ export default function GameRoom() {
     if (roomId) {
       globalSocket.leaveGame(roomId)
     }
+    // 返回大厅前停止胜利音乐
+    soundManager.stopVictoryMusic()
     sessionStorage.removeItem('lastRoomId')
     sessionStorage.removeItem('lastRoomTime')
     dispatch(resetGame())
@@ -1448,6 +1523,20 @@ export default function GameRoom() {
       return
     }
     
+    // 如果积分不足，禁止再准备/再来一局
+    if (walletScore !== null && walletScore <= 0) {
+      appendSystemMessage('积分不足，请前往积分中心充值')
+      return
+    }
+
+    // 再来一局前，停止胜利音乐并恢复背景音乐
+    soundManager.stopVictoryMusic()
+    const gameSettings = getGameSettings()
+    soundManager.setMusicEnabled(gameSettings.bgmEnabled)
+    if (gameSettings.bgmEnabled) {
+      soundManager.playBackgroundMusic()
+    }
+
     // 找到当前玩家
     const currentPlayer = players.find((p: any) => 
       p.id === user.id || p.name === user.name
@@ -1557,6 +1646,9 @@ export default function GameRoom() {
       appendSystemMessage('当前轮次不能不出')
       return
     }
+
+    // 执行不出前，清空所有已选中的牌
+    dispatch(clearSelection())
 
     console.log(' 发送不出请求')
 
@@ -1719,15 +1811,26 @@ export default function GameRoom() {
     const isSelected = selectedCards.includes(cardStr)
     if (shouldSelect && !isSelected) {
       dispatch(toggleCardSelection(cardStr))
+      const now = Date.now()
+      if (now - lastSoundTimeRef.current > 50) {
+        soundManager.playSound('card_select')
+        lastSoundTimeRef.current = now
+      }
       console.log('✅ 选中:', cardStr)
     } else if (!shouldSelect && isSelected) {
       dispatch(toggleCardSelection(cardStr))
+      const now = Date.now()
+      if (now - lastSoundTimeRef.current > 50) {
+        soundManager.playSound('card_select')
+        lastSoundTimeRef.current = now
+      }
       console.log('❌ 取消选中:', cardStr)
     }
   }
 
   // 记录上次处理的卡牌，避免重复处理
   const lastProcessedCardRef = useRef<string | null>(null)
+  const lastSoundTimeRef = useRef<number>(0)
 
   // 指针按下：开始拖选或单选
   // 简化逻辑：移除跟牌阶段的智能选牌，让用户可以自由拖选
@@ -1956,12 +2059,19 @@ export default function GameRoom() {
     }
   }, [user])
 
+  // 将当前房间内加载到的积分同步到 sessionStorage，便于其他页面做积分校验
+  useEffect(() => {
+    if (walletScore == null) return
+    try {
+      sessionStorage.setItem('lastWalletScore', String(walletScore))
+    } catch {
+      // ignore storage error
+    }
+  }, [walletScore])
+
   const formatAmount = (value: number | null) => {
     const safe = typeof value === 'number' && value >= 0 ? value : 0
-    if (safe >= 10000) {
-      return `${(safe / 10000).toFixed(2)}万`
-    }
-    return String(safe)
+    return formatScore(safe)
   }
 
   const { name: currentLevelName, icon: currentLevelIcon } = getLevelByScore(walletScore)
@@ -2053,8 +2163,12 @@ export default function GameRoom() {
               )}
               {/* 分数倍数：确定地主后一直显示，字体稍小，与积分系统对齐 */}
               <div className="bottom-meta compact">
-                <span>基数: {settlementScore?.baseScore ?? 10000}</span>
-                <span>倍数: ×{Math.pow(2, currentBombCount)}</span>
+                <span>基数: {settlementScore?.baseScore ?? 5000}</span>
+                <span>
+                  倍数: ×
+                  {bottomPlayerScore?.multipliers?.total ??
+                    Math.max(1, Math.pow(3, currentBombCount) * Math.pow(8, currentRocketCount))}
+                </span>
               </div>
             </div>
           </div>
@@ -2071,7 +2185,7 @@ export default function GameRoom() {
                 {landlordId === leftPlayer.id && (
                   <div className="landlord-badge" title="地主">👑</div>
                 )}
-                <div className="player-avatar">{leftPlayer.avatar || '👤'}</div>
+                <div className="player-avatar">{renderPlayerAvatar(leftPlayer.avatar)}</div>
                 <div>
                   <div className="player-name">{leftPlayer.name}</div>
                   <div className="player-status">
@@ -2097,11 +2211,7 @@ export default function GameRoom() {
               )}
               <div className="played-cards-area">
                 {gameStatus === 'finished' && leftRemainingCards && leftRemainingCards.length > 0 ? (
-                  <div
-                    className={`played-cards-container remaining-cards ${
-                      leftRemainingCards.length <= 10 ? 'single-row' : ''
-                    }`}
-                  >
+                  <div className="played-cards-container remaining-cards">
                     {leftRemainingCards.map((cardStr: string, index: number) => {
                       const { rank, suit, isJoker } = parseCard(cardStr)
                       const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
@@ -2191,7 +2301,7 @@ export default function GameRoom() {
                 {landlordId === rightPlayer.id && (
                   <div className="landlord-badge" title="地主">👑</div>
                 )}
-                <div className="player-avatar">{rightPlayer.avatar || '👤'}</div>
+                <div className="player-avatar">{renderPlayerAvatar(rightPlayer.avatar)}</div>
                 <div>
                   <div className="player-name">{rightPlayer.name}</div>
                   <div className="player-status">
@@ -2217,11 +2327,7 @@ export default function GameRoom() {
               )}
               <div className="played-cards-area">
                 {gameStatus === 'finished' && rightRemainingCards && rightRemainingCards.length > 0 ? (
-                  <div
-                    className={`played-cards-container remaining-cards ${
-                      rightRemainingCards.length <= 10 ? 'single-row' : ''
-                    }`}
-                  >
+                  <div className="played-cards-container remaining-cards">
                     {rightRemainingCards.map((cardStr: string, index: number) => {
                       const { rank, suit, isJoker } = parseCard(cardStr)
                       const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
@@ -2426,7 +2532,7 @@ export default function GameRoom() {
               {landlordId === currentPlayer.id && (
                 <div className="landlord-badge" title="地主">👑</div>
               )}
-              <div className="player-avatar">{currentPlayer.avatar || '👤'}</div>
+              <div className="player-avatar">{renderPlayerAvatar(currentPlayer.avatar)}</div>
               {isBottomTurn && <div className="turn-indicator">{turnTimer}</div>}
             </div>
             <div className="player-info-below">
