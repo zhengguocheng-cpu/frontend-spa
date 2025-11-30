@@ -1,0 +1,126 @@
+/* Home 页面样式 - 移动优先 */
+
+.home-container {
+  min-height: 100vh;
+  width: 100%;
+  box-sizing: border-box;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow-y: auto; /* 竖屏下内容略超出时可以滚动 */
+}
+
+.home-content {
+  width: 100%;
+  max-width: 400px;
+}
+
+.home-header {
+  text-align: center;
+  margin-bottom: 32px;
+  color: white;
+}
+
+.home-title {
+  font-size: 48px;
+  font-weight: bold;
+  margin: 0 0 12px 0;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.home-subtitle {
+  font-size: 16px;
+  margin: 0;
+  opacity: 0.95;
+}
+
+.home-card {
+  margin-bottom: 24px;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.home-description {
+  padding: 8px 0;
+}
+
+.home-description p {
+  margin: 8px 0;
+  font-size: 15px;
+  color: #666;
+  line-height: 1.6;
+}
+
+.home-actions {
+  margin-top: 24px;
+}
+
+.home-version {
+  margin-top: 12px;
+  font-size: 12px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* 平板和桌面适配 */
+@media (min-width: 768px) {
+  .home-content {
+    max-width: 480px;
+  }
+
+  .home-title {
+    font-size: 56px;
+  }
+
+  .home-subtitle {
+    font-size: 18px;
+  }
+}
+
+@media screen and (orientation: landscape) {
+  .home-container {
+    height: 100vh;
+    /* 横屏下整体再压缩一些，并允许轻微滚动，保证能看到版本号 */
+    overflow-y: auto;
+    align-items: center;
+    padding: 6px 10px;
+  }
+
+  .home-content {
+    max-width: 320px;
+  }
+
+  .home-header {
+    margin-bottom: 8px;
+  }
+
+  .home-title {
+    font-size: 24px;
+    margin-bottom: 2px;
+  }
+
+  .home-subtitle {
+    font-size: 12px;
+  }
+
+  .home-card {
+    margin-bottom: 8px;
+  }
+
+  .home-actions {
+    margin-top: 8px;
+  }
+
+  .home-version {
+    margin-top: 4px;
+    font-size: 10px;
+  }
+
+  /* 横屏下正文也稍微缩小一号 */
+  .home-description p {
+    font-size: 13px;
+    line-height: 1.4;
+  }
+}

@@ -1,0 +1,569 @@
+/* ========== 页面背景 ========== */
+.profile-page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  background: url('/imgs/bk-2.jpg') center/cover no-repeat;
+  position: relative;
+  overflow: hidden;
+}
+
+.profile-page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  z-index: -1;
+}
+
+/* ========== 主布局容器（Grid 左右分栏）========== */
+.profile-layout-container {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 20px;
+  width: 100%;
+  max-width: 1200px;
+  align-items: flex-start;
+}
+
+/* ========== 左侧栏 ========== */
+.profile-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 用户信息卡片 - 左右布局 */
+.profile-user-card {
+  background: rgba(51, 65, 85, 0.75);
+  backdrop-filter: blur(12px);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+}
+
+.profile-avatar-container {
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 20%, #fef9c3, #f97316);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 6px 16px rgba(251, 191, 36, 0.4);
+}
+
+.profile-avatar-container:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 20px rgba(251, 191, 36, 0.5);
+}
+
+.profile-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+.profile-avatar-container .avatar-sprite {
+  width: 100%;
+  height: 100%;
+}
+
+.profile-user-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  flex: 1;
+}
+
+.profile-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.profile-name {
+  font-size: 17px;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.profile-name-input {
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  font-size: 13px;
+  background: rgba(15, 23, 42, 0.8);
+  color: #e5e7eb;
+  outline: none;
+  width: 90px;
+  max-width: 100%;
+  text-align: center;
+}
+
+.profile-name-btn {
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.profile-name-btn.save {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+}
+
+.profile-name-btn.save:hover {
+  background: rgba(34, 197, 94, 0.3);
+}
+
+.profile-name-edit {
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: none;
+  font-size: 12px;
+  cursor: pointer;
+  background: rgba(100, 116, 139, 0.3);
+  color: #cbd5e1;
+  transition: all 0.2s ease;
+}
+
+.profile-name-edit:hover {
+  background: rgba(100, 116, 139, 0.5);
+}
+
+.profile-id {
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+.profile-status-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #cbd5e1;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.status-dot.online {
+  background: #4ade80;
+  box-shadow: 0 0 6px #4ade80;
+}
+
+.status-dot.offline {
+  background: #94a3b8;
+}
+
+.status-text {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+/* 导航菜单 */
+.profile-nav-menu {
+  background: rgba(51, 65, 85, 0.75);
+  backdrop-filter: blur(12px);
+  border-radius: 16px;
+  padding: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.profile-nav-item {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: none;
+  text-align: left;
+  font-size: 15px;
+  font-weight: 500;
+  color: #cbd5e1;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.profile-nav-item:hover {
+  background: rgba(100, 116, 139, 0.2);
+  color: #f1f5f9;
+}
+
+.profile-nav-item.active {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.35), rgba(245, 158, 11, 0.35));
+  color: #fbbf24;
+  font-weight: 600;
+  box-shadow: inset 0 0 0 2px rgba(251, 191, 36, 0.5);
+}
+
+.nav-icon {
+  font-size: 18px;
+}
+
+/* ========== 右侧内容面板 ========== */
+.profile-content-panel {
+  background: rgba(51, 65, 85, 0.75);
+  backdrop-filter: blur(12px);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  min-height: 350px;
+}
+
+.hidden {
+  display: none;
+}
+
+/* 面板内部标题 */
+.panel-section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #f1f5f9;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.sub-text {
+  font-size: 12px;
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+.loading-text {
+  font-size: 13px;
+  color: #94a3b8;
+  text-align: center;
+  padding: 20px;
+}
+
+.panel-divider {
+  height: 1px;
+  background: rgba(148, 163, 184, 0.2);
+  margin: 16px 0;
+}
+
+/* 数据概览 Grid（2x2）*/
+.profile-stats-grid-large {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.stat-card-large {
+  background: rgba(15, 23, 42, 0.6);
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.15);
+  transition: all 0.2s ease;
+}
+
+.stat-card-large:hover {
+  background: rgba(15, 23, 42, 0.75);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.stat-card-large .label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #94a3b8;
+  margin-bottom: 6px;
+}
+
+.stat-card-large .value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.text-gold {
+  color: #fbbf24 !important;
+  text-shadow: 0 0 12px rgba(251, 191, 36, 0.4);
+}
+
+.text-red {
+  color: #f87171 !important;
+  text-shadow: 0 0 12px rgba(248, 113, 113, 0.4);
+}
+
+/* 排行榜 */
+.profile-leaderboard-table {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.profile-leaderboard-row {
+  display: grid;
+  grid-template-columns: 50px minmax(0, 1fr) 80px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  color: #e5e7eb;
+  background: rgba(15, 23, 42, 0.4);
+  transition: all 0.2s ease;
+}
+
+.profile-leaderboard-row:hover {
+  background: rgba(15, 23, 42, 0.6);
+  transform: translateX(4px);
+}
+
+.profile-leaderboard-row.me {
+  background: rgba(251, 191, 36, 0.15);
+  box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.3);
+}
+
+.profile-leaderboard-row .col-rank {
+  text-align: center;
+  font-size: 18px;
+}
+
+.profile-leaderboard-row .col-player {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.profile-leaderboard-row .col-score {
+  text-align: right;
+  font-weight: 600;
+  color: #fbbf24;
+}
+
+/* 空状态 */
+.profile-empty {
+  font-size: 13px;
+  color: #94a3b8;
+  text-align: center;
+  padding: 40px 20px;
+}
+
+/* 积分趋势图 */
+.score-trend-chart {
+  margin-top: 8px;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.4);
+  border-radius: 12px;
+}
+
+/* 历史记录 */
+.profile-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.profile-history-item {
+  display: grid;
+  grid-template-columns: 0.8fr 0.7fr 1.5fr 0.8fr;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.4);
+  transition: all 0.2s ease;
+  gap: 12px;
+}
+
+.profile-history-item:hover {
+  background: rgba(15, 23, 42, 0.6);
+  transform: translateX(4px);
+}
+
+/* 通用列样式 */
+.profile-history-item .history-col {
+  display: flex;
+  align-items: center;
+}
+
+/* 第1列：时间 */
+.profile-history-item .history-time {
+  font-size: 15px;
+  color: #94a3b8;
+  justify-content: flex-start;
+}
+
+/* 第2列：角色 */
+.profile-history-item .history-role {
+  font-size: 14px;
+  color: #e5e7eb;
+  font-weight: 500;
+  justify-content: flex-start;
+}
+
+/* 第3列：倍数标签 + 公式 */
+.profile-history-item .history-multiplier {
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+}
+
+.profile-history-item .tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+}
+
+.profile-history-item .tag {
+  font-size: 11px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: rgba(59, 130, 246, 0.25);
+  color: #93c5fd;
+  font-weight: 500;
+}
+
+.profile-history-item .formula {
+  font-size: 10px;
+  color: #94a3b8;
+  font-family: 'Consolas', 'Monaco', monospace;
+  white-space: nowrap;
+}
+
+/* 第4列：积分变化 */
+.profile-history-item .history-score {
+  justify-content: flex-end;
+}
+
+.profile-history-item .score {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.profile-history-item .score.positive {
+  color: #4ade80;
+}
+
+.profile-history-item .score.negative {
+  color: #f87171;
+}
+
+/* 成就区域 */
+.achievements-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(95px, 1fr));
+  gap: 8px;
+}
+
+.achievement-item {
+  padding: 8px 10px;
+  border-radius: 9px;
+  text-align: center;
+  transition: all 0.25s ease;
+  cursor: pointer;
+}
+
+.achievement-item.unlocked {
+  background: linear-gradient(135deg, #fbbf24, #f97316);
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(253, 224, 71, 0.95);
+}
+
+.achievement-item.unlocked:hover {
+  background: linear-gradient(135deg, #facc15, #ea580c);
+  transform: translateY(-1px) scale(1.02);
+}
+
+.achievement-item.locked {
+  /* 未解锁：整体用偏灰色的卡片效果 */
+  background: linear-gradient(135deg, #4b5563, #1f2933);
+  box-shadow: inset 0 0 0 1px rgba(156, 163, 175, 0.9);
+  opacity: 1;
+}
+
+.achievement-icon {
+  font-size: 26px;
+  margin-bottom: 6px;
+}
+
+.achievement-name {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.achievement-item.unlocked .achievement-name {
+  color: #111827;
+}
+
+.achievement-item.locked .achievement-name {
+  color: #94a3b8;
+}
+
+.achievement-desc {
+  font-size: 11px;
+}
+
+.achievement-item.unlocked .achievement-desc {
+  color: #cbd5e1;
+}
+
+.achievement-item.locked .achievement-desc {
+  color: #64748b;
+}
+
+/* 响应式布局 */
+@media (max-width: 600px) {
+  .profile-page {
+    padding: 12px;
+  }
+
+  .profile-layout-container {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .profile-sidebar {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .profile-nav-menu {
+    flex-direction: column;
+  }
+
+  .profile-content-panel {
+    padding: 16px;
+  }
+
+  .profile-stats-grid-large {
+    grid-template-columns: 1fr;
+  }
+
+  .achievements-grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  }
+}

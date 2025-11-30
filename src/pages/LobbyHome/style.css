@@ -1,0 +1,1038 @@
+.lobby-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh; /* 强制占满视口高度 */
+  min-height: 100vh;
+  background: url('/imgs/bk-2.jpg') center/cover no-repeat;
+  position: relative;
+  z-index: 0;
+  padding: 12px 16px; /* 左右留白 */
+  box-sizing: border-box;
+  color: #123057;
+  overflow: hidden; /* 禁止出现滚动条 */
+}
+
+.lobby-container::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.lobby-header-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  margin-bottom: 12px;
+  background: transparent; 
+}
+
+.lobby-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 4px 0 0;
+  position: relative;
+}
+
+.lobby-user {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 8px 14px 8px 8px;
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.lobby-user:active {
+  transform: scale(0.98);
+}
+
+.lobby-user-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  background: radial-gradient(circle at 30% 30%, #fef9c3, #f97316);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  margin-right: 10px;
+  margin-bottom: 0;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+  border: 2px solid rgba(255, 255, 255, 0.8);
+}
+
+.lobby-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  background: url('/imgs/玩家头像（男）.png') center/cover no-repeat;
+}
+
+.lobby-avatar-emoji {
+  font-size: 28px;
+}
+
+.lobby-user-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding-right: 0;
+  gap: 2px;
+}
+
+.lobby-user-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  letter-spacing: 0.5px;
+}
+
+.lobby-user-level {
+  margin-left: 0;
+  margin-top: 2px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #713f12;
+  background: linear-gradient(90deg, #fde68a, #f59e0b);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: auto;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.lobby-level-icon {
+  font-size: 12px;
+}
+
+.lobby-level-text {
+  line-height: 1.2;
+}
+
+.lobby-user-id {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 2px;
+}
+
+/* 资产区域：固定在窗口顶部中间 */
+.lobby-assets {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 0;
+  z-index: 100;
+}
+
+.lobby-asset-item {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 4px 12px 4px 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 90px;
+  max-width: auto;
+  height: 32px;
+  position: relative;
+  transition: transform 0.2s;
+}
+
+.lobby-asset-item:active {
+  transform: scale(0.96);
+}
+
+.lobby-user-level {
+  /* 移除之前强制的高度统一 */
+  height: auto;
+}
+
+.asset-icon {
+  margin-right: 0;
+  position: relative; /* 移除 absolute，改用正常流 */
+  left: auto;
+  top: auto;
+  transform: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 钻石图标 */
+.asset-icon-diamond {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  /* 去除深色底，改用发光效果 */
+  background-color: transparent;
+  box-shadow: none;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+  margin-right: 6px;
+}
+
+.asset-icon-diamond::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url('/imgs/zuan0000.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+/* 金币图标 */
+.asset-icon-coin {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: transparent;
+  /* 金币自带圆形，直接用图片 */
+  background-image: url('/imgs/coin.jpg');
+  background-size: cover; /* 铺满 */
+  background-repeat: no-repeat;
+  background-position: center;
+  box-shadow: 0 2px 6px rgba(234, 88, 12, 0.4); /* 橙色阴影 */
+  margin-right: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  left: auto; /* 覆盖之前的设置 */
+}
+
+.asset-value {
+  font-size: 14px;
+  font-weight: 800;
+  color: #ffffff;
+  font-family: 'DIN Alternate', 'Roboto', sans-serif; /* 尝试使用数字字体 */
+  letter-spacing: 0.5px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+.lobby-login-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.lobby-login-button {
+  flex: 1;
+}
+
+.lobby-sync-wechat {
+  margin-top: 4px;
+  margin-left: 12px;
+  align-self: flex-start;
+  padding: 2px 12px;
+  border-radius: 999px;
+  border: none;
+  /* 使用稍微现代一点的渐变 */
+  background: linear-gradient(90deg, #fbbf24, #d97706);
+  color: #fffbeb;
+  font-size: 11px;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(217, 119, 6, 0.3);
+  transition: transform 0.1s;
+}
+
+.lobby-sync-wechat:active {
+  transform: scale(0.95);
+}
+
+.lobby-model-slot {
+  position: absolute;
+  /* 卡片区域左侧预留的 50% 空白中，靠右一点放人物 */
+  left: 19%;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 120%;
+  max-width: 280px;
+  height: 260px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  pointer-events: none; /* 不挡住背景点击 */
+  z-index: 1;
+}
+
+.lobby-model-image {
+  width: 120%;
+  height: 100%;
+  background: url('/imgs/dou-dizhu-avatar.png') center bottom/contain no-repeat;
+  position: relative;
+  z-index: 1; /* 始终在地面阴影之上 */
+  filter: drop-shadow(0 16px 24px rgba(0, 0, 0, 0.45)); /* 人物脚下的立体阴影 */
+  transform: translateY(-4px); /* 轻微上抬，像站在草地上 */
+}
+
+.lobby-model-slot::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  transform: translateX(-50%);
+  width: 70%;
+  height: 18%;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.55) 0%, transparent 70%);
+  opacity: 0.85;
+  filter: blur(2px); /* 柔和阴影边缘，模拟落地阴影 */
+  z-index: 0;
+}
+
+.lobby-main-cards {
+  /* 右侧两列 Grid：左侧主卡片（快速游戏），右侧上下两个次级卡片 */
+  display: grid;
+  grid-template-columns: 1.2fr 1fr; /* 左侧稍宽 */
+  grid-template-rows: 1fr 1fr; /* 固定两行等高 */
+  gap: 16px; /* 统一间距 */
+  margin-top: 0;
+  width: 50%;              /* 再缩窄一些，增大左侧空白 */
+  max-width: 680px;        /* 略微减小最大宽度 */
+  margin-left: auto;
+  margin-right: 16px;      /* 靠右一些 */
+  padding-bottom: 90px;    /* 与底部工具栏保持合理距离 */
+  flex: 0; /* 不再自动撑满，使用固定高度 */
+  height: 230px;           /* 略微降低整体高度，避免碰到底部 */
+  min-height: auto; /* 移除最小高度限制 */
+  transform: translateY(-58px); /* 上浮幅度减小一些，位置更自然 */
+}
+
+@media (max-width: 640px) {
+  /* 小屏时稍微放宽一点，保持结构但略微调窄左列比例 */
+  .lobby-main-cards {
+    width: 70%;
+    margin-right: 16px;
+    transform: translateY(-32px);
+    grid-template-columns: 1.1fr 1fr;
+  }
+}
+
+.lobby-card {
+  border-radius: 20px; /* 圆角稍微改小一点 */
+  padding: 16px; /* 内边距减小 */
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2), 
+              inset 0 1px 1px rgba(255,255,255,0.25);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  cursor: pointer;
+  width: 100%;
+  box-sizing: border-box; /* 让 100% 宽度包含 padding 和 border，不再超过列宽 */
+  min-height: 0; /* 移除最小高度，由 Grid 决定 */
+}
+
+/* 噪点纹理覆盖层 */
+.lobby-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+  opacity: 0.4;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+}
+
+.lobby-card:active {
+  transform: scale(0.98);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* 快速游戏：琥珀金渐变 */
+.lobby-card.quick {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  grid-column: 1 / 2;
+  grid-row: 1 / 3; /* 占满两行，成为主卡片 */
+}
+
+/* 加入房间：深海蓝渐变 */
+.lobby-card.join {
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  grid-column: 2 / 3;
+  grid-row: 1 / 2;
+}
+
+/* 炸弹专区：星云紫渐变 */
+.lobby-card.bomb {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  grid-column: 2 / 3;
+  grid-row: 2 / 3;
+}
+
+.lobby-card-img {
+  position: absolute;
+  right: -10px;
+  bottom: -10px;
+  width: 75%; /* 图片稍微加大 */
+  height: 75%;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: bottom right;
+  transform: rotate(-5deg);
+  transition: transform 0.4s ease;
+  filter: drop-shadow(0 10px 20px rgba(0,0,0,0.2)); /* 图片增加投影 */
+}
+
+.lobby-card:hover .lobby-card-img {
+  transform: rotate(0deg) scale(1.08);
+}
+
+.lobby-card-img-quick {
+  background-image: url('/imgs/card-quick-02.png');
+  width: 80%;       /* 收窄图片宽度，避免视觉上冲到第二列 */
+  height: 60%;
+  bottom: 0;
+  right: 0;         /* 不再向右溢出，贴在卡片内部右侧 */
+}
+
+.lobby-card-img-join {
+  background-image: url('/imgs/card-room.jpg');
+  border-radius: 16px;
+  opacity: 0.9;
+  /* 加上遮罩让图片更有融合感 */
+  mask-image: linear-gradient(to bottom, transparent 0%, black 20%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%);
+}
+
+.lobby-card-img-bomb {
+  background-image: url('/imgs/card-boom.jpg');
+  border-radius: 16px;
+  opacity: 0.9;
+  mask-image: linear-gradient(to bottom, transparent 0%, black 20%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%);
+}
+
+.lobby-card-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: #ffffff;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  margin-bottom: 6px;
+  z-index: 2;
+  display: block;
+  text-align: left;
+  letter-spacing: 0.5px;
+}
+
+.lobby-card.quick .lobby-card-title {
+  font-size: 20px;
+  margin-top: 12px;
+  margin-left: 4px;
+}
+
+.lobby-card-desc {
+  display: block;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.95);
+  font-weight: 500;
+  text-align: left;
+  margin-left: 4px;
+  z-index: 2;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+/* 底部导航栏：悬浮 Dock 栏风格 */
+.lobby-bottom-nav {
+  position: fixed;
+  left: 50%;
+  bottom: 1px; /* 更靠近底部 */
+  transform: translateX(-50%);
+  width: auto; /* 宽度随内容 */
+  min-width: 320px;
+  height: 68px; /* 稍微增高 */
+  padding: 0 16px;
+  
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  
+  /* 深色磨砂玻璃背景 */
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  
+  border-radius: 34px; /* 大圆角 */
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4),
+              inset 0 1px 1px rgba(255,255,255,0.1);
+  z-index: 100;
+}
+
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6); /* 默认半透明 */
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 16px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 56px;
+  position: relative;
+}
+
+/* 选中/悬停态 */
+.bottom-nav-item:hover,
+.bottom-nav-item:active {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  transform: translateY(-4px); /* 轻微上浮 */
+}
+
+/* 选中时加个光点 */
+.bottom-nav-item:active::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #fbbf24; /* 金色光点 */
+  box-shadow: 0 0 8px #fbbf24;
+}
+
+.bottom-nav-icon {
+  font-size: 24px; /* 图标加大 */
+  margin-bottom: 4px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+  transition: transform 0.3s;
+}
+
+.bottom-nav-item:hover .bottom-nav-icon {
+  transform: scale(1.1); /* 图标放大 */
+}
+
+.bottom-nav-label {
+  font-size: 10px;
+  font-weight: 600;
+  margin-top: 0;
+  letter-spacing: 0.5px;
+}
+
+/* 适配小屏手机 */
+@media (max-width: 360px) {
+  .lobby-bottom-nav {
+    min-width: 90%;
+    padding: 0 8px;
+  }
+  .bottom-nav-item {
+    min-width: 48px;
+  }
+}
+
+.lobby-settings-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6); /* 加深遮罩 */
+  backdrop-filter: blur(8px); /* 增加背景模糊 */
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  animation: mask-fade-in 0.3s ease-out;
+}
+
+@keyframes mask-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.lobby-settings-panel {
+  width: 90vw;
+  max-width: 640px; /*稍微加宽 */
+  max-height: 85vh;
+  border-radius: 28px;
+  /* 深色玻璃拟态风格 */
+  background: linear-gradient(145deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5), 
+              inset 0 1px 1px rgba(255, 255, 255, 0.15);
+  padding: 32px;
+  color: #f8fafc;
+  animation: settings-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* 保持圆角 */
+  position: relative; /* 让齿轮可以固定在左上角 */
+}
+
+@keyframes settings-pop {
+  0% { opacity: 0; transform: scale(0.9) translateY(20px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.lobby-settings-header {
+  /* 不再占据一整行，仅作为齿轮挂载点 */
+  font-size: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  height: 0;
+}
+
+/* 左上角的小齿轮图标 */
+.lobby-settings-header::before {
+  content: '⚙️';
+  position: absolute;
+  top: 14px;
+  left: 18px;
+  font-size: 18px;
+  opacity: 0.9;
+}
+
+.lobby-settings-body {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 24px;
+  flex: 1;
+  min-height: 0; /* 关键：允许 flex 子项缩小，触发滚动 */
+  overflow: visible; /* 防止整体撑开 */
+}
+
+.lobby-settings-tabs-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 8px;
+  border-radius: 18px;
+  /* 左侧完整 Tab 区：更亮一些的深蓝玻璃，和大厅主色一致 */
+  background:
+    radial-gradient(circle at top left, rgba(248, 250, 252, 0.24), transparent 55%),
+    rgba(15, 23, 42, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.7);
+  overflow-y: auto; /* 侧边栏内容过多时也允许滚动 */
+}
+
+.lobby-settings-tab-item {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: none;
+  text-align: left;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(241, 245, 249, 0.85); /* 更亮一点，便于阅读 */
+  background: transparent; /* 默认使用左侧深蓝玻璃作为底色 */
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lobby-settings-tab-item:hover {
+  color: #ffffff;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.lobby-settings-tab-item.active {
+  /* 选中态：与快速游戏一致的橙色 Tab，凸显当前项 */
+  background: linear-gradient(135deg, #fbbf24, #f97316);
+  color: #ffffff;
+  box-shadow: 0 8px 20px rgba(248, 181, 36, 0.55);
+  font-weight: 700;
+}
+
+.lobby-settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 8px;
+  margin-bottom: 8px;
+}
+
+/* 美化滚动条 */
+.lobby-settings-section::-webkit-scrollbar {
+  width: 4px;
+}
+.lobby-settings-section::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 2px;
+}
+.lobby-settings-section::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+}
+.lobby-settings-section::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.lobby-settings-field {
+  padding: 20px;
+  border-radius: 16px;
+  /* 字段块背景：深蓝玻璃，和大厅卡片风格统一 */
+  background: radial-gradient(circle at top left, rgba(15, 118, 210, 0.28), transparent 55%),
+              rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  transition: all 0.2s;
+}
+
+.lobby-settings-field:hover {
+  background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.32), transparent 60%),
+              rgba(15, 23, 42, 0.96);
+  border-color: rgba(248, 250, 252, 0.55);
+}
+
+.lobby-settings-group-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #94a3b8;
+  margin: 8px 0 12px;
+  padding-left: 0;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.lobby-settings-group-title::before {
+  display: none; /* 移除原来的左侧竖线 */
+}
+
+/* Flex 布局用于开关行 */
+.lobby-settings-field-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.lobby-settings-label-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.lobby-settings-label-block {
+  font-size: 15px;
+  font-weight: 600;
+  color: #f1f5f9;
+  margin-bottom: 10px;
+  display: block;
+}
+
+/* iOS 风格 Toggle 开关 - 适配深色模式 */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 28px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.2);
+  transition: .3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  border-radius: 28px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 22px;
+  width: 22px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+input:checked + .toggle-slider {
+  /* 激活态改为与快速游戏一致的金色渐变 */
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.5);
+}
+
+input:checked + .toggle-slider:before {
+  transform: translateX(20px);
+}
+
+.lobby-settings-desc {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #94a3b8;
+}
+
+.lobby-settings-select {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 10px 14px;
+  background: rgba(15, 23, 42, 0.85);
+  color: #f1f5f9;
+  font-size: 14px;
+  outline: none;
+  appearance: none; /* 移除原生箭头 */
+  cursor: pointer;
+  transition: border-color 0.2s;
+  /* 自定义下拉箭头 */
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 16px;
+}
+
+.lobby-settings-select:focus {
+  border-color: #38bdf8;
+  background-color: rgba(0, 0, 0, 0.4);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+}
+
+.lobby-settings-textarea {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 12px;
+  background: rgba(15, 23, 42, 0.85);
+  color: #f1f5f9;
+  font-size: 14px;
+  outline: none;
+  resize: vertical;
+  transition: border-color 0.2s;
+  line-height: 1.5;
+  min-height: 80px;
+}
+
+.lobby-settings-textarea:focus {
+  border-color: #38bdf8;
+  background-color: rgba(0, 0, 0, 0.4);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+}
+
+.lobby-settings-select:disabled,
+.lobby-settings-textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: rgba(0,0,0,0.1);
+}
+
+.lobby-settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.lobby-settings-actions .btn-cancel,
+.lobby-settings-actions .btn-save {
+  padding: 10px 24px;
+  border-radius: 999px;
+  border: none;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lobby-settings-actions .btn-cancel {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+}
+.lobby-settings-actions .btn-cancel:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.lobby-settings-actions .btn-save {
+  /* 主操作按钮：活力橙渐变 */
+  background: linear-gradient(135deg, #fbbf24, #ea580c);
+  color: #ffffff; /* 白色文字 */
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.4);
+}
+
+.lobby-settings-actions .btn-save:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(234, 88, 12, 0.5);
+}
+
+.lobby-settings-actions .btn-save:active {
+  transform: translateY(0);
+  opacity: 0.9;
+}
+
+/* 右下角版本号 */
+.lobby-version {
+  position: fixed;
+  right: 16px;
+  bottom: 8px;
+  font-size: 12px;
+  color: rgba(148, 163, 184, 0.9);
+  pointer-events: none;
+  z-index: 40;
+}
+
+/* 移动端适配优化 */
+@media (max-width: 600px) {
+  .lobby-settings-panel {
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    border-radius: 0;
+    padding: 20px;
+  }
+  
+  .lobby-settings-body {
+    grid-template-columns: 1fr; /* 移动端改为单列 */
+    grid-template-rows: auto 1fr;
+    gap: 16px;
+  }
+  
+  .lobby-settings-tabs-vertical {
+    flex-direction: row; /* 移动端横向 Tab */
+    overflow-x: auto;
+    background: transparent;
+    padding: 0;
+  }
+  
+  .lobby-settings-tab-item {
+    width: auto;
+    white-space: nowrap;
+    padding: 8px 16px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 20px;
+    justify-content: center;
+  }
+  
+  .lobby-settings-tab-item.active {
+    background: #f59e0b;
+  }
+}
+
+/* ========================================
+   CSS Sprite 图标系统（可选）
+   ======================================== */
+
+/*
+  【什么是 CSS Sprite？】
+  把多个小图标（金币、钻石、头像等）合并到一张大图 sprites.png 里，
+  通过 background-position 定位显示不同区域，减少 HTTP 请求，提升性能。
+
+  【如何制作 Sprite 图？】
+  1. 使用 PS/Figma/在线工具（如 https://www.toptal.com/developers/css/sprite-generator）
+  2. 把所有小图标按网格排列（推荐每个图标 64x64px）
+  3. 导出为一张 PNG 文件，命名为 sprites.png，放到 /imgs/ 目录下
+  4. 记录每个图标的坐标（左上角 x, y）
+
+  【示例坐标布局（假设每个图标 64x64px）】
+  +--------+--------+--------+
+  | 金币   | 钻石   | 头像1  |  第一行 y=0
+  | 0,0    | 64,0   | 128,0  |
+  +--------+--------+--------+
+  | 头像2  | 设置   | VIP    |  第二行 y=64
+  | 0,64   | 64,64  | 128,64 |
+  +--------+--------+--------+
+
+  【使用方法】
+  <div class="sprite-icon icon-coin"></div>
+  <div class="sprite-icon icon-diamond"></div>
+*/
+
+/* Sprite 基类 */
+.sprite-icon {
+  display: inline-block;
+  background-image: url('/imgs/sprites.png'); /* 合并后的大图 */
+  background-repeat: no-repeat;
+  background-size: 192px auto; /* 假设3列，每列64px，总宽192px */
+  width: 64px;
+  height: 64px;
+}
+
+/* 金币图标 (0, 0) */
+.sprite-icon.icon-coin {
+  background-position: 0 0;
+}
+
+/* 钻石图标 (64px, 0) */
+.sprite-icon.icon-diamond {
+  background-position: -64px 0;
+}
+
+/* 头像1 (128px, 0) */
+.sprite-icon.icon-avatar-1 {
+  background-position: -128px 0;
+}
+
+/* 头像2 (0, 64px) */
+.sprite-icon.icon-avatar-2 {
+  background-position: 0 -64px;
+}
+
+/* 设置图标 (64px, 64px) */
+.sprite-icon.icon-settings {
+  background-position: -64px -64px;
+}
+
+/* VIP 图标 (128px, 64px) */
+.sprite-icon.icon-vip {
+  background-position: -128px -64px;
+}
+
+/*
+  【如何替换现有图标？】
+  例如，把大厅资产条的金币图标改为 Sprite 方式：
+
+  原来的 HTML:
+    <div class="asset-icon asset-icon-coin"></div>
+
+  改为:
+    <div class="sprite-icon icon-coin" style="width: 35px; height: 35px;"></div>
+
+  或者创建一个专用类（示例）：
+    .lobby-asset-sprite-coin
+      width: 35px
+      height: 35px
+      background-image: url('/imgs/sprites.png')
+      background-position: 0 0
+      background-size: 165px auto
+      background-repeat: no-repeat
+*/

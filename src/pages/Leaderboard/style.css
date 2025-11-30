@@ -1,0 +1,311 @@
+.leaderboard-page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 20px 16px;
+  box-sizing: border-box;
+  /* 背景与大厅统一：使用同一张大图，叠加深色模糊遮罩 */
+  background: url('/imgs/bk-2.jpg') center/cover no-repeat;
+  width: 100%;
+  overflow-x: hidden;
+  position: relative;
+  overflow: hidden;
+}
+
+.leaderboard-page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.82);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  z-index: -1;
+}
+
+.leaderboard-card.ant-card {
+  width: min(800px, 100%);
+  border-radius: 24px;
+  /* 去除实体背景，完全依靠磨砂玻璃 */
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e5e7eb;
+}
+
+.leaderboard-card .ant-card-body {
+  padding: 16px 20px;
+}
+
+.leaderboard-header-row {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.leaderboard-header-center {
+  display: flex;
+  align-items: center;
+}
+
+.leaderboard-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  background: linear-gradient(to bottom, #ffffff, #cbd5e1);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 2px 10px rgba(255, 255, 255, 0.2);
+}
+
+.lb-header-btn {
+  border: none;
+  outline: none;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.2s ease;
+}
+
+.lb-header-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.leaderboard-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 4px;
+  border-radius: 999px;
+  width: fit-content;
+}
+
+.lb-tab-btn {
+  padding: 8px 24px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.lb-tab-btn.active {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+.leaderboard-table {
+  background: transparent;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.leaderboard-table-header {
+  display: grid;
+  grid-template-columns: 60px minmax(0, 2fr) 80px 80px 80px;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 13px;
+  font-weight: 600;
+  color: #94a3b8;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.leaderboard-table-body {
+  /* 动态计算高度，留出头部空间，确保可视区域内滚动 */
+  max-height: calc(100vh - 180px); 
+  min-height: 400px;
+  overflow-y: auto;
+  padding-right: 4px; /* 给滚动条留空 */
+}
+
+/* 滚动条美化 - 确保在深色背景下可见 */
+.leaderboard-table-body::-webkit-scrollbar {
+  width: 6px;
+}
+.leaderboard-table-body::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+.leaderboard-table-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.leaderboard-table-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.leaderboard-row {
+  display: grid;
+  grid-template-columns: 60px minmax(0, 2fr) 80px 80px 80px;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(30, 41, 59, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  align-items: center;
+  margin-bottom: 8px;
+  transition: all 0.2s ease;
+}
+
+.leaderboard-row:hover {
+  transform: scale(1.01);
+  background: rgba(30, 41, 59, 0.6);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* 🥇 前三名特殊样式 */
+.leaderboard-row.top1 {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(245, 158, 11, 0.05));
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  box-shadow: 0 4px 20px rgba(251, 191, 36, 0.1);
+}
+.leaderboard-row.top1 .col-rank { font-size: 22px; }
+
+.leaderboard-row.top2 {
+  background: linear-gradient(135deg, rgba(226, 232, 240, 0.15), rgba(203, 213, 225, 0.05));
+  border: 1px solid rgba(226, 232, 240, 0.3);
+}
+.leaderboard-row.top2 .col-rank { font-size: 20px; }
+
+.leaderboard-row.top3 {
+  background: linear-gradient(135deg, rgba(180, 83, 9, 0.15), rgba(146, 64, 14, 0.05));
+  border: 1px solid rgba(180, 83, 9, 0.3);
+}
+.leaderboard-row.top3 .col-rank { font-size: 18px; }
+
+/* 自己 */
+.leaderboard-row.me {
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(96, 165, 250, 0.4);
+  box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.2), 0 8px 20px rgba(37, 99, 235, 0.2);
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  backdrop-filter: blur(10px);
+}
+
+.leaderboard-row.me .player-name {
+  color: #60a5fa;
+  font-weight: 700;
+}
+
+.col-rank {
+  text-align: center;
+  font-weight: 800;
+  font-size: 14px;
+  color: #94a3b8;
+  font-family: 'DIN Alternate', sans-serif;
+}
+
+.col-player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.player-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e2e8f0, #94a3b8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  flex-shrink: 0;
+}
+
+.player-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f1f5f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.col-score {
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fbbf24; /* 金色积分 */
+  font-family: 'DIN Alternate', sans-serif;
+}
+
+.col-games,
+.col-winrate {
+  text-align: center;
+  font-size: 12px;
+  color: #cbd5e1;
+}
+
+.leaderboard-loading,
+.leaderboard-empty {
+  padding: 60px 20px;
+  text-align: center;
+  font-size: 14px;
+  color: #64748b;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .leaderboard-card.ant-card {
+    border-radius: 0;
+    width: 100%;
+    height: 100vh;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+  }
+  
+  .leaderboard-card .ant-card-body {
+    padding: 12px;
+  }
+  
+  .leaderboard-table-header,
+  .leaderboard-row {
+    grid-template-columns: 40px minmax(0, 1.5fr) 70px 50px 50px;
+    gap: 8px;
+    padding: 12px 8px;
+    font-size: 12px;
+  }
+  
+  /* 移动端隐藏次要列以节省空间 */
+  .col-games {
+    display: none; 
+  }
+  .leaderboard-table-header,
+  .leaderboard-row {
+    grid-template-columns: 44px minmax(0, 1fr) 80px 60px; /* 移除了 games 列 */
+  }
+  
+  .leaderboard-header-row {
+    margin-bottom: 16px;
+  }
+}

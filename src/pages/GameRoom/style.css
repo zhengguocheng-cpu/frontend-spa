@@ -1,0 +1,1745 @@
+/* 游戏房间 - Grid 布局（参照 frontend） */
+
+.game-room-container {
+  width: 100vw;
+  height: 100vh;
+  max-width: 100vw; /* 防止超出视口 */
+  max-height: 100vh; /* 防止超出视口 */
+  display: grid;
+  grid-template-rows: 1fr; /* 一行：游戏区域 */
+  grid-template-columns: 1fr 0px; /* 2列：游戏区域 + 聊天侧边栏（默认隐藏） */
+  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+  overflow: visible;
+  gap: 0;
+  position: fixed; /* 固定定位，确保全屏 */
+  top: 0;
+  left: 0;
+  min-height: 0; /* 允许子元素缩小 */
+  transition: grid-template-columns 0.3s ease;
+}
+
+.game-room-container:has(.chat-sidebar.visible) {
+  grid-template-columns: 1fr 300px; /* 聊天框显示时 */
+}
+
+/* 强制横屏提示 */
+@media screen and (orientation: portrait) {
+  .game-room-container::before {
+    content: '请将设备横屏以获得最佳体验 📱➡️';
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 20px 40px;
+    border-radius: 12px;
+    font-size: 18px;
+    z-index: 9999;
+    text-align: center;
+  }
+}
+
+/* 顶部信息栏 */
+.game-room-header {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  border-radius: 0;
+  z-index: 20;
+}
+
+.game-room-back {
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+  border: none;
+  background-color: rgba(0, 0, 0, 0.6);
+  background-image: url('/imgs/back.jpg');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  display: block;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.45);
+  transform: translateZ(0);
+  transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
+  cursor: pointer;
+}
+
+.game-room-back:active {
+  transform: scale(0.94) translateZ(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
+}
+
+.room-info {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.room-id {
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.connection-status {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.connection-status.connected {
+  color: #52c41a;
+}
+
+.connection-status.disconnected {
+  color: #ff4d4f;
+}
+
+/* 游戏桌面 - Grid 布局（参照 frontend） */
+.game-table {
+  grid-row: 1; /* 第1行 */
+  grid-column: 1; /* 第1列 */
+  display: grid;
+  grid-template-rows: 100px 1fr 150px; /* 三行：顶部玩家区、中央区域、底部玩家+手牌 */
+  grid-template-columns: 100px 1fr 100px; /* 三列：左侧、中央、右侧 */
+  gap: 5px;
+  padding: 20px;
+  position: relative;
+  background: url('/imgs/game-table.jpg') center/cover no-repeat;
+  margin: 8px;
+  border-radius: 20px;
+  overflow: visible; /* 允许手牌抬起时显示在桌面外 */
+  min-height: 0; /* 允许子元素缩小 */
+}
+
+.game-table::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.18), transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* 立体桌子效果：使用 ::after 绘制带透视感的梯形边框 */
+.game-table::after {
+  content: '';
+  position: absolute;
+  inset: -4px -4px 2px -4px; /* 边缘收窄一点，整体更紧凑 */
+  border-radius: 18px;
+  border: 6px solid #8b7355;
+  box-shadow: 0 12px 22px rgba(0, 0, 0, 0.55);
+  transform: perspective(1000px) rotateX(0.5deg); /* 更轻微的透视效果，减少“斜”的感觉 */
+  transform-origin: center bottom;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* 上方玩家区域 - 使用 Grid 定位 */
+.top-players {
+  grid-row: 1; /* 第1行 */
+  grid-column: 1 / 4; /* 跨越所有列 */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0;
+  margin-top: 28px; /* 为左上角返回按钮让出一条空间 */
+  z-index: 10;
+}
+
+.player-slot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 6px 10px;
+  border-radius: 10px;
+  min-width: 90px; /* 缩小最小宽度 */
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(8px);
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.player-slot:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.player-info {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 名字和张数的容器 */
+.player-info > div:not(.player-avatar) {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.player-avatar {
+  width: 32px; /* 缩小头像 */
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px; /* 缩小表情 */
+  border: 1.5px solid #fff;
+  flex-shrink: 0;
+}
+
+.player-avatar .avatar-sprite {
+  width: 100%;
+  height: 100%;
+  background-size: 300% 400%;
+}
+
+.player-name {
+  font-size: 11px; /* 缩小字体 */
+  color: white;
+  font-weight: bold;
+  white-space: nowrap;
+  max-width: 70px; /* 限制最大宽度 */
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-count {
+  font-size: 12px;
+  color: #ffd700;
+  white-space: nowrap;
+}
+
+/* 玩家状态（准备状态或张数） */
+.player-status {
+  font-size: 10px; /* 缩小字体 */
+  color: #ffd700;
+  white-space: nowrap;
+}
+
+/* 上方玩家的状态不需要左边距 */
+.player-info .player-status {
+  margin-left: 0;
+}
+
+/* 中央区域 - 使用 Grid 定位 */
+.center-area {
+  grid-row: 2; /* 第2行 */
+  grid-column: 1 / 4; /* 跨越所有列 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px;
+  z-index: 5;
+  pointer-events: none; /* 让点击穿透到下层，不阻挡手牌交互 */
+  position: relative;
+}
+
+/* 结算结果显示 */
+.center-result-banner {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 56px; /* 超大字号 */
+  font-weight: 900;
+  letter-spacing: 6px;
+  text-shadow: 0 6px 20px rgba(0, 0, 0, 0.9), 0 0 40px rgba(255, 215, 0, 0.6);
+  pointer-events: none;
+  z-index: 100;
+}
+
+.center-result-banner.landlord {
+  color: #ffd700; /* 金黄色 */
+}
+
+.center-result-banner.farmer {
+  color: #ffd700; /* 农民获胜也用金黄色 */
+}
+
+.player-slot .result-score {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, 120%); /* 位于头像区域正下方，避免挡住出牌区域 */
+  font-size: 40px; /* 略收一点字号，为背景条腾空间 */
+  font-weight: 900;
+  padding: 6px 18px;
+  border-radius: 999px;
+  min-width: 120px;
+  text-align: center;
+  text-shadow: 0 4px 10px rgba(0, 0, 0, 0.85);
+  pointer-events: none;
+  z-index: 100;
+}
+
+.player-slot.left .result-score,
+.player-slot.right .result-score {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.result-score.win {
+  color: #ffffff; /* 文字使用白色，搭配亮色底 */
+  /* 调整为更淡的半透明渐变，削弱阴影，让气泡更融入背景 */
+  background: linear-gradient(
+    135deg,
+    rgba(250, 204, 21, 0.18),
+    rgba(249, 115, 22, 0.32)
+  );
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.65);
+}
+
+.result-score.lose {
+  color: #e5e7eb;
+  background: linear-gradient(
+    135deg,
+    rgba(79, 70, 229, 0.2),
+    rgba(168, 85, 247, 0.35)
+  );
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.6);
+}
+
+/* 出牌区域样式 */
+
+.player-slot .played-cards-area {
+  position: absolute;
+  top: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 20;
+  min-width: 120px;
+}
+
+/* 左侧玩家（上家）：出牌区在玩家框右侧 */
+.player-slot.left .played-cards-area {
+  left: calc(100% + 12px);
+  transform: translateY(-50%);
+  align-items: flex-start;
+}
+
+.player-slot.left .played-cards-container {
+  justify-content: flex-start; /* 牌靠左对齐，最左边的牌紧贴玩家框 */
+}
+
+/* 右侧玩家（下家）：出牌区在玩家框左侧
+   以 player-slot 的左边框为锚点：
+   left: 0        → 出牌区的左边缘先对齐到 player-slot 左边框
+   translateX(-100%) → 再整体向左移动自身宽度，这样“最右边那张牌”刚好贴住 player-slot 左边框，整串牌向左伸出 */
+.player-slot.right .played-cards-area {
+  left: 0;
+  transform: translate(-100%, -50%);
+  align-items: flex-end;
+}
+
+.player-slot.right .played-cards-container {
+  justify-content: flex-end; /* 牌靠右对齐，最右边的牌紧贴玩家框 */
+}
+
+.player-slot .played-cards-area .pass-text {
+  font-size: 36px;
+  letter-spacing: 4px;
+}
+
+/* 底部玩家出牌区：在center-area内（手牌上方） */
+.played-cards-area.bottom-player-cards {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px; /* 为底部按钮留出空间，避免重叠遮挡 */
+}
+
+/* 不出文字显示 */
+.pass-text {
+  font-size: 48px;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.6), 0 0 20px rgba(255, 255, 255, 0.3);
+  letter-spacing: 8px;
+  animation: pass-fade-in 0.3s ease-out;
+}
+
+@keyframes pass-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.played-cards-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap; /* 允许换行，方便游戏结束时显示多张剩余手牌 */
+  max-width: 600px; /* 限制最大宽度，超过后自动换行 */
+  gap: 0; /* 保持牌之间的重叠效果 */
+  row-gap: 8px; /* 行与行之间的间距 */
+  pointer-events: none;
+  position: relative; /* 作为出牌区整体标签的定位容器 */
+}
+
+.played-cards-container-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-role-ribbon {
+  position: absolute;
+  top: -10px;
+  left: -4px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #ffffff;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+  transform: rotate(-15deg);
+  pointer-events: none;
+}
+
+.card-role-ribbon.landlord {
+  background: linear-gradient(135deg, #ffb300, #ffd54f);
+}
+
+.card-role-ribbon.farmer {
+  background: linear-gradient(135deg, #4b5563, #9ca3af);
+}
+
+/* 确保出牌区的卡牌可见且在手牌上方 */
+.played-cards-container .card {
+  pointer-events: none;
+  z-index: 10; /* 比手牌的z-index(1)高 */
+}
+
+/* 出牌区的卡牌也需要重叠显示 */
+.played-cards-container .card:not(:first-child) {
+  margin-left: -20px; /* 适当减小重叠，让牌面点数更清晰 */
+}
+
+/* 左右玩家：结算时亮出剩余手牌（remaining-cards）
+   - 两行显示，每行最多10张
+   - 重叠度更大，最多到窗口中间位置 */
+.player-slot.left .played-cards-container.remaining-cards,
+.player-slot.right .played-cards-container.remaining-cards {
+  max-width: 48vw; /* 左右各自最多占屏幕约一半，到中线 */
+  flex-wrap: wrap; /* 允许多行 */
+  overflow: visible; /* 允许溢出，确保所有牌都可见 */
+  row-gap: 4px; /* 行间距 */
+}
+
+.player-slot.left .played-cards-container.remaining-cards .card,
+.player-slot.right .played-cards-container.remaining-cards .card {
+  width: 30px; /* 稍微缩小 */
+  height: 44px;
+  font-size: 9px;
+}
+
+.player-slot.left .played-cards-container.remaining-cards .card:not(:first-child),
+.player-slot.right .played-cards-container.remaining-cards .card:not(:first-child) {
+  margin-left: -20px; /* 增加重叠度，能显示更多牌 */
+}
+
+.player-slot.left .played-cards-container.remaining-cards .card .card-value,
+.player-slot.right .played-cards-container.remaining-cards .card .card-value {
+  font-size: 11px; /* 点数稍大一些，保持清晰 */
+}
+
+.player-slot.left .played-cards-container.remaining-cards .card .card-suit,
+.player-slot.right .played-cards-container.remaining-cards .card .card-suit {
+  font-size: 9px;
+}
+
+/* 每行最多10张牌后强制换行 */
+.player-slot.left .played-cards-container.remaining-cards .card:nth-child(11),
+.player-slot.right .played-cards-container.remaining-cards .card:nth-child(11) {
+  margin-left: 0; /* 第11张牌开始新行，不重叠 */
+}
+
+/* 左右玩家：正常对局时最近一手出牌（last-played）
+   - 一行显示
+   - 可以延伸到对面玩家那一侧，方便看清牌型 */
+.player-slot.left .played-cards-container.last-played,
+.player-slot.right .played-cards-container.last-played {
+  max-width: 65vw; /* 可延伸到对面玩家附近 */
+  flex-wrap: nowrap; /* 强制一行显示 */
+  overflow: visible;
+}
+
+/* 左右玩家出牌缩小，模拟欢乐斗地主的远景透视效果 */
+.player-slot.left .played-cards-container.last-played .card,
+.player-slot.right .played-cards-container.last-played .card {
+  /* 牌面大小约为手牌的 50%，营造远景效果 */
+  width: 28px;
+  height: 40px;
+  font-size: 9px;
+  border-width: 1px;
+  border-radius: 4px;
+  padding: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.player-slot.left .played-cards-container.last-played .card:not(:first-child),
+.player-slot.right .played-cards-container.last-played .card:not(:first-child) {
+  margin-left: -12px;
+}
+
+/* 左右玩家出牌区的点数和花色也缩小 */
+.player-slot.left .played-cards-container.last-played .card .card-value,
+.player-slot.right .played-cards-container.last-played .card .card-value {
+  font-size: 12px;
+  margin-bottom: 1px;
+}
+
+.player-slot.left .played-cards-container.last-played .card .card-suit,
+.player-slot.right .played-cards-container.last-played .card .card-suit {
+  font-size: 10px;
+}
+
+.player-slot.left .played-cards-container.last-played .card .card-value.joker-text,
+.player-slot.right .played-cards-container.last-played .card .card-value.joker-text {
+  font-size: 5px;
+  letter-spacing: 0.3px;
+}
+
+/* 隐藏左右玩家出牌区的角色标识，避免遮挡小牌 */
+.player-slot.left .played-cards-container.last-played .card .card-landlord-mark,
+.player-slot.right .played-cards-container.last-played .card .card-landlord-mark {
+  display: none;
+}
+
+.bottom-cards,
+.played-cards {
+  background: rgba(0, 0, 0, 0.4);
+  padding: 12px 24px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.bottom-cards-label,
+.played-cards-label {
+  color: #ffd700;
+  font-size: 14px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.cards-list {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+}
+
+/* 当前玩家信息 - 使用 Grid 定位（左下角） */
+.current-player-info {
+  grid-row: 3; /* 第3行 */
+  grid-column: 1; /* 第1列 */
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  width: auto;
+  min-width: 120px;
+  height: auto;
+  flex-direction: row; /* 头像在左，信息在右 */
+  justify-content: flex-start;
+  z-index: 50; /* 提高 z-index 确保在最上层 */
+  backdrop-filter: blur(8px);
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.current-player-info:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.current-player-info .player-avatar {
+  width: 44px;
+  height: 44px;
+  font-size: 22px;
+}
+
+.current-player-info .player-name {
+  font-size: 11px;
+  text-align: center;
+  word-break: break-all;
+  max-width: 100%;
+}
+
+.current-player-info .card-count {
+  font-size: 11px;
+  margin-left: 0;
+}
+
+.current-player-info .player-status {
+  font-size: 11px;
+  margin-left: 0;
+  text-align: center;
+}
+
+.current-player-info .result-score-bottom {
+  margin-left: 8px;
+  font-size: 38px; /* 底部玩家分数加大 */
+  font-weight: 900;
+  padding: 6px 18px;
+  border-radius: 999px;
+  min-width: 140px;
+  text-align: center;
+  text-shadow: 0 4px 10px rgba(0, 0, 0, 0.85);
+}
+
+.current-player-info .result-score-bottom.win {
+  color: #ffffff; /* 胜利使用亮色底 + 白字 */
+  background: linear-gradient(135deg, #facc15, #f97316);
+  box-shadow: 0 6px 18px rgba(248, 181, 85, 0.7);
+}
+
+.current-player-info .result-score-bottom.lose {
+  color: #e5e7eb;
+  background: linear-gradient(135deg, #4f46e5, #a855f7);
+  box-shadow: 0 6px 18px rgba(129, 140, 248, 0.7);
+}
+
+/* 当前出牌玩家高亮和倒计时标志 */
+.player-slot.turn-active,
+.current-player-info.turn-active {
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.8);
+  border-color: #38bdf8;
+}
+
+.turn-indicator {
+  position: absolute;
+  top: -10px;
+  right: -10px; /* 倒计时移动到头像右上角 */
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  /* 提高对比度：深橙色背景 + 白色数字 */
+  background: linear-gradient(135deg, #ff6b35 0%, #ff8c42 50%, #ffa600 100%);
+  border: 3px solid #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 900;
+  box-shadow: 0 0 12px rgba(255, 107, 53, 0.8), 0 2px 8px rgba(0, 0, 0, 0.3);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+/* 手牌区域 - 使用 Grid 定位（底部中央和右侧） */
+.player-hand {
+  grid-row: 3; /* 第3行 */
+  grid-column: 2 / 4; /* 第2-3列 */
+  background: transparent; /* 不再单独加一层背景框 */
+  padding: 0;
+  overflow-x: auto;
+  overflow-y: visible;
+  border-radius: 0;
+  z-index: 10;
+  min-height: 0; /* 允许缩小 */
+}
+.player-hand::-webkit-scrollbar {
+  height: 6px;
+}
+.player-hand::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.cards-container {
+  display: flex;
+  gap: 8px;
+  height: 100%;
+  padding: 0 16px;
+}
+
+.player-hand .card {
+  width: 60px;
+  height: 90px;
+  background: white;
+  border-radius: 6px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  position: relative;
+}
+
+/* 手牌上的角色标识容器 - 统一右上角小图标区域 */
+.hand-card-role-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 34px;
+  height: 34px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* 地主：使用 dizhu牌标志.png 图片贴在右上角 */
+.hand-card-role-badge.landlord {
+  background: url('/imgs/dizhu牌标志.png') no-repeat center/contain;
+  color: transparent;
+  text-indent: -9999px; /* 隐藏文字，仅保留图片 */
+}
+
+/* 农民：保留小条带文字，用于区分身份 */
+.hand-card-role-badge.farmer {
+  top: 6px;        /* 再往下挪一点，完全避开左上角数字区域 */
+  right: 2px;      /* 更贴近右边框 */
+  width: 22px;
+  height: 14px;
+  background: linear-gradient(135deg, #2196f3 0%, #64b5f6 100%);
+  color: #ffffff;
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 3px;
+  border-radius: 6px;
+}
+
+/* 牌面右下角角色标识（地主/农民），应用于所有卡片 */
+.card .card-landlord-mark {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  padding: 1px 4px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+/* 地主：金色底色 */
+.card .card-landlord-mark.landlord {
+  background: linear-gradient(135deg, #ffb300, #ffd54f);
+  color: #3b1f00;
+}
+
+/* 农民：蓝色底色 */
+.card .card-landlord-mark.farmer {
+  background: linear-gradient(135deg, #2196f3, #64b5f6);
+  color: #ffffff;
+}
+
+/* 出牌区整体角色标签：与手牌统一为右上角小图标/条带 */
+.played-cards-container .play-role-tag {
+  position: absolute;
+  top: -18px;   /* 往上挪出牌面上方，避免遮挡牌 */
+  right: 0;
+  width: 32px;
+  height: 18px;
+  z-index: 12;
+  pointer-events: none;
+}
+
+.played-cards-container .play-role-tag.landlord {
+  background: url('/imgs/dizhu牌标志.png') no-repeat center/contain;
+  color: transparent;
+  text-indent: -9999px;
+}
+
+.played-cards-container .play-role-tag.farmer {
+  background: linear-gradient(135deg, #2196f3 0%, #64b5f6 100%);
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 6px;
+  border-radius: 999px; /* 做成小胶囊条带 */
+}
+
+.player-hand .card.selected {
+  transform: translateY(-20px);
+  box-shadow: 0 6px 12px rgba(255, 215, 0, 0.6);
+  border: 2px solid #ffd700;
+}
+
+.card-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 4px;
+}
+
+.card-rank {
+  font-size: 24px;
+  font-weight: bold;
+  color: #333;
+}
+
+.card-suit {
+  font-size: 20px;
+}
+
+/* 控制按钮覆盖层 - 覆盖在游戏桌面中央偏下位置 */
+.game-controls {
+  /* 保留原有 Grid 信息，便于以后切回 Grid 布局 */
+  grid-row: 2; /* 第2行（中央） */
+  grid-column: 1 / 4; /* 跨越所有列 */
+
+  /* 关键：相对于 .game-table 绝对定位，强制居中显示 */
+  position: absolute;
+  left: 50%;
+  top: 78%; /* 向下移动到“地主/农民获胜”大字下方，贴近手牌上缘 */
+  transform: translate(-50%, -50%);
+
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  z-index: 200; /* 确保在所有元素之上，包括出牌区和手牌 */
+  pointer-events: none; /* 不阻挡鼠标事件 */
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.game-controls > * {
+  pointer-events: auto; /* 按钮可点击 */
+}
+
+/* 确保game-actions和game-buttons可见 */
+.game-actions {
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.game-buttons {
+  display: flex !important;
+  gap: 10px;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* 确保按钮在桌面正中间 */
+.waiting-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+.waiting-controls button {
+  min-width: 140px;
+}
+
+.bidding-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.bidding-controls button {
+  min-width: 96px; /* 加宽一点，避免“抢地主”换行 */
+  white-space: nowrap;
+}
+
+.playing-controls {
+  display: flex;
+  gap: 16px;
+}
+
+/* 结算阶段：再来一局 / 返回大厅 按钮样式 */
+.settlement-inline-actions {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 96px;         /* 位于“地主/农民获胜”大字下方 */
+  pointer-events: auto;     /* 覆盖 center-area 的 pointer-events:none，允许点击 */
+  position: relative;
+  z-index: 120;
+}
+
+.btn-replay,
+.btn-back-lobby {
+  min-width: 140px;
+  padding: 8px 20px;
+  border-radius: 999px;
+  border: none;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.btn-replay {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #ffffff;
+}
+
+.btn-back-lobby {
+  background: rgba(15, 23, 42, 0.9);
+  color: #e5e7eb;
+}
+
+.btn-replay:hover,
+.btn-back-lobby:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.45);
+}
+
+/* 结算弹窗 - 横屏布局 */
+.settlement-content {
+  padding: 0;
+  text-align: left;
+  color: #333;
+}
+
+.settlement-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.settlement-root {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 0;
+  box-sizing: border-box;
+}
+
+.settlement-layout {
+  display: flex;
+  flex-direction: row;
+  gap: 24px;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  width: auto;
+  max-width: none;
+  max-height: none;
+  overflow: visible;
+  box-sizing: border-box;
+}
+
+.settlement-panel {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 18px 22px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  overflow: visible;
+  min-width: 320px;
+  max-width: 420px;
+}
+
+.settlement-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 6px;
+  margin-bottom: 2px;
+}
+
+.settlement-result-badge {
+  padding: 6px 28px;
+  border-radius: 999px;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  color: #111827;
+  text-shadow: none;
+  box-shadow: none;
+}
+
+.settlement-result-badge.landlord-win {
+  background: linear-gradient(135deg, #f59e0b, #facc15);
+}
+
+.settlement-result-badge.farmer-win {
+  background: linear-gradient(135deg, #22c55e, #4ade80);
+}
+
+.settlement-header-sub {
+  font-size: 14px;
+  font-weight: 500;
+  color: #4b5563;
+}
+
+.settlement-panel-left {
+  flex: 0 0 360px; /* 左侧信息区稍微加宽 */
+  gap: 24px;
+}
+
+.settlement-panel-right {
+  flex: 1 1 auto;
+  gap: 24px;
+  /* 右侧内容不再单独滚动，跟随整体卡片滚动 */
+}
+
+.settlement-title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.winner-info {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 16px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.18), rgba(255, 245, 157, 0.32));
+  box-shadow: inset 0 0 0 1px rgba(255, 215, 0, 0.2);
+}
+
+.winner-avatar {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #f97316, #facc15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  box-shadow: 0 10px 20px rgba(249, 115, 22, 0.35);
+}
+
+.landlord-badge {
+  position: absolute;
+  top: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  box-shadow: 0 2px 8px rgba(255, 215, 0, 0.6);
+  z-index: 10;
+}
+
+.winner-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.winner-name {
+  font-size: 22px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.winner-role {
+  font-size: 16px;
+  font-weight: 600;
+  color: #f97316;
+}
+
+.score-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.score-item {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.18));
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.25);
+}
+
+.score-item .label {
+  font-size: 14px;
+  color: #5b728a;
+  font-weight: 600;
+}
+
+.score-item .value {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1d4ed8;
+}
+
+.score-multipliers {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.section-subtitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.multiplier-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.multiplier-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.12);
+  color: #1d4ed8;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.players-score {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.section-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.players-score-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.player-score-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f9fafb;
+  border: none;
+  box-shadow: none;
+  transition: none;
+}
+
+.player-score-row.winner {
+  background: #fef3c7;
+}
+
+.player-score-row.me {
+  border: 1px solid #3b82f6;
+}
+
+.player-score-row .player-info {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+.player-score-row .player-name {
+  font-size: 17px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.player-score-row .player-role {
+  font-size: 13px;
+  font-weight: 500;
+  color: #475569;
+}
+
+.player-score-value {
+  font-size: 26px;
+  font-weight: 700;
+  min-width: 72px;
+  text-align: right;
+  padding: 4px 14px;
+  border-radius: 999px;
+  color: #ffffff;
+  display: inline-block;
+}
+
+.player-score-value.positive {
+  background: linear-gradient(135deg, #f97316, #fdba74);
+  box-shadow: 0 4px 10px rgba(248, 181, 85, 0.55);
+}
+
+.player-score-value.negative {
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  box-shadow: 0 4px 10px rgba(129, 140, 248, 0.45);
+}
+
+.achievements-info {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.achievements-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.achievement-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.achievement-player {
+  min-width: 72px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.achievement-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.achievement-tag {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(15, 118, 110, 0.12);
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.settlement-actions {
+  margin-top: auto;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.settlement-actions .adm-button {
+  min-width: 108px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* 覆盖 antd-mobile Dialog 默认高度限制，避免结算内容被裁剪 */
+.adm-dialog-body {
+  max-height: 90vh;
+  overflow: auto;
+}
+
+@media (max-width: 900px) {
+  .settlement-layout {
+    flex-direction: column;
+    width: min(92vw, 720px);
+    max-height: 90vh; /* 小屏上稍微放宽高度限制 */
+  }
+
+  .settlement-panel-left,
+  .settlement-panel-right {
+    flex: 1 1 auto;
+  }
+
+  .settlement-actions {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+}
+
+/* 聊天遮罩层 */
+.chat-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  animation: fadeIn 0.3s ease;
+  cursor: pointer;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 聊天侧边栏 */
+.chat-sidebar {
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 300px;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  border-left: 2px solid #ddd;
+  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.15);
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+  z-index: 1000;
+}
+
+.chat-sidebar.visible {
+  transform: translateX(0);
+}
+
+.chat-sidebar.hidden {
+  transform: translateX(100%);
+}
+
+.chat-header {
+  padding: 12px 16px;
+  background: #f5f5f5;
+  border-bottom: 1px solid #ddd;
+  font-weight: bold;
+  font-size: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chat-header h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px; /* 减小内边距 */
+  background: #fafafa;
+}
+
+.chat-message {
+  margin-bottom: 6px; /* 减小间距 */
+  padding: 6px 10px; /* 减小内边距 */
+  background: white;
+  border-radius: 6px; /* 减小圆角 */
+  font-size: 12px; /* 减小字体 */
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.chat-message-sender {
+  font-weight: bold;
+  color: #1890ff;
+  margin-bottom: 2px; /* 减小间距 */
+  font-size: 11px; /* 减小字体 */
+}
+
+.chat-input-area {
+  padding: 12px;
+  background: white;
+  border-top: 1px solid #ddd;
+}
+
+.chat-input-container {
+  display: flex;
+  gap: 8px;
+}
+
+.chat-input-container input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.chat-input-container button {
+  flex-shrink: 0;
+}
+
+/* 横屏优化 */
+@media screen and (orientation: landscape) {
+  /* 横屏时聊天框仍然可折叠 */
+  .chat-toggle-btn {
+    right: 16px;
+  }
+}
+
+/* 平板和桌面适配 */
+@media (min-width: 768px) {
+  .game-room-header {
+    height: 56px;
+    padding: 12px 24px;
+  }
+
+  .room-id {
+    font-size: 16px;
+  }
+
+  .player-hand {
+    height: 140px;
+  }
+
+  .player-hand .card {
+    width: 70px;
+    height: 105px;
+  }
+
+  .card-rank {
+    font-size: 28px;
+  }
+
+  .card-suit {
+    font-size: 24px;
+  }
+  
+  /* 平板和桌面上聊天框更宽 */
+  .chat-sidebar {
+    width: 350px;
+  }
+  
+  /* 移动端横屏：右下角UI组缩小一点 */
+  .chat-toggle-btn {
+    width: 48px;
+    height: 48px;
+    font-size: 24px;
+  }
+
+  .game-multiplier {
+    padding: 6px 12px;
+  }
+
+  .multiplier-icon {
+    font-size: 18px;
+  }
+
+  .multiplier-value {
+    font-size: 13px;
+  }
+}
+
+/* 移动端优化 */
+@media (max-width: 767px) {
+  /* 移动端聊天框全屏 */
+  .chat-sidebar {
+    width: 100vw;
+  }
+  
+  .chat-toggle-btn {
+    right: 12px;
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+  }
+}
+
+/* 移动端横屏优化：压缩垂直空间，缩小玩家信息面板 */
+@media (max-width: 900px) and (orientation: landscape) {
+  .game-room-header {
+    height: 42px;
+    padding: 4px 12px;
+  }
+
+  .room-id {
+    font-size: 13px;
+  }
+
+  .game-table {
+    margin: 4px 6px;
+    padding: 12px;
+    border-width: 8px;
+    grid-template-rows: 80px 1fr 140px;
+  }
+
+  .top-players {
+    align-items: flex-start;
+    margin-top: 24px; /* 移动端横屏也为返回按钮留出空间 */
+  }
+
+  .player-slot {
+    padding: 6px 10px;
+    min-width: 110px;
+  }
+
+  .current-player-info {
+    /* 移动端横屏：改为头像下方布局，下移到桌底 */
+    position: absolute;
+    left: 18px;
+    bottom: 8px; /* 从22px改为8px，更靠近桌底 */
+    grid-row: auto;
+    grid-column: auto;
+    flex-direction: row; /* 与 LobbyHome 一致：左头像右信息 */
+    align-items: center;
+    justify-content: flex-start;
+    padding: 5px 7px;
+    width: auto;
+    min-width: 120px;
+    max-width: 150px;
+    height: auto;
+    border-radius: 8px;
+    transform: none;
+    z-index: 40;
+    gap: 6px;
+  }
+
+  .player-avatar-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .current-player-info .player-avatar {
+    width: 44px;
+    height: 44px;
+    font-size: 22px;
+  }
+
+  .player-info-below {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+  }
+
+  .player-level,
+  .player-coins {
+    font-size: 16px;
+    color: #ffffff;
+    font-weight: 600;
+    white-space: nowrap;
+    text-align: left;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.7);
+    letter-spacing: 0.4px;
+  }
+
+  .player-level-icon,
+  .player-coins-icon {
+    font-size: 16px;
+    margin-right: 3px;
+    vertical-align: middle;
+  }
+
+  .player-level-text,
+  .player-coins-text {
+    font-size: 16px;
+    font-weight: 700;
+    vertical-align: middle;
+    font-family: 'PingFang SC', 'Microsoft YaHei', -apple-system, BlinkMacSystemFont,
+      'Segoe UI', system-ui, sans-serif;
+  }
+
+  /* 按钮组下移到桌子中间 */
+  .game-controls {
+    position: absolute;
+    left: 50%;
+    top: 52%; /* 略微下移，避免遮挡中央出牌区 */
+    transform: translate(-50%, -50%);
+    grid-row: auto;
+    grid-column: auto;
+    flex-direction: row;
+    gap: 10px;
+    padding: 0;
+    background: transparent;
+    z-index: 200; /* 提高到200，确保按钮在手牌之上 */
+  }
+
+  /* 出牌/提示/不出按钮 */
+  .game-controls .adm-button {
+    font-size: 15px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    min-width: 68px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  /* 叫地主/抢地主按钮（缩小） */
+  .bidding-controls {
+    position: absolute;
+    left: 50%;
+    top: 42%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    z-index: 20;
+  }
+
+  .bidding-controls .adm-button {
+    font-size: 14px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    min-width: 65px;
+    height: 38px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  /* 不出文字移动端调整 */
+  .pass-text {
+    font-size: 40px;
+    letter-spacing: 6px;
+  }
+}
+
+/* 动画 */
+@keyframes cardDeal {
+  from {
+    opacity: 0;
+    transform: translateY(-100px) rotate(-10deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(0);
+  }
+}
+
+.card {
+  animation: cardDeal 0.3s ease-out;
+}
+
+/* 滚动条样式 */
+.player-hand::-webkit-scrollbar {
+  height: 6px;
+}
+
+.player-hand::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+}
+
+.player-hand::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+.player-hand::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* 右下角UI组（倍数+聊天） */
+.bottom-right-ui {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 1002;
+}
+
+/* 倍数显示 */
+.game-multiplier {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(8px);
+}
+
+.multiplier-icon {
+  font-size: 20px;
+}
+
+.multiplier-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: #d97706;
+}
+
+/* 聊天切换按钮 */
+.chat-toggle-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  font-size: 28px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.chat-toggle-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.chat-toggle-btn:active {
+  transform: scale(0.95);
+}

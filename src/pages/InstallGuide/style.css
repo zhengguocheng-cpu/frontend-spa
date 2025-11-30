@@ -1,0 +1,89 @@
+.install-page {
+  min-height: 100vh;
+  padding: 24px 16px 32px;
+  background: radial-gradient(circle at top, #1d4ed8 0%, #020617 55%, #020617 100%);
+  color: #f9fafb;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  box-sizing: border-box;
+}
+
+.install-card {
+  width: 100%;
+  max-width: 560px;
+  background: rgba(15, 23, 42, 0.96);
+  border-radius: 18px;
+  padding: 20px 18px 18px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.9);
+}
+
+.install-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.install-back {
+  border: none;
+  background: transparent;
+  color: #e5e7eb;
+  font-size: 14px;
+  padding: 4px 8px;
+  margin-right: 8px;
+}
+
+.install-header-main {
+  display: flex;
+  flex-direction: column;
+}
+
+.install-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.install-subtitle {
+  margin: 4px 0 0 0;
+  font-size: 12px;
+  color: #d1d5db;
+}
+
+.install-section {
+  padding-top: 12px;
+  margin-top: 12px;
+  border-top: 1px solid rgba(55, 65, 81, 0.85);
+}
+
+.install-section-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+}
+
+.install-steps {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #e5e7eb;
+}
+
+.install-steps li + li {
+  margin-top: 4px;
+}
+
+.install-footer {
+  margin-top: 18px;
+}
+
+@media (max-width: 600px) {
+  .install-page {
+    padding: 16px 12px 20px;
+  }
+
+  .install-card {
+    padding: 16px 12px 16px;
+  }
+}

@@ -1,0 +1,169 @@
+/* 头像选择器遮罩 */
+.avatar-selector-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  animation: fade-in 0.2s;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 头像选择器面板 */
+.avatar-selector-panel {
+  width: 90vw;
+  max-width: 600px;
+  max-height: 80vh;
+  border-radius: 24px;
+  /* 比 Profile 页更亮一点的蓝灰色渐变，方便区分 */
+  background: radial-gradient(circle at top, #1f2937 0%, #020617 70%);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.85);
+  padding: 28px 32px;
+  color: #e5f6ff;
+  animation: pop-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+}
+
+@keyframes pop-in {
+  0% { opacity: 0; transform: scale(0.9) translateY(20px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* 标题 */
+.avatar-selector-header {
+  font-size: 22px;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 24px;
+  color: #fefce8;
+  letter-spacing: 1.5px;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* 头像网格 */
+.avatar-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 16px;
+  padding: 8px;
+  max-height: 50vh;
+  overflow-y: auto;
+  margin-bottom: 24px;
+}
+
+/* 自定义滚动条 */
+.avatar-selector-grid::-webkit-scrollbar {
+  width: 6px;
+}
+.avatar-selector-grid::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+/* 单个头像项 */
+.avatar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.avatar-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+.avatar-item.selected {
+  background: rgba(251, 191, 36, 0.15);
+  border-color: #fbbf24;
+  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.3);
+}
+
+/* 头像图片 */
+.avatar-item .avatar-sprite {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s;
+}
+
+.avatar-item:hover .avatar-sprite {
+  transform: scale(1.1);
+}
+
+.avatar-item.selected .avatar-sprite {
+  box-shadow: 0 0 0 3px #fbbf24, 0 4px 16px rgba(251, 191, 36, 0.5);
+}
+
+/* 头像名称 */
+.avatar-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #cbd5e1;
+  text-align: center;
+}
+
+.avatar-item.selected .avatar-name {
+  color: #fbbf24;
+}
+
+/* 操作按钮 */
+.avatar-selector-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.avatar-selector-actions .btn-cancel,
+.avatar-selector-actions .btn-confirm {
+  padding: 10px 24px;
+  border-radius: 999px;
+  border: none;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.avatar-selector-actions .btn-cancel {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+}
+
+.avatar-selector-actions .btn-cancel:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.avatar-selector-actions .btn-confirm {
+  background: linear-gradient(135deg, #fbbf24, #ea580c);
+  color: #451a03;
+  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3);
+}
+
+.avatar-selector-actions .btn-confirm:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(234, 88, 12, 0.4);
+}
+
+.avatar-selector-actions .btn-confirm:active {
+  transform: scale(0.96);
+}
