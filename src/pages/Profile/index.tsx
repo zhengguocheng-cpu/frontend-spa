@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
-import { globalSocket } from '@/services/socket'
 import AvatarSelector from '@/components/AvatarSelector'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { formatScore } from '@/utils/scoreFormatter'
