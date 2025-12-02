@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Button, Dialog } from 'antd-mobile'
+import { Button } from 'antd-mobile'
 import { useAuth } from '@/context/AuthContext'
 import { useAppDispatch, useAppSelector } from '@/hooks/useAppDispatch'
 import { useSocketStatus } from '@/hooks/useSocketStatus'
@@ -1502,16 +1502,6 @@ export default function GameRoom() {
     navigate('/', { replace: true })
   }
 
-  // 离开房间 - 顶部按钮带确认
-  const handleLeaveRoom = () => {
-    Dialog.confirm({
-      content: '确定要退出游戏吗？',
-      onConfirm: () => {
-        doLeaveRoom()
-      },
-    })
-  }
-
   // 准备/开始游戏
   const handleStartGame = () => {
     if (!roomId || !user) return
@@ -1799,7 +1789,11 @@ export default function GameRoom() {
       roomId,
       userId: user.id || user.name,
       llmConfig: {
+        provider: llmSettings.provider,
         model: llmSettings.model,
+        apiKey: llmSettings.apiKey,
+        customBaseUrl: llmSettings.customBaseUrl,
+        customModel: llmSettings.customModel,
         customPrompt: llmSettings.customPrompt,
       },
     })
@@ -2126,14 +2120,6 @@ export default function GameRoom() {
     <div className="game-room-container">
       {/* 游戏桌面 */}
       <div className="game-table">
-        <div className="game-room-header">
-          <button
-            type="button"
-            className="game-room-back"
-            onClick={handleLeaveRoom}
-            aria-label="返回"
-          ></button>
-        </div>
         {/* 底牌和分数倍数显示区域 - 桌面顶端中间 */}
         {/* 分数倍数在确定地主后一直显示，底牌在出牌后隐藏 */}
         {landlordId && (

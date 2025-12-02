@@ -21,6 +21,7 @@
   z-index: -1;
 }
 
+
 .lobby-header-block {
   display: flex;
   flex-direction: column;
@@ -301,6 +302,15 @@
   z-index: 0;
 }
 
+@media (max-width: 640px) {
+  .lobby-model-slot {
+    display: none;
+  }
+  .lobby-main-cards {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 .lobby-main-cards {
   /* 右侧两列 Grid：左侧主卡片（快速游戏），右侧上下两个次级卡片 */
   display: grid;
@@ -549,161 +559,151 @@
   }
 }
 
+/* ========== 设置页面：完全复刻 Profile 页面布局 ========== */
 .lobby-settings-mask {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6); /* 加深遮罩 */
-  backdrop-filter: blur(8px); /* 增加背景模糊 */
-  -webkit-backdrop-filter: blur(8px);
+  /* 深色半透明背景 + 模糊，完全遮盖大厅内容，与 Profile 页面一致 */
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 200;
-  animation: mask-fade-in 0.3s ease-out;
+  padding: 20px;
 }
 
-@keyframes mask-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.lobby-settings-panel {
-  width: 90vw;
-  max-width: 640px; /*稍微加宽 */
-  max-height: 85vh;
-  border-radius: 28px;
-  /* 深色玻璃拟态风格 */
-  background: linear-gradient(145deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98));
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5), 
-              inset 0 1px 1px rgba(255, 255, 255, 0.15);
-  padding: 32px;
-  color: #f8fafc;
+/* 主布局容器：与 Profile 的 .profile-layout-container 完全一致 */
+.lobby-settings-layout-container {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 20px;
+  width: 100%;
+  max-width: 1200px;
+  align-items: flex-start;
   animation: settings-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden; /* 保持圆角 */
-  position: relative; /* 让齿轮可以固定在左上角 */
 }
 
 @keyframes settings-pop {
-  0% { opacity: 0; transform: scale(0.9) translateY(20px); }
+  0% { opacity: 0; transform: scale(0.95) translateY(20px); }
   100% { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-.lobby-settings-header {
-  /* 不再占据一整行，仅作为齿轮挂载点 */
-  font-size: 0;
-  margin: 0;
-  padding: 0;
-  border: none;
-  height: 0;
+/* 左侧栏：与 Profile 的 .profile-sidebar 一致 */
+.lobby-settings-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-/* 左上角的小齿轮图标 */
-.lobby-settings-header::before {
-  content: '⚙️';
-  position: absolute;
-  top: 14px;
-  left: 18px;
-  font-size: 18px;
-  opacity: 0.9;
-}
-
-.lobby-settings-body {
-  display: grid;
-  grid-template-columns: 160px minmax(0, 1fr);
-  gap: 24px;
-  flex: 1;
-  min-height: 0; /* 关键：允许 flex 子项缩小，触发滚动 */
-  overflow: visible; /* 防止整体撑开 */
-}
-
-.lobby-settings-tabs-vertical {
+/* 导航菜单：与 Profile 的 .profile-nav-menu 完全一致 */
+.lobby-settings-nav-menu {
+  background: rgba(51, 65, 85, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 16px;
+  padding: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 10px 8px;
-  border-radius: 18px;
-  /* 左侧完整 Tab 区：更亮一些的深蓝玻璃，和大厅主色一致 */
-  background:
-    radial-gradient(circle at top left, rgba(248, 250, 252, 0.24), transparent 55%),
-    rgba(15, 23, 42, 0.78);
-  border: 1px solid rgba(148, 163, 184, 0.6);
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.7);
-  overflow-y: auto; /* 侧边栏内容过多时也允许滚动 */
 }
 
-.lobby-settings-tab-item {
+/* 导航项：与 Profile 的 .profile-nav-item 完全一致 */
+.lobby-settings-nav-item {
   width: 100%;
-  padding: 12px 16px;
-  border-radius: 12px;
+  padding: 14px 16px;
+  border-radius: 10px;
   border: none;
   text-align: left;
-  font-size: 14px;
-  font-weight: 600;
-  color: rgba(241, 245, 249, 0.85); /* 更亮一点，便于阅读 */
-  background: transparent; /* 默认使用左侧深蓝玻璃作为底色 */
+  font-size: 15px;
+  font-weight: 500;
+  color: #cbd5e1;
+  background: transparent;
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
+  gap: 10px;
+}
+
+.lobby-settings-nav-item:hover {
+  background: rgba(100, 116, 139, 0.2);
+  color: #f1f5f9;
+}
+
+.lobby-settings-nav-item.active {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.35), rgba(245, 158, 11, 0.35));
+  color: #fbbf24;
+  font-weight: 600;
+  box-shadow: inset 0 0 0 2px rgba(251, 191, 36, 0.5);
+}
+
+/* 右侧内容面板：与 Profile 的 .profile-content-panel 完全一致 */
+.lobby-settings-content-panel {
+  background: rgba(51, 65, 85, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  min-height: 350px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+/* 面板内部标题：与 Profile 的 .panel-section-title 一致 */
+.lobby-settings-content-panel .panel-section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #f1f5f9;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: baseline;
   gap: 8px;
 }
 
-.lobby-settings-tab-item:hover {
-  color: #ffffff;
-  background: rgba(15, 23, 42, 0.55);
+/* 设置卡片：与 Profile 的 .stat-card-large 风格一致 */
+.lobby-settings-card {
+  background: rgba(15, 23, 42, 0.6);
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.15);
+  transition: all 0.2s ease;
 }
 
-.lobby-settings-tab-item.active {
-  /* 选中态：与快速游戏一致的橙色 Tab，凸显当前项 */
-  background: linear-gradient(135deg, #fbbf24, #f97316);
-  color: #ffffff;
-  box-shadow: 0 8px 20px rgba(248, 181, 36, 0.55);
-  font-weight: 700;
-}
-
-.lobby-settings-section {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  flex: 1;
-  overflow-y: auto;
-  padding-right: 8px;
-  margin-bottom: 8px;
+.lobby-settings-card:hover {
+  background: rgba(15, 23, 42, 0.75);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 /* 美化滚动条 */
-.lobby-settings-section::-webkit-scrollbar {
+.lobby-settings-content-panel::-webkit-scrollbar {
   width: 4px;
 }
-.lobby-settings-section::-webkit-scrollbar-track {
+.lobby-settings-content-panel::-webkit-scrollbar-track {
   background: rgba(255, 255, 255, 0.05);
   border-radius: 2px;
 }
-.lobby-settings-section::-webkit-scrollbar-thumb {
+.lobby-settings-content-panel::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.2);
   border-radius: 2px;
 }
-.lobby-settings-section::-webkit-scrollbar-thumb:hover {
+.lobby-settings-content-panel::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
 }
 
-.lobby-settings-field {
-  padding: 20px;
-  border-radius: 16px;
-  /* 字段块背景：深蓝玻璃，和大厅卡片风格统一 */
-  background: radial-gradient(circle at top left, rgba(15, 118, 210, 0.28), transparent 55%),
-              rgba(15, 23, 42, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.5);
-  transition: all 0.2s;
-}
-
-.lobby-settings-field:hover {
-  background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.32), transparent 60%),
-              rgba(15, 23, 42, 0.96);
-  border-color: rgba(248, 250, 252, 0.55);
+.lobby-settings-field-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
 }
 
 .lobby-settings-group-title {
@@ -727,17 +727,42 @@
   justify-content: space-between;
 }
 
+.lobby-settings-header-row {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.lobby-settings-title-main {
+  font-size: 16px;
+  font-weight: 700;
+  color: #e5e7eb;
+}
+
+.settings-field-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.settings-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e5e7eb;
+}
+
 .lobby-settings-label-text {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: #f1f5f9;
 }
 
 .lobby-settings-label-block {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: #f1f5f9;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
   display: block;
 }
 
@@ -791,14 +816,16 @@ input:checked + .toggle-slider:before {
 }
 
 .lobby-settings-desc {
-  margin-top: 8px;
-  font-size: 12px;
+  margin-top: 6px;
+  font-size: 11px;
   line-height: 1.6;
   color: #94a3b8;
 }
 
 .lobby-settings-select {
-  width: 100%;
+  width: auto;
+  min-width: 180px;
+  max-width: 100%;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   padding: 10px 14px;
@@ -814,6 +841,20 @@ input:checked + .toggle-slider:before {
   background-repeat: no-repeat;
   background-position: right 10px center;
   background-size: 16px;
+}
+
+.lobby-settings-input {
+  width: auto;
+  min-width: 180px;
+  max-width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 10px 14px;
+  background: rgba(15, 23, 42, 0.85);
+  color: #f1f5f9;
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
 }
 
 .lobby-settings-select:focus {
@@ -837,6 +878,10 @@ input:checked + .toggle-slider:before {
   min-height: 80px;
 }
 
+.lobby-settings-textarea-large {
+  min-height: 200px;
+}
+
 .lobby-settings-textarea:focus {
   border-color: #38bdf8;
   background-color: rgba(0, 0, 0, 0.4);
@@ -854,17 +899,17 @@ input:checked + .toggle-slider:before {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  margin-top: 24px;
-  padding-top: 20px;
+  margin-top: 18px;
+  padding-top: 14px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .lobby-settings-actions .btn-cancel,
 .lobby-settings-actions .btn-save {
-  padding: 10px 24px;
+  padding: 8px 20px;
   border-radius: 999px;
   border: none;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -887,7 +932,7 @@ input:checked + .toggle-slider:before {
   background: linear-gradient(135deg, #fbbf24, #ea580c);
   color: #ffffff; /* 白色文字 */
   text-shadow: 0 1px 2px rgba(0,0,0,0.2);
-  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.4);
+  box-shadow: 0 3px 9px rgba(234, 88, 12, 0.35);
 }
 
 .lobby-settings-actions .btn-save:hover {
@@ -911,40 +956,66 @@ input:checked + .toggle-slider:before {
   z-index: 40;
 }
 
-/* 移动端适配优化 */
+/* 移动端适配优化：与 Profile 页面响应式一致 */
 @media (max-width: 600px) {
-  .lobby-settings-panel {
-    width: 100%;
-    height: 100%;
-    max-height: 100%;
-    border-radius: 0;
-    padding: 20px;
+  .lobby-settings-mask {
+    padding: 12px;
   }
-  
-  .lobby-settings-body {
-    grid-template-columns: 1fr; /* 移动端改为单列 */
-    grid-template-rows: auto 1fr;
+
+  .lobby-settings-layout-container {
+    grid-template-columns: 1fr;
     gap: 16px;
   }
-  
-  .lobby-settings-tabs-vertical {
-    flex-direction: row; /* 移动端横向 Tab */
-    overflow-x: auto;
-    background: transparent;
-    padding: 0;
+
+  .lobby-settings-sidebar {
+    flex-direction: column;
+    gap: 12px;
   }
-  
-  .lobby-settings-tab-item {
+
+  .lobby-settings-nav-menu {
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 8px;
+    gap: 6px;
+  }
+
+  .lobby-settings-nav-item {
     width: auto;
     white-space: nowrap;
-    padding: 8px 16px;
-    background: rgba(255,255,255,0.1);
-    border-radius: 20px;
+    padding: 10px 14px;
     justify-content: center;
+    font-size: 13px;
   }
-  
-  .lobby-settings-tab-item.active {
-    background: #f59e0b;
+
+  .lobby-settings-nav-item .nav-icon {
+    font-size: 16px;
+  }
+
+  .lobby-settings-content-panel {
+    padding: 16px;
+    max-height: 60vh;
+  }
+
+  .lobby-settings-content-panel .panel-section-title {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 600px) {
+  .lobby-container {
+    padding: 8px 10px;
+  }
+
+  .lobby-model-slot {
+    display: none;
+  }
+
+  .lobby-main-cards {
+    width: 100%;
+    max-width: none;
+    margin-right: 0;
+    height: auto;
+    transform: translateY(-16px);
   }
 }
 

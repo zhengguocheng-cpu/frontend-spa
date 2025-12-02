@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
-import AvatarSelector from '@/components/AvatarSelector'
+import SidebarUserCard from '@/components/SidebarUserCard'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { formatScore } from '@/utils/scoreFormatter'
 import './style.css'
@@ -106,134 +106,8 @@ export default function Profile() {
   const [achievementsLoading, setAchievementsLoading] = useState(false)
   const [scoreTrend, setScoreTrend] = useState<ScoreTrendData[]>([])
   
-  // 头像选择器状态
-  const [showAvatarSelector, setShowAvatarSelector] = useState(false)
-  const [currentAvatar, setCurrentAvatar] = useState(() => {
-    if (user && typeof user.avatar === 'string') {
-      const match = user.avatar.match(/^avatar-(\d+)$/)
-      if (match) {
-        const id = Number(match[1])
-        if (!Number.isNaN(id) && id > 0) return id
-      }
-    }
-    return 1
-  }) // 默认头像编号
-
-  // 昵称编辑状态
-  const [displayName, setDisplayName] = useState(user?.name || '')
-  const [editingName, setEditingName] = useState(false)
-  const [savingName, setSavingName] = useState(false)
-
   // 左侧垂直 Tab：资料 / 战绩 / 历史记录
   const [activeTab, setActiveTab] = useState<'profile' | 'stats' | 'history'>('profile')
-
-  const handleSelectAvatar = async (avatarId: number) => {
-    if (!user) return
-    setCurrentAvatar(avatarId)
-    
-    // TODO: 调用后端 API 保存头像
-    try {
-      const baseUrl =
-        window.location.hostname === 'localhost'
-          ? 'http://localhost:3000'
-          : window.location.origin
-      const avatarKey = `avatar-${avatarId}`
-      const nameToUse = (displayName || user.name || '').trim() || user.name
-      const res = await fetch(`${baseUrl}/api/user/profile`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.id,
-          username: nameToUse,
-          avatar: avatarKey,
-        }),
-      })
-      let json: any = null
-      try {
-        json = await res.json()
-      } catch {}
-      if (!res.ok || !json?.success) {
-        console.warn('保存头像失败:', res.status, json?.message)
-        return
-      }
-      const nextName: string =
-        (typeof json.data?.username === 'string' && json.data.username.trim()) || nameToUse
-      const nextAvatar: string =
-        (typeof json.data?.avatar === 'string' && json.data.avatar.trim()) || avatarKey
-      setDisplayName(nextName)
-      updateUser({ name: nextName, avatar: nextAvatar })
-    } catch (error) {
-      console.error('保存头像失败:', error)
-    }
-  }
-
-  const handleStartEditName = () => {
-    setEditingName(true)
-  }
-
-  const handleCancelEditName = () => {
-    setEditingName(false)
-    setDisplayName(user?.name || '')
-  }
-
-  const handleSaveName = async () => {
-    const trimmed = displayName.trim()
-    if (!trimmed || !user) return
-
-    setSavingName(true)
-    try {
-      const baseUrl =
-        window.location.hostname === 'localhost'
-          ? 'http://localhost:3000'
-          : window.location.origin
-      const currentAvatarKey =
-        (user.avatar && /^avatar-\d+$/.test(user.avatar))
-          ? user.avatar
-          : `avatar-${currentAvatar}`
-      const res = await fetch(`${baseUrl}/api/user/profile`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.id,
-          username: trimmed,
-          avatar: currentAvatarKey,
-        }),
-      })
-      let json: any = null
-      try {
-        json = await res.json()
-      } catch {}
-      if (!res.ok || !json?.success) {
-        console.warn('保存昵称失败:', res.status, json?.message)
-        return
-      }
-      const nextName: string =
-        (typeof json.data?.username === 'string' && json.data.username.trim()) || trimmed
-      const nextAvatar: string =
-        (typeof json.data?.avatar === 'string' && json.data.avatar.trim()) || currentAvatarKey
-      setDisplayName(nextName)
-      updateUser({ name: nextName, avatar: nextAvatar })
-      setEditingName(false)
-    } catch (error) {
-      console.error('保存昵称失败:', error)
-    } finally {
-      setSavingName(false)
-    }
-  }
-
-  const handleBlurName = () => {
-    // 正在保存时忽略 blur，避免重复请求
-    if (savingName) return
-
-    const trimmed = displayName.trim()
-    if (!trimmed) {
-      // 空昵称时还原为原来的名字并退出编辑
-      handleCancelEditName()
-      return
-    }
-
-    handleSaveName()
-  }
 
   if (!user) {
     return null
@@ -293,18 +167,10 @@ export default function Profile() {
           // 从后端记录恢复昵称与头像
           if (typeof data.username === 'string' && data.username.trim()) {
             const backendName = data.username.trim()
-            setDisplayName(backendName)
             updateUser({ name: backendName })
           }
           if (typeof data.avatar === 'string' && data.avatar.trim()) {
             const avatarStr: string = data.avatar.trim()
-            const match = avatarStr.match(/^avatar-(\d+)$/)
-            if (match) {
-              const id = Number(match[1])
-              if (!Number.isNaN(id) && id > 0) {
-                setCurrentAvatar(id)
-              }
-            }
             updateUser({ avatar: avatarStr })
           }
         } else {
@@ -392,45 +258,7 @@ export default function Profile() {
         {/* 左侧栏：用户信息 + 导航 */}
         <div className="profile-sidebar">
           {/* 用户信息卡片 */}
-          <div className="profile-user-card">
-            <div
-              className="profile-avatar-container"
-              onClick={() => setShowAvatarSelector(true)}
-              title="点击更换头像"
-            >
-              <div className={`profile-avatar-img avatar-sprite avatar-${currentAvatar}`} />
-            </div>
-            <div className="profile-user-info">
-              <div className="profile-name-row">
-                {editingName ? (
-                  <input
-                    className="profile-name-input"
-                    value={displayName}
-                    maxLength={16}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    onBlur={handleBlurName}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleSaveName()
-                      if (e.key === 'Escape') handleCancelEditName()
-                    }}
-                    autoFocus
-                  />
-                ) : (
-                  <>
-                    <div className="profile-name">{displayName || user.name}</div>
-                    <button
-                      type="button"
-                      className="profile-name-edit"
-                      onClick={handleStartEditName}
-                    >
-                      ✏️
-                    </button>
-                  </>
-                )}
-              </div>
-              <div className="profile-id">ID: {user.id}</div>
-            </div>
-          </div>
+          <SidebarUserCard />
 
           {/* 导航菜单 */}
           <div className="profile-nav-menu">
@@ -692,15 +520,6 @@ export default function Profile() {
           </div>
         </div>
       </div>
-
-      {/* 头像选择器弹窗 */}
-      {showAvatarSelector && (
-        <AvatarSelector
-          currentAvatar={currentAvatar}
-          onSelect={handleSelectAvatar}
-          onClose={() => setShowAvatarSelector(false)}
-        />
-      )}
     </div>
   )
 }

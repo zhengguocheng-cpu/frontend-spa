@@ -9,9 +9,6 @@ export default function InstallGuide() {
     <div className="install-page">
       <div className="install-card">
         <div className="install-header">
-          <button className="install-back" type="button" onClick={() => navigate(-1)}>
-            返回
-          </button>
           <div className="install-header-main">
             <h1 className="install-title">安装到桌面</h1>
             <p className="install-subtitle">把欢乐斗地主装成「桌面应用」，下次一键打开。</p>
