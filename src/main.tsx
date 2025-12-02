@@ -13,7 +13,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 // 注册基础 Service Worker（仅在支持的浏览器中）
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    const swUrl = '/sw.js'
+    const appVersion = (import.meta as any).env?.VITE_APP_BUILD_VERSION || 'dev'
+    const swUrl = `/sw.js?v=${appVersion}`
     navigator.serviceWorker
       .register(swUrl)
       .catch((error) => {

@@ -1,0 +1,86 @@
+.app-loading-screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background-image: url('/imgs/loading.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  overflow: hidden;
+}
+
+.app-loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.9),
+    rgba(0, 0, 0, 0.35),
+    rgba(0, 0, 0, 0.1)
+  );
+}
+
+.app-loading-content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 960px;
+  padding: 0 24px 32px;
+  display: flex;
+  justify-content: center;
+}
+
+.app-loading-bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.app-loading-text-main {
+  font-size: 16px;
+}
+
+.app-loading-progress {
+  margin-top: 4px;
+  width: 60%;
+  max-width: 320px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+}
+
+.app-loading-progress-inner {
+  width: 40%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ffe58f, #ffec3d, #ffd666);
+  animation: app-loading-progress-move 1.2s infinite ease-in-out;
+}
+
+@keyframes app-loading-progress-move {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@media (max-width: 480px) {
+  .app-loading-content {
+    padding: 0 16px 24px;
+  }
+
+  .app-loading-text-main {
+    font-size: 14px;
+  }
+}

@@ -9,6 +9,7 @@ const Login = lazy(() => import('../pages/Login'))
 const Register = lazy(() => import('../pages/Register'))
 const RoomList = lazy(() => import('../pages/RoomList'))
 const Profile = lazy(() => import('../pages/Profile'))
+const SettingsPage = lazy(() => import('../pages/Settings'))
 const Leaderboard = lazy(() => import('../pages/Leaderboard'))
 const Feedback = lazy(() => import('../pages/Feedback'))
 const InstallGuide = lazy(() => import('../pages/InstallGuide'))
@@ -76,6 +77,14 @@ export const router = createBrowserRouter([
         <RequireAuth>
           <Profile />
         </RequireAuth>
+      </Suspense>
+    ),
+  },
+  {
+    path: '/settings',
+    element: (
+      <Suspense fallback={<Loading />}>
+        <SettingsPage />
       </Suspense>
     ),
   },
