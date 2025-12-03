@@ -86,6 +86,17 @@ export default function GameRoom() {
   const settlementAutoLeaveRef = useRef<number | null>(null)
   const [autoReplayCountdown, setAutoReplayCountdown] = useState<number | null>(null)
   const autoReplayTimerRef = useRef<number | null>(null)
+  const quickFlowRef = useRef<{
+    roomJoinedAt: number | null
+    gameStartedAt: number | null
+    dealCardsAt: number | null
+    biddingStartAt: number | null
+  }>({
+    roomJoinedAt: null,
+    gameStartedAt: null,
+    dealCardsAt: null,
+    biddingStartAt: null,
+  })
   // 提示请求上下文（用于后端失败时回退到本地提示）
   const hintContextRef = useRef<{ myCards: string[]; lastCards: string[] | null } | null>(null)
   const autoFullHandPlayedRef = useRef(false)
@@ -114,6 +125,23 @@ export default function GameRoom() {
   const appendSystemMessage = (text: string) => {
     if (!text) return
     setChatMessages((prev) => [...prev, { sender: '系统', message: text }])
+  }
+
+  const formatTimeWithMs = (date: Date) => {
+    const base = date.toLocaleTimeString('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    })
+    const ms = date.getMilliseconds().toString().padStart(3, '0')
+    return `${base}.${ms}`
+  }
+
+  const appendDebugMessage = (tag: string, text: string) => {
+    const now = new Date()
+    const ts = formatTimeWithMs(now)
+    appendSystemMessage(`[DEBUG ${tag}] ${ts} ${text}`)
   }
 
   // 计算玩家位置（逆时针排列）
@@ -357,6 +385,7 @@ export default function GameRoom() {
     if (!roomId) return
 
     console.log('🎮 进入游戏房间:', roomId)
+    appendDebugMessage('FLOW', `进入游戏房间页面，roomId=${roomId}`)
     
     // 保存房间信息到 sessionStorage，用于重连（标签页隔离）
     sessionStorage.setItem('lastRoomId', roomId)
@@ -491,6 +520,39 @@ export default function GameRoom() {
     }
   }, [user, roomId, dispatch])
 
+  useEffect(() => {
+    if (!user || !roomId) return
+
+    try {
+      const clickRaw = sessionStorage.getItem('debug_quick_click')
+      const roomsRaw = sessionStorage.getItem('debug_quick_rooms_resolved')
+      const joinRaw = sessionStorage.getItem('debug_quick_join_emit')
+
+      sessionStorage.removeItem('debug_quick_click')
+      sessionStorage.removeItem('debug_quick_rooms_resolved')
+      sessionStorage.removeItem('debug_quick_join_emit')
+
+      const click = clickRaw ? Number(clickRaw) : NaN
+      const rooms = roomsRaw ? Number(roomsRaw) : NaN
+      const join = joinRaw ? Number(joinRaw) : NaN
+      const now = Date.now()
+
+      if (!Number.isNaN(click)) {
+        const total = now - click
+        appendDebugMessage('QUICK', `从点击“快速游戏”到进入房间页面总耗时 ${total}ms`)
+      }
+
+      if (!Number.isNaN(click) && !Number.isNaN(rooms)) {
+        appendDebugMessage('QUICK', `从点击“快速游戏”到拿到房间列表耗时 ${rooms - click}ms`)
+      }
+
+      if (!Number.isNaN(rooms) && !Number.isNaN(join)) {
+        appendDebugMessage('QUICK', `从拿到房间列表到发起 join_game 耗时 ${join - rooms}ms`)
+      }
+    } catch {
+    }
+  }, [user, roomId])
+
   // 监听游戏事件
   useEffect(() => {
     if (!connected) return
@@ -504,11 +566,15 @@ export default function GameRoom() {
     const handleRoomJoined = (data: any) => {
       console.log('✅ 加入房间成功:', data)
       appendSystemMessage('已加入房间')
+      const now = Date.now()
+      quickFlowRef.current.roomJoinedAt = now
+      appendDebugMessage('FLOW', 'room_joined 事件已收到')
     }
 
     // 加入游戏成功
     const handleJoinGameSuccess = (data: any) => {
       console.log('🎉 [加入游戏成功] 收到数据:', data)
+      appendDebugMessage('ROOM', 'join_game_success 事件已收到')
 
       // 清空上一局状态，避免残留手牌
       dispatch(prepareNextGame())
@@ -712,6 +778,12 @@ export default function GameRoom() {
     // 游戏开始
     const handleGameStarted = (data: any) => {
       console.log('🎮 游戏开始:', data)
+      const now = Date.now()
+      const joinedAt = quickFlowRef.current.roomJoinedAt
+      if (joinedAt) {
+        appendDebugMessage('FLOW', `从 room_joined 到 game_started 耗时 ${now - joinedAt}ms`)
+      }
+      quickFlowRef.current.gameStartedAt = now
       setShowSettlement(false)
       dispatch(prepareNextGame())
       // 重置炸弹计数和底牌显示状态
@@ -723,6 +795,12 @@ export default function GameRoom() {
     // 发牌事件（房间广播版本）
     const handleDealCardsAll = (data: any) => {
       console.log('🎯 [发牌事件-广播] 收到数据:', data)
+      const now = Date.now()
+      const startedAt = quickFlowRef.current.gameStartedAt
+      if (startedAt) {
+        appendDebugMessage('FLOW', `从 game_started 到 deal_cards_all 耗时 ${now - startedAt}ms`)
+      }
+      quickFlowRef.current.dealCardsAt = now
       
       // 找到当前玩家的牌
       const myCards = data.players?.find((p: any) => 
@@ -771,6 +849,12 @@ export default function GameRoom() {
     // 叫地主开始
     const handleBiddingStart = (data: any) => {
       console.log('🎲 开始叫地主:', data)
+      const now = Date.now()
+      const dealAt = quickFlowRef.current.dealCardsAt
+      if (dealAt) {
+        appendDebugMessage('FLOW', `从 deal_cards_all 到 bidding_start 耗时 ${now - dealAt}ms`)
+      }
+      quickFlowRef.current.biddingStartAt = now
       setChatMessages(prev => [
         ...prev,
         { sender: '系统', message: `🎲 开始叫地主！第一个玩家：${data.firstBidderName || '未知'}` }
@@ -818,6 +902,7 @@ export default function GameRoom() {
       
       // 显示叫地主结果
       const bidText = data.bid ? '抢' : '不抢'
+      appendDebugMessage('BID', `bid_result 事件：${data.userName || '玩家'} ${bidText}`)
       setChatMessages(prev => [
         ...prev,
         { sender: '系统', message: `${data.userName || '玩家'} 选择：${bidText}` }
@@ -870,6 +955,7 @@ export default function GameRoom() {
       console.log('👑 [地主确定] 底牌:', data.bottomCards)
       console.log('👑 [地主确定] 当前用户ID:', user?.id)
       console.log('👑 [地主确定] 当前用户名:', user?.name)
+      appendDebugMessage('BID', 'landlord_determined 事件已收到')
       
       if (data.landlordId) {
         // 隐藏叫地主 UI
