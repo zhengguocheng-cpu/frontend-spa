@@ -1375,6 +1375,9 @@ export default function GameRoom() {
       // 通知 Redux 结束本局游戏
       dispatch(endGame(data))
 
+      // 立即显示结算面板，而不是等待其它副作用触发
+      setShowSettlement(true)
+
       // 播放胜负音效
       const myId = user?.id || user?.name
       const isWinner =

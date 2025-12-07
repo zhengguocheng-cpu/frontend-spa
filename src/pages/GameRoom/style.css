@@ -692,7 +692,7 @@
 .bottom-played-area {
   position: absolute;
   left: 50%;
-  bottom: 160px; /* 整体往下挪一点，离中间牌区近一些 */
+  bottom: 130px; /* 更贴近手牌顶端，仅保留少量间距 */
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
@@ -705,7 +705,7 @@
 .played-cards-container.bottom-player-played {
   position: absolute;
   left: 50%;
-  bottom: 190px; /* 跟随底部出牌提示一起下移 */
+  bottom: 160px; /* 紧贴底部手牌上缘附近，仅留少量空隙 */
   transform: translateX(-50%);
   z-index: 40; /* 高于桌面背景，低于操作按钮 */
   justify-content: center;
