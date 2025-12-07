@@ -82,7 +82,7 @@ export default function GameRoom() {
   const autoReadySentRef = useRef(false)
   const autoReadyTimerRef = useRef<number | null>(null)
   const settlementAutoLeaveRef = useRef<number | null>(null)
-  const [autoReplayCountdown, setAutoReplayCountdown] = useState<number | null>(null)
+  const [, setAutoReplayCountdown] = useState<number | null>(null)
   const autoReplayTimerRef = useRef<number | null>(null)
   const quickFlowRef = useRef<{
     roomJoinedAt: number | null
@@ -322,14 +322,6 @@ export default function GameRoom() {
   const isLeftLandlord = isLandlordPlayer(leftPlayer)
   const isRightLandlord = isLandlordPlayer(rightPlayer)
   const isBottomLandlord = isLandlordPlayer(currentPlayer)
-
-  const landlordWinFlag = settlementScore?.landlordWin
-  const centerResultText =
-    gameStatus === 'finished' && typeof landlordWinFlag === 'boolean'
-      ? landlordWinFlag
-        ? '地主获胜'
-        : '农民获胜'
-      : ''
 
   const renderPlayerAvatar = (avatar: string | undefined) => {
     const raw = (avatar || '').trim()
