@@ -758,7 +758,7 @@
 .current-player-info {
   position: absolute; /* 相对于 .game-table 定位 */
   left: 18px;
-  bottom: 70px; /* 整体往下挪一些，更贴近桌边 */
+  bottom: 20px; /* 再往下移动约 50px，更贴近桌边 */
   display: flex;
   flex-direction: column; /* 垂直布局：头像在上，金币在下 */
   align-items: center;
@@ -1834,7 +1834,7 @@
     /* 移动端横屏：左下角贴边，头像在上，金币在下 */
     position: absolute;
     left: 18px;
-    bottom: 90px; /* 再往上收一截，保证头像和分数完全在桌面内部 */
+    bottom: 40px; /* 在横屏下同样整体再往下移动约 50px */
     grid-row: auto;
     grid-column: auto;
     flex-direction: column; /* 垂直布局：头像在上，金币在下 */

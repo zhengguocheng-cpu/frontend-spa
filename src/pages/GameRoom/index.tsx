@@ -82,7 +82,7 @@ export default function GameRoom() {
   const autoReadySentRef = useRef(false)
   const autoReadyTimerRef = useRef<number | null>(null)
   const settlementAutoLeaveRef = useRef<number | null>(null)
-  const [, setAutoReplayCountdown] = useState<number | null>(null)
+  const [autoReplayCountdown, setAutoReplayCountdown] = useState<number | null>(null)
   const autoReplayTimerRef = useRef<number | null>(null)
   const quickFlowRef = useRef<{
     roomJoinedAt: number | null
@@ -1253,6 +1253,13 @@ export default function GameRoom() {
       console.log('[Play] 出的牌:', data.cards)
       console.log('[Play] 牌型信息:', data.cardType)
 
+      appendDebugMessage(
+        'FLOW',
+        `收到 cards_played：player=${data.playerName || data.playerId || '未知'}，牌数=${
+          Array.isArray(data.cards) ? data.cards.length : 0
+        }`,
+      )
+
       if (!data.playerId || !data.cards) {
         return
       }
@@ -1362,6 +1369,13 @@ export default function GameRoom() {
     // 游戏结束（game_over / game_ended）- 对齐旧版 frontend 行为
     const handleGameEnded = (data: any) => {
       console.log('[Game] game_over / game_ended 事件:', data)
+
+      appendDebugMessage(
+        'FLOW',
+        `收到 game_over：winner=${data.winnerName || '未知'}，role=${data.winnerRole}, landlordWin=${
+          data.landlordWin
+        }`,
+      )
       
       // 清理出牌倒计时
       if (turnTimerRef.current) {
@@ -1375,8 +1389,9 @@ export default function GameRoom() {
       // 通知 Redux 结束本局游戏
       dispatch(endGame(data))
 
-      // 立即显示结算面板，而不是等待其它副作用触发
+      // 记录我们已经请求显示结算
       setShowSettlement(true)
+      appendDebugMessage('FLOW', '已调用 setShowSettlement(true)，等待结算 UI 渲染')
 
       // 播放胜负音效
       const myId = user?.id || user?.name
@@ -2374,6 +2389,43 @@ useEffect(() => {
           </div>
         )}
 
+        {/* 中央结算结果 + 再来一局 / 返回大厅按钮（图2 布局） */}
+        {gameStatus === 'finished' && gameState.gameResult && (
+          <div className="center-area">
+            <div
+              className={`center-result-banner ${
+                gameState.gameResult.landlordWin ? 'landlord' : 'farmer'
+              }`}
+            >
+              {gameState.gameResult.landlordWin ? '地主胜利' : '农民获胜'}
+            </div>
+            <div className="settlement-inline-actions">
+              <button
+                type="button"
+                className="btn-replay"
+                onClick={() => {
+                  dispatch(prepareNextGame())
+                  handleStartGame()
+                }}
+              >
+                再来一局
+              </button>
+              <button
+                type="button"
+                className="btn-back-lobby"
+                onClick={() => {
+                  dispatch(prepareNextGame())
+                  doLeaveRoom()
+                }}
+              >
+                {autoReplayCountdown != null
+                  ? `返回大厅（${autoReplayCountdown}秒）`
+                  : '返回大厅'}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* 上方左右两家玩家区域 */}
         <div className="top-players">
           {leftPlayer && (
@@ -2677,7 +2729,7 @@ useEffect(() => {
             </div>
             <div className="player-info-below">
               <div className="player-coins">
-                <span className="player-coins-icon">金</span>
+                <span className="player-coins-icon" aria-hidden="true" />
                 <span className="player-coins-text">
                   {bottomCoinValue >= 10000
                     ? `${(bottomCoinValue / 10000).toFixed(1)}万`
@@ -3014,7 +3066,7 @@ useEffect(() => {
       )}
 
       {/* 结算遮罩层 - 整个页面覆盖层 */}
-      {showSettlement && gameState.gameResult && (
+      {false && showSettlement && gameState.gameResult && (
         <div className="settlement-overlay">
           <div className="settlement-root">
             <div className="settlement-layout">
