@@ -157,29 +157,44 @@
 
 .player-slot {
   display: flex;
+  flex-direction: column; /* 改为垂直布局：头像在上，名字在下 */
   align-items: center;
-  gap: 6px;
-  background: rgba(0, 0, 0, 0.5);
-  padding: 6px 10px;
-  border-radius: 10px;
-  min-width: 90px; /* 缩小最小宽度 */
-  border: 1.5px solid rgba(255, 255, 255, 0.25);
-  backdrop-filter: blur(8px);
+  gap: 4px;
+  background: transparent; /* 去掉背景框 */
+  padding: 0;
+  border: none;
+  min-width: 60px;
   transition: all 0.3s ease;
   position: relative;
 }
 
-.player-slot:hover {
-  transform: scale(1.05);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
-  border-color: rgba(255, 255, 255, 0.5);
+/* 左侧玩家往右移 */
+.player-slot.left {
+  margin-left: 50px;
+}
+
+/* 右侧玩家往左移 */
+.player-slot.right {
+  margin-right: 50px;
 }
 
 .player-info {
   display: flex;
-  flex-direction: row;
+  flex-direction: column; /* 垂直排列：头像、名字、金币张数 */
   align-items: center;
-  gap: 8px;
+  gap: 4px;
+  position: relative;
+  width: 100%;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* 地主玩家信息也不要边框 */
+.player-info.landlord {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 /* 名字和张数的容器 */
@@ -190,8 +205,8 @@
 }
 
 .player-avatar {
-  width: 32px; /* 缩小头像 */
-  height: 32px;
+  width: 30px; /* 再稍微缩小头像尺寸 */
+  height: 30px;
   border-radius: 50%;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   display: flex;
@@ -209,24 +224,67 @@
 }
 
 .player-name {
-  font-size: 11px; /* 缩小字体 */
+  font-size: 12px;
   color: white;
   font-weight: bold;
   white-space: nowrap;
-  max-width: 70px; /* 限制最大宽度 */
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-align: center;
 }
 
-.card-count {
-  font-size: 12px;
+/* 玩家信息角标容器 - 显示金币和张数 */
+.player-badge {
+  position: absolute;
+  top: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: 13px;
+  color: #fff;
+  font-weight: bold;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  white-space: nowrap; /* 不换行 */
+}
+
+.player-badge .coins {
   color: #ffd700;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.player-badge .coin-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.player-badge .cards-left {
+  color: #22d3ee; /* 更鲜艳的高亮蓝色 */
+  font-size: 16px;
+  font-weight: 900;
+}
+
+/* 左侧玩家的角标在左边外侧 */
+.player-slot.left .player-badge {
+  right: 100%;
+  margin-right: 8px;
+}
+
+/* 右侧玩家的角标在右边外侧 */
+.player-slot.right .player-badge {
+  left: 100%;
+  margin-left: 8px;
 }
 
 /* 玩家状态（准备状态或张数） */
 .player-status {
-  font-size: 10px; /* 缩小字体 */
+  font-size: 9px; /* 再缩小一点 */
   color: #ffd700;
   white-space: nowrap;
 }
@@ -295,25 +353,22 @@
 
 .player-slot .result-score {
   position: absolute;
-  top: 0;
+  top: 100%; /* 在头像下方显示 */
   left: 50%;
-  transform: translate(-50%, 120%); /* 位于头像区域正下方，避免挡住出牌区域 */
-  font-size: 40px; /* 略收一点字号，为背景条腾空间 */
+  transform: translateX(-50%);
+  margin-top: 8px;
+  font-size: 38px; /* 与底部玩家分数气泡统一大小 */
   font-weight: 900;
   padding: 6px 18px;
   border-radius: 999px;
-  min-width: 120px;
+  min-width: 140px;
   text-align: center;
   text-shadow: 0 4px 10px rgba(0, 0, 0, 0.85);
   pointer-events: none;
   z-index: 100;
+  white-space: nowrap;
 }
 
-.player-slot.left .result-score,
-.player-slot.right .result-score {
-  margin-left: 0;
-  margin-right: 0;
-}
 
 .result-score.win {
   color: #ffffff; /* 文字使用白色，搭配亮色底 */
@@ -465,27 +520,38 @@
 }
 
 /* 左右玩家：结算时亮出剩余手牌（remaining-cards）
-   - 两行显示，每行最多10张
-   - 重叠度更大，最多到窗口中间位置 */
+   - 最多两行，每行10张
+   - 向玩家一侧展开，避免溢出桌面 */
 .player-slot.left .played-cards-container.remaining-cards,
 .player-slot.right .played-cards-container.remaining-cards {
-  max-width: 48vw; /* 左右各自最多占屏幕约一半，到中线 */
-  flex-wrap: wrap; /* 允许多行 */
-  overflow: visible; /* 允许溢出，确保所有牌都可见 */
+  display: grid; /* 使用网格布局，精确控制列数 */
+  grid-template-columns: repeat(10, 24px); /* 10 列，每列 24px，配合 32px 宽的牌产生轻微重叠 */
+  grid-auto-rows: auto;
+  overflow: visible; /* 允许牌稍微溢出容器 */
   row-gap: 4px; /* 行间距 */
+}
+
+/* 左侧玩家剩余牌向左对齐 */
+.player-slot.left .played-cards-container.remaining-cards {
+  justify-content: flex-start;
+  justify-items: start;
+}
+
+/* 右侧玩家剩余牌向右对齐 */
+.player-slot.right .played-cards-container.remaining-cards {
+  justify-content: flex-end;
+  justify-items: end;
 }
 
 .player-slot.left .played-cards-container.remaining-cards .card,
 .player-slot.right .played-cards-container.remaining-cards .card {
-  width: 30px; /* 稍微缩小 */
+  width: 32px; /* 调整为能让 10 张正好铺满一行 */
   height: 44px;
   font-size: 9px;
+  margin-left: 0; /* 在 grid 下禁止额外的负 margin，避免上下两行卡片叠在一起 */
 }
 
-.player-slot.left .played-cards-container.remaining-cards .card:not(:first-child),
-.player-slot.right .played-cards-container.remaining-cards .card:not(:first-child) {
-  margin-left: -20px; /* 增加重叠度，能显示更多牌 */
-}
+/* grid 模式下不再依赖负 margin 控制换行，交给列数决定 */
 
 .player-slot.left .played-cards-container.remaining-cards .card .card-value,
 .player-slot.right .played-cards-container.remaining-cards .card .card-value {
@@ -501,6 +567,12 @@
 .player-slot.left .played-cards-container.remaining-cards .card:nth-child(11),
 .player-slot.right .played-cards-container.remaining-cards .card:nth-child(11) {
   margin-left: 0; /* 第11张牌开始新行，不重叠 */
+}
+
+/* 第三行起点（第21张牌）同样不重叠，保证每行最多10张 */
+.player-slot.left .played-cards-container.remaining-cards .card:nth-child(21),
+.player-slot.right .played-cards-container.remaining-cards .card:nth-child(21) {
+  margin-left: 0;
 }
 
 /* 左右玩家：正常对局时最近一手出牌（last-played）
@@ -543,16 +615,13 @@
   font-size: 10px;
 }
 
-.player-slot.left .played-cards-container.last-played .card .card-value.joker-text,
-.player-slot.right .played-cards-container.last-played .card .card-value.joker-text {
-  font-size: 5px;
-  letter-spacing: 0.3px;
-}
-
-/* 隐藏左右玩家出牌区的角色标识，避免遮挡小牌 */
-.player-slot.left .played-cards-container.last-played .card .card-landlord-mark,
-.player-slot.right .played-cards-container.last-played .card .card-landlord-mark {
-  display: none;
+/* 上方玩家出牌区大小王 */
+.player-slot.left .played-cards-container .card .card-value.joker-text,
+.player-slot.right .played-cards-container .card .card-value.joker-text {
+  font-size: 7px !important;  /* 略微缩小，配合竖排避免被裁剪 */
+  font-weight: 800;
+  letter-spacing: 1px;         /* 减小字距，缩短竖排总高度 */
+  max-height: 100%;
 }
 
 .bottom-cards,
@@ -577,64 +646,181 @@
   justify-content: center;
 }
 
+/* 底牌区域的牌面数字和花色 */
+.bottom-card .card-value {
+  font-size: 16px !important;
+  font-weight: 800 !important;
+  font-family: 'Arial Black', 'Helvetica Neue', sans-serif !important;
+  margin-top: 2px;
+}
+
+/* 底牌区大小王 */
+.bottom-card .card-value.joker-text {
+  font-size: 14px !important;
+  font-weight: 800;
+}
+
+.bottom-card .card-suit {
+  font-size: 14px !important;
+  font-weight: bold !important;
+}
+
+/* 基数、倍数样式 */
+.bottom-meta {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  align-items: center;
+  color: #fff;
+  font-size: 20px; /* 再放大一档 */
+  font-weight: bold;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  margin-top: 8px;
+}
+
+.bottom-meta.compact {
+  font-size: 18px; /* 紧凑模式下同步放大 */
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 4px 12px;
+  border-radius: 6px;
+}
+
 .card:hover {
   transform: translateY(-4px);
 }
 
-/* 当前玩家信息 - 使用 Grid 定位（左下角） */
-.current-player-info {
-  grid-row: 3; /* 第3行 */
-  grid-column: 1; /* 第1列 */
+/* 底部玩家出牌显示区 */
+.bottom-played-area {
+  position: absolute;
+  left: 50%;
+  bottom: 180px; /* 在手牌上方 */
+  transform: translateX(-50%);
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 8px;
-  padding: 8px 10px;
-  background: rgba(0, 0, 0, 0.5);
-  border-radius: 12px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  width: auto;
-  min-width: 120px;
-  height: auto;
-  flex-direction: row; /* 头像在左，信息在右 */
-  justify-content: flex-start;
-  z-index: 50; /* 提高 z-index 确保在最上层 */
-  backdrop-filter: blur(8px);
-  transition: all 0.3s ease;
-  position: relative;
+  z-index: 50;
 }
 
-.current-player-info:hover {
-  transform: scale(1.05);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
-  border-color: rgba(255, 255, 255, 0.5);
+/* 底部玩家倒计时 - 在头像右边 */
+.bottom-player-timer {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 10px rgba(249, 115, 22, 0.5);
+  animation: pulse-timer 1s ease-in-out infinite;
+  margin-left: 12px; /* 与头像保持距离 */
+}
+
+/* 上方玩家出牌区的倒计时 */
+.area-turn-timer {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  color: white;
+  font-size: 20px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.5);
+  animation: pulse-timer 1s ease-in-out infinite;
+  margin-bottom: 8px;
+}
+
+@keyframes pulse-timer {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+/* 当前玩家信息 - 固定在桌面左下角（绝对定位），头像在上，金币在下 */
+.current-player-info {
+  position: absolute; /* 相对于 .game-table 定位 */
+  left: 18px;
+  bottom: 90px; /* 固定高度：玩牌中和结算后保持一致，不随中间内容高度变化 */
+  display: flex;
+  flex-direction: column; /* 垂直布局：头像在上，金币在下 */
+  align-items: center;
+  gap: 6px; /* 头像与金币之间留一点空隙 */
+  padding: 0; /* 去掉内边距 */
+  background: transparent; /* 去掉背景 */
+  border: none; /* 去掉边框 */
+  width: auto;
+  min-width: 0;
+  height: auto;
+  z-index: 5; /* 降低优先级，让牌面能够覆盖 */
+  transition: all 0.3s ease;
 }
 
 .current-player-info .player-avatar {
-  width: 44px;
-  height: 44px;
-  font-size: 22px;
+  width: 42px;  /* 放大头像，更清晰 */
+  height: 42px;
+  font-size: 20px;
 }
 
 .current-player-info .player-name {
-  font-size: 11px;
+  font-size: 13px;  /* 放大字体，更易读 */
   text-align: center;
   word-break: break-all;
   max-width: 100%;
 }
 
 .current-player-info .card-count {
-  font-size: 11px;
+  font-size: 13px;
   margin-left: 0;
 }
 
 .current-player-info .player-status {
-  font-size: 11px;
+  font-size: 13px;
   margin-left: 0;
   text-align: center;
 }
 
+/* 玩家信息样式 */
+.player-info-below {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.player-coins {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  color: #ffd700;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.player-coins-icon {
+  font-size: 16px;
+}
+
+.player-coins-text {
+  font-size: 14px;
+  font-weight: 700;
+}
+
 .current-player-info .result-score-bottom {
-  margin-left: 8px;
+  position: absolute;
+  left: 100%; /* 改为在玩家信息框右侧显示 */
+  top: 50%;
+  margin-left: 10px;
+  transform: translateY(-50%);
   font-size: 38px; /* 底部玩家分数加大 */
   font-weight: 900;
   padding: 6px 18px;
@@ -656,11 +842,36 @@
   box-shadow: 0 6px 18px rgba(129, 140, 248, 0.7);
 }
 
-/* 当前出牌玩家高亮和倒计时标志 */
-.player-slot.turn-active,
+/* 当前出牌玩家高亮和倒计时标志 - 头像发光动画 */
+.player-slot.turn-active .player-avatar,
+.current-player-info.turn-active .player-avatar {
+  animation: pulse-glow 1.5s ease-in-out infinite;
+  border-radius: 50%;
+}
+
 .current-player-info.turn-active {
-  box-shadow: 0 0 18px rgba(56, 189, 248, 0.8);
   border-color: #38bdf8;
+  animation: pulse-border 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(56, 189, 248, 1), 0 0 30px rgba(56, 189, 248, 0.5);
+  }
+}
+
+@keyframes pulse-border {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.5);
+    border-color: #38bdf8;
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(56, 189, 248, 1);
+    border-color: #7dd3fc;
+  }
 }
 
 .turn-indicator {
@@ -707,7 +918,7 @@
   display: flex;
   gap: 8px;
   height: 100%;
-  padding: 0 16px;
+  padding: 0 180px 0 16px; /* 再加大右侧预留空间，保证最后一张牌完全停在聊天气泡左侧 */
 }
 
 .player-hand .card {
@@ -822,9 +1033,10 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start; /* 从顶部开始显示 */
   height: 100%;
-  gap: 4px;
+  gap: 2px;
+  padding-top: 4px; /* 顶部留一点间距 */
 }
 
 .card-rank {
@@ -833,8 +1045,50 @@
   color: #333;
 }
 
+/* 牌面数字样式优化 - 参考欢乐斗地主 */
+.card-value {
+  font-size: 28px;
+  font-weight: 900;
+  font-family: 'Arial Black', 'Helvetica Neue', sans-serif;
+  text-align: center;
+  margin-top: 0;
+  letter-spacing: -1px;
+}
+
+/* 大小王字体样式（缩小字号，避免溢出） */
+.card-value.joker-text {
+  font-size: 18px;
+  font-weight: 900;
+}
+
 .card-suit {
-  font-size: 20px;
+  font-size: 26px;
+  margin-top: 2px;
+}
+
+/* 手牌牌面专用样式 - 参考图片1的大字体 */
+.player-hand .card .card-value {
+  font-size: 32px;
+  font-weight: 900;
+  font-family: 'Arial Black', 'Helvetica Neue', sans-serif;
+  color: inherit;
+  line-height: 1;
+  margin-top: 4px;
+}
+
+/* 手牌大小王字体（略大于普通 JOKER，但不超过牌面） */
+.player-hand .card .card-value.joker-text {
+  font-size: 13px;  /* 进一步减小字号，保证纵向 JOKER 不超出牌面 */
+  font-weight: 900;
+  letter-spacing: 1px;
+  line-height: 1.05;
+}
+
+.player-hand .card .card-suit {
+  font-size: 28px;
+  font-weight: bold;
+  line-height: 1;
+  margin-top: 2px;
 }
 
 /* 控制按钮覆盖层 - 覆盖在游戏桌面中央偏下位置 */
@@ -846,14 +1100,16 @@
   /* 关键：相对于 .game-table 绝对定位，强制居中显示 */
   position: absolute;
   left: 50%;
-  top: 78%; /* 向下移动到“地主/农民获胜”大字下方，贴近手牌上缘 */
+  /* 上移至出牌区中央，让抢地主按钮在出牌区域 */
+  top: 50%;
   transform: translate(-50%, -50%);
-
-  display: flex !important;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  z-index: 200; /* 确保在所有元素之上，包括出牌区和手牌 */
+  grid-row: auto;
+  grid-column: auto;
+  flex-direction: row;
+  gap: 10px;
+  padding: 0;
+  background: transparent;
+  z-index: 200; /* 提高到200，确保按钮在手牌之上 */
   pointer-events: none; /* 不阻挡鼠标事件 */
   visibility: visible !important;
   opacity: 1 !important;
@@ -1546,29 +1802,39 @@
   }
 
   .player-slot {
-    padding: 6px 10px;
-    min-width: 110px;
+    padding: 0;
+    min-width: 60px;
+    background: transparent;
+    border: none;
+  }
+
+  .player-slot.left {
+    margin-left: 40px;
+  }
+
+  .player-slot.right {
+    margin-right: 40px;
   }
 
   .current-player-info {
-    /* 移动端横屏：改为头像下方布局，下移到桌底 */
+    /* 移动端横屏：左下角贴边，头像在上，金币在下 */
     position: absolute;
     left: 18px;
-    bottom: 8px; /* 从22px改为8px，更靠近桌底 */
+    bottom: 90px; /* 再往上收一截，保证头像和分数完全在桌面内部 */
     grid-row: auto;
     grid-column: auto;
-    flex-direction: row; /* 与 LobbyHome 一致：左头像右信息 */
+    flex-direction: column; /* 垂直布局：头像在上，金币在下 */
     align-items: center;
     justify-content: flex-start;
-    padding: 5px 7px;
+    padding: 4px 6px;
     width: auto;
-    min-width: 120px;
-    max-width: 150px;
+    min-width: 100px;
+    max-width: 130px;
     height: auto;
     border-radius: 8px;
     transform: none;
     z-index: 40;
-    gap: 6px;
+    gap: 4px;
   }
 
   .player-avatar-container {
@@ -1579,9 +1845,9 @@
   }
 
   .current-player-info .player-avatar {
-    width: 44px;
-    height: 44px;
-    font-size: 22px;
+    width: 34px;   /* 缩小头像尺寸 */
+    height: 34px;
+    font-size: 18px;
   }
 
   .player-info-below {
@@ -1624,8 +1890,9 @@
   .game-controls {
     position: absolute;
     left: 50%;
-    top: 52%; /* 略微下移，避免遮挡中央出牌区 */
-    transform: translate(-50%, -50%);
+    /* 与桌面版保持一致：从底部往上固定偏移，贴近手牌上缘 */
+    bottom: 100px;
+    transform: translateX(-50%);
     grid-row: auto;
     grid-column: auto;
     flex-direction: row;
@@ -1669,6 +1936,41 @@
   .pass-text {
     font-size: 40px;
     letter-spacing: 6px;
+  }
+
+  /* 移动端横屏：强制结算分数显示在玩家信息框旁边 */
+  .player-slot .result-score {
+    position: absolute;
+    top: 50% !important;
+    bottom: auto !important;
+    transform: translateY(-50%) !important;
+    font-size: 24px !important;
+    min-width: 80px !important;
+    padding: 2px 8px !important;
+  }
+
+  .player-slot.left .result-score {
+    left: 100% !important;
+    right: auto !important;
+    margin-left: 8px !important;
+  }
+
+  .player-slot.right .result-score {
+    right: 100% !important;
+    left: auto !important;
+    margin-right: 8px !important;
+  }
+
+  /* 底部玩家分数在右侧 */
+  .current-player-info .result-score-bottom {
+    position: absolute !important;
+    left: 100% !important;
+    right: auto !important;
+    top: 50% !important;
+    bottom: auto !important;
+    margin-left: 8px !important;
+    transform: translateY(-50%) !important;
+    font-size: 26px !important;
   }
 }
 

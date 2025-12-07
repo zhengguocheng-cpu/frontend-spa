@@ -109,6 +109,11 @@
   max-height: 100%;
 }
 
+/* 手牌区域的竖排 JOKER：允许占满整张牌高度，避免被裁剪 */
+.player-hand .card .card-value.joker-text {
+  max-height: 90px; /* 与手牌高度一致 */
+}
+
 /* 红色花色的牌 */
 .card.red {
   color: #d32f2f;
@@ -335,7 +340,7 @@
 /* 底牌显示区域 - 桌面顶端中间 - 照抄 frontend */
 .bottom-cards-display {
   position: absolute;
-  top: 6px; /* 更贴近桌面顶部，减少占用高度 */
+  top: 5px; /* 紧贴桌面顶部 */
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -349,9 +354,9 @@
   gap: 10px;
   padding: 6px 14px;
   border-radius: 999px;
-  background: rgba(15, 23, 42, 0.92);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(10px);
+  background: transparent; /* 只做容器，不再绘制外层背景框 */
+  box-shadow: none;
+  backdrop-filter: none;
 }
 
 .bottom-cards-container {

@@ -5,8 +5,6 @@ import { useAuth } from '@/context/AuthContext'
 import { formatScore } from '@/utils/scoreFormatter'
 import './style.css'
 
- type RankType = 'score' | 'winRate'
-
  interface LeaderboardEntry {
   rank: number
   userId: string
@@ -19,7 +17,6 @@ import './style.css'
 export default function Leaderboard() {
   const { user } = useAuth()
 
-  const [type, setType] = useState<RankType>('score')
   const [data, setData] = useState<LeaderboardEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -39,7 +36,8 @@ export default function Leaderboard() {
             ? 'http://localhost:3000'
             : window.location.origin
 
-        const res = await fetch(`${baseUrl}/api/score/leaderboard/${type}`, {
+        // 固定使用积分排行榜
+        const res = await fetch(`${baseUrl}/api/score/leaderboard/score`, {
           signal: controller.signal,
         })
 
@@ -73,7 +71,7 @@ export default function Leaderboard() {
     return () => {
       controller.abort()
     }
-  }, [type, user])
+  }, [user])
 
   if (!user) {
     return null
@@ -85,12 +83,7 @@ export default function Leaderboard() {
     return `${Number(v).toFixed(1)}%`
   }
 
-  const handleChangeType = (next: RankType) => {
-    if (next === type) return
-    setType(next)
-  }
-
-  const scoreHeaderLabel = type === 'score' ? '积分' : '胜率'
+  const scoreHeaderLabel = '积分'
 
   return (
     <div className="leaderboard-page">
@@ -99,20 +92,6 @@ export default function Leaderboard() {
           <div className="leaderboard-header-left" />
           <div className="leaderboard-header-center">
             <h1 className="leaderboard-title">🏆 排行榜</h1>
-          </div>
-          <div className="leaderboard-tabs">
-            <button
-              className={"lb-tab-btn " + (type === 'score' ? 'active' : '')}
-              onClick={() => handleChangeType('score')}
-            >
-              积分排行
-            </button>
-            <button
-              className={"lb-tab-btn " + (type === 'winRate' ? 'active' : '')}
-              onClick={() => handleChangeType('winRate')}
-            >
-              胜率排行
-            </button>
           </div>
         </div>
 
@@ -151,8 +130,7 @@ export default function Leaderboard() {
                         ? '🥉'
                         : entry.rank
 
-                const scoreText =
-                  type === 'score' ? formatScore(entry.value ?? 0) : formatWinRate(entry.value)
+                const scoreText = formatScore(entry.value ?? 0)
 
                 return (
                   <div

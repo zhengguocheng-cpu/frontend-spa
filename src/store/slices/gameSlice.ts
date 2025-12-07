@@ -145,6 +145,7 @@ export interface GamePlayer extends Player {
   cardCount: number // 手牌数量
   role?: 'landlord' | 'farmer' // 角色
   position?: 'bottom' | 'left' | 'right' // 位置
+  score?: number // 总积分/金币快照
 }
 
 export interface PlayedCards {

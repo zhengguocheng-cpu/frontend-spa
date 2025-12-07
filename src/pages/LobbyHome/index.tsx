@@ -253,7 +253,7 @@ export default function LobbyHome() {
         Toast.show({ content: '商城暂未开放', icon: 'info' })
         break
       case 'vip':
-        Toast.show({ content: '会员中心暂未开放', icon: 'info' })
+        navigate('/membership')
         break
       case 'leaderboard':
         navigate('/leaderboard')
