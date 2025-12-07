@@ -19,7 +19,7 @@
 }
 
 .game-room-container:has(.chat-sidebar.visible) {
-  grid-template-columns: 1fr 300px; /* 聊天框显示时 */
+  grid-template-columns: 1fr 260px; /* 聊天框显示时：缩窄聊天区域 */
 }
 
 /* 强制横屏提示 */
@@ -135,8 +135,8 @@
   position: absolute;
   inset: -4px -4px 2px -4px; /* 边缘收窄一点，整体更紧凑 */
   border-radius: 18px;
-  border: 6px solid #8b7355;
-  box-shadow: 0 12px 22px rgba(0, 0, 0, 0.55);
+  border: none; /* 去掉桌面的棕色描边边框 */
+  box-shadow: 0 12px 22px rgba(0, 0, 0, 0.45); /* 保留柔和阴影，弱化边缘存在感 */
   transform: perspective(1000px) rotateX(0.5deg); /* 更轻微的透视效果，减少“斜”的感觉 */
   transform-origin: center bottom;
   pointer-events: none;
@@ -170,12 +170,12 @@
 
 /* 左侧玩家往右移 */
 .player-slot.left {
-  margin-left: 50px;
+  margin-left: 32px; /* 收紧一些，避免金币角标在小屏贴边 */
 }
 
 /* 右侧玩家往左移 */
 .player-slot.right {
-  margin-right: 50px;
+  margin-right: 32px; /* 收紧一些，避免金币角标在小屏贴边 */
 }
 
 .player-info {
@@ -237,12 +237,12 @@
 /* 玩家信息角标容器 - 显示金币和张数 */
 .player-badge {
   position: absolute;
-  top: 6px;
+  top: 2px; /* 稍微往上收一点，给金币数字留空间 */
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  font-size: 13px;
+  font-size: 11px; /* 缩小整块角标字号，适配 meta50 */
   color: #fff;
   font-weight: bold;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
@@ -255,31 +255,38 @@
   display: inline-flex;
   align-items: center;
   gap: 2px;
+  font-size: 11px;
 }
 
 .player-badge .coin-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #fff 0%, #ffe58f 35%, #facc15 60%, #d97706 100%);
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+  color: transparent; /* 隐藏“金”字本身，只保留图标 */
+  font-size: 10px;
 }
 
 .player-badge .cards-left {
   color: #22d3ee; /* 更鲜艳的高亮蓝色 */
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 900;
 }
 
 /* 左侧玩家的角标在左边外侧 */
 .player-slot.left .player-badge {
   right: 100%;
-  margin-right: 8px;
+  margin-right: 4px; /* 再往里一点，避免在窄屏贴边 */
 }
 
 /* 右侧玩家的角标在右边外侧 */
 .player-slot.right .player-badge {
   left: 100%;
-  margin-left: 8px;
+  margin-left: 4px; /* 再往里一点，避免在窄屏贴边 */
 }
 
 /* 玩家状态（准备状态或张数） */
@@ -371,24 +378,15 @@
 
 
 .result-score.win {
-  color: #ffffff; /* 文字使用白色，搭配亮色底 */
-  /* 调整为更淡的半透明渐变，削弱阴影，让气泡更融入背景 */
-  background: linear-gradient(
-    135deg,
-    rgba(250, 204, 21, 0.18),
-    rgba(249, 115, 22, 0.32)
-  );
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.65);
+  color: #ffffff; /* +分统一使用亮橙金色气泡 */
+  background: linear-gradient(135deg, #f97316, #fdba74);
+  box-shadow: 0 4px 10px rgba(248, 181, 85, 0.55);
 }
 
 .result-score.lose {
-  color: #e5e7eb;
-  background: linear-gradient(
-    135deg,
-    rgba(79, 70, 229, 0.2),
-    rgba(168, 85, 247, 0.35)
-  );
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.6);
+  color: #e5e7eb; /* -分统一使用蓝紫色气泡 */
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  box-shadow: 0 4px 10px rgba(129, 140, 248, 0.45);
 }
 
 /* 出牌区域样式 */
@@ -694,7 +692,7 @@
 .bottom-played-area {
   position: absolute;
   left: 50%;
-  bottom: 180px; /* 在手牌上方 */
+  bottom: 160px; /* 整体往下挪一点，离中间牌区近一些 */
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
@@ -707,7 +705,7 @@
 .played-cards-container.bottom-player-played {
   position: absolute;
   left: 50%;
-  bottom: 210px; /* 略高于 .bottom-played-area，位于手牌上方的出牌区 */
+  bottom: 190px; /* 跟随底部出牌提示一起下移 */
   transform: translateX(-50%);
   z-index: 40; /* 高于桌面背景，低于操作按钮 */
   justify-content: center;
@@ -760,7 +758,7 @@
 .current-player-info {
   position: absolute; /* 相对于 .game-table 定位 */
   left: 18px;
-  bottom: 90px; /* 固定高度：玩牌中和结算后保持一致，不随中间内容高度变化 */
+  bottom: 70px; /* 整体往下挪一些，更贴近桌边 */
   display: flex;
   flex-direction: column; /* 垂直布局：头像在上，金币在下 */
   align-items: center;
@@ -810,18 +808,23 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 14px;
+  font-size: 13px; /* 底部金币整体略微缩小，避免数字太粗 */
   color: #ffd700;
   font-weight: 600;
   white-space: nowrap;
 }
 
 .player-coins-icon {
-  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #fff 0%, #ffe58f 35%, #facc15 60%, #d97706 100%);
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+  font-size: 0; /* 隐藏“金”字本身，只保留图标 */
 }
 
 .player-coins-text {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
 }
 
@@ -841,15 +844,15 @@
 }
 
 .current-player-info .result-score-bottom.win {
-  color: #ffffff; /* 胜利使用亮色底 + 白字 */
-  background: linear-gradient(135deg, #facc15, #f97316);
-  box-shadow: 0 6px 18px rgba(248, 181, 85, 0.7);
+  color: #ffffff; /* 与上方玩家 +分保持一致 */
+  background: linear-gradient(135deg, #f97316, #fdba74);
+  box-shadow: 0 4px 10px rgba(248, 181, 85, 0.55);
 }
 
 .current-player-info .result-score-bottom.lose {
-  color: #e5e7eb;
-  background: linear-gradient(135deg, #4f46e5, #a855f7);
-  box-shadow: 0 6px 18px rgba(129, 140, 248, 0.7);
+  color: #e5e7eb; /* 与上方玩家 -分保持一致 */
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  box-shadow: 0 4px 10px rgba(129, 140, 248, 0.45);
 }
 
 /* 当前出牌玩家高亮和倒计时标志 - 头像发光动画 */
@@ -913,7 +916,8 @@
   overflow-x: auto;
   overflow-y: visible;
   border-radius: 0;
-  z-index: 10;
+  position: relative; /* 形成新的层叠上下文，便于覆盖左下角头像 */
+  z-index: 10; /* 手牌整体在 current-player-info 之上 */
   min-height: 0; /* 允许缩小 */
 }
 .player-hand::-webkit-scrollbar {
@@ -1631,7 +1635,7 @@
   right: 0;
   top: 0;
   bottom: 0;
-  width: 300px;
+  width: 260px; /* 默认聊天宽度略窄一些 */
   background: white;
   display: flex;
   flex-direction: column;
@@ -1748,9 +1752,9 @@
     font-size: 24px;
   }
   
-  /* 平板和桌面上聊天框更宽 */
+  /* 平板和桌面上聊天框适中宽度 */
   .chat-sidebar {
-    width: 350px;
+    width: 280px;
   }
   
   /* 移动端横屏：右下角UI组缩小一点 */
@@ -2056,13 +2060,13 @@
 .chat-toggle-btn {
   width: 56px;
   height: 56px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  border-radius: 0; /* 去掉圆形外观 */
+  background: none; /* 取消圆形渐变背景，只保留气泡图标 */
+  color: inherit;
   border: none;
-  font-size: 28px;
+  font-size: 28px; /* 保持气泡图标大小 */
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: none; /* 移除圆形阴影 */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2071,8 +2075,8 @@
 }
 
 .chat-toggle-btn:hover {
-  transform: scale(1.1);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+  transform: scale(1.05); /* 略微缩放即可，不再增加阴影 */
+  box-shadow: none;
 }
 
 .chat-toggle-btn:active {

@@ -2275,6 +2275,12 @@ useEffect(() => {
     }
   }, [walletScore])
 
+  // 一局结束且有结算结果时，显示结算面板
+  useEffect(() => {
+    if (gameStatus === 'finished' && gameState.gameResult) {
+      setShowSettlement(true)
+    }
+  }, [gameStatus, gameState.gameResult])
 
   // 对整局结算后的“自动再来一局”逻辑做统一管理（含 30 秒倒计时）
   useEffect(() => {
