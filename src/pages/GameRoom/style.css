@@ -1861,7 +1861,8 @@
     height: auto;
     border-radius: 8px;
     transform: none;
-    z-index: 40;
+    z-index: 1; /* 保持在手牌 (z-index:10) 之下 */
+    pointer-events: none; /* 与桌面版一致，不拦截点击 */
     gap: 4px;
   }
 
