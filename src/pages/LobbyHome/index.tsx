@@ -144,6 +144,10 @@ export default function LobbyHome() {
     }
 
     try {
+      try {
+        sessionStorage.setItem('debug_quick_click', String(Date.now()))
+      } catch {
+      }
       // 确保 Socket 已连接（移动端从后台恢复或长时间 idle 后可能被断开）
       let socket = globalSocket.getSocket()
       const status = globalSocket.getStatus()
@@ -163,6 +167,10 @@ export default function LobbyHome() {
       }
 
       const rooms: any[] = await globalSocket.requestRoomList()
+      try {
+        sessionStorage.setItem('debug_quick_rooms_resolved', String(Date.now()))
+      } catch {
+      }
       if (!rooms || rooms.length === 0) {
         Toast.show({ content: '暂时没有可加入的房间', icon: 'info' })
         return
@@ -209,6 +217,11 @@ export default function LobbyHome() {
         return
       }
 
+      try {
+        sessionStorage.setItem('debug_quick_join_emit', String(Date.now()))
+      } catch {
+      }
+
       globalSocket.joinGame({
         roomId: targetRoom.id,
         userId: user.id,
@@ -240,7 +253,7 @@ export default function LobbyHome() {
         Toast.show({ content: '商城暂未开放', icon: 'info' })
         break
       case 'vip':
-        Toast.show({ content: '会员中心暂未开放', icon: 'info' })
+        navigate('/membership')
         break
       case 'leaderboard':
         navigate('/leaderboard')

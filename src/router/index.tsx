@@ -10,8 +10,10 @@ const Register = lazy(() => import('../pages/Register'))
 const RoomList = lazy(() => import('../pages/RoomList'))
 const Profile = lazy(() => import('../pages/Profile'))
 const SettingsPage = lazy(() => import('../pages/Settings'))
+const Membership = lazy(() => import('../pages/Membership'))
 const Leaderboard = lazy(() => import('../pages/Leaderboard'))
 const Feedback = lazy(() => import('../pages/Feedback'))
+const Admin = lazy(() => import('../pages/Admin'))
 const InstallGuide = lazy(() => import('../pages/InstallGuide'))
 const NotFound = lazy(() => import('../pages/NotFound'))
 
@@ -31,6 +33,16 @@ export const router = createBrowserRouter([
     element: (
       <Suspense fallback={<Loading />}>
         <LobbyHome />
+      </Suspense>
+    ),
+  },
+  {
+    path: '/membership',
+    element: (
+      <Suspense fallback={<Loading />}>
+        <RequireAuth>
+          <Membership />
+        </RequireAuth>
       </Suspense>
     ),
   },
@@ -94,6 +106,16 @@ export const router = createBrowserRouter([
       <Suspense fallback={<Loading />}>
         <RequireAuth>
           <Leaderboard />
+        </RequireAuth>
+      </Suspense>
+    ),
+  },
+  {
+    path: '/admin',
+    element: (
+      <Suspense fallback={<Loading />}>
+        <RequireAuth>
+          <Admin />
         </RequireAuth>
       </Suspense>
     ),
