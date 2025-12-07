@@ -776,7 +776,8 @@
   width: auto;
   min-width: 0;
   height: auto;
-  z-index: 5; /* 降低优先级，让牌面能够覆盖 */
+  z-index: 1; /* 降低优先级，让牌面能够覆盖 */
+  pointer-events: none; /* 不拦截鼠标/触摸事件，底部手牌可以完全点击 */
   transition: all 0.3s ease;
 }
 
