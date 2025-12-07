@@ -12,7 +12,7 @@ import '@/styles/avatars.css'
 import './style.css'
 
 export default function LobbyHome() {
-  const { user, login, loading } = useAuth()
+  const { user, login, loading, updateUser } = useAuth()
   const navigate = useNavigate()
   const appVersion = (import.meta as any).env?.VITE_APP_BUILD_VERSION || 'dev'
   const [autoLoggingIn, setAutoLoggingIn] = useState(false)
@@ -91,6 +91,27 @@ export default function LobbyHome() {
         const scoreValue =
           typeof data.totalScore === 'number' ? data.totalScore : 0
         setWalletScore(scoreValue)
+
+        // 同步后端中的昵称和头像，避免刚登录时个人资料/大厅头像不同步
+        try {
+          const backendName =
+            typeof data.username === 'string' && data.username.trim()
+              ? data.username.trim()
+              : undefined
+          const backendAvatar =
+            typeof data.avatar === 'string' && data.avatar.trim()
+              ? data.avatar.trim()
+              : undefined
+
+          if (backendName || backendAvatar) {
+            updateUser({
+              ...(backendName ? { name: backendName } : {}),
+              ...(backendAvatar ? { avatar: backendAvatar } : {}),
+            })
+          }
+        } catch (e) {
+          console.warn('同步后端昵称/头像失败:', e)
+        }
       } catch (err: any) {
         if (err?.name === 'AbortError') return
         console.error('加载钱包失败:', err)

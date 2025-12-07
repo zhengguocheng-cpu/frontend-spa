@@ -176,6 +176,49 @@
   margin-top: 4px;
 }
 
+/* 左侧导航：等级 / 充值 / 积分（参考个人资料页左侧菜单） */
+.membership-nav-menu {
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(148, 163, 184, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.membership-nav-item {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: none;
+  text-align: left;
+  font-size: 15px;
+  font-weight: 500;
+  color: #cbd5e1;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.18s ease;
+}
+
+.membership-nav-item:hover {
+  background: rgba(148, 163, 184, 0.2);
+  color: #f9fafb;
+}
+
+.membership-nav-item.active {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.35), rgba(245, 158, 11, 0.35));
+  color: #fbbf24;
+  font-weight: 600;
+  box-shadow: inset 0 0 0 2px rgba(251, 191, 36, 0.5);
+}
+
+.membership-nav-icon {
+  font-size: 18px;
+}
+
 /* 右侧：余额 + 充值网格 */
 .membership-balance-panel {
   display: inline-flex;

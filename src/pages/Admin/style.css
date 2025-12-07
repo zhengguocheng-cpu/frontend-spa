@@ -222,6 +222,312 @@
   color: #e5e7eb;
 }
 
+.admin-feedback-status-row {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.admin-feedback-status-select-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-feedback-status-select-wrap .label {
+  color: rgba(148, 163, 184, 0.95);
+}
+
+.admin-feedback-status-select {
+  font-size: 11px;
+  border-radius: 999px;
+  padding: 2px 8px;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(51, 65, 85, 0.9);
+  color: #e5e7eb;
+}
+
+.admin-feedback-priority {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+}
+
+.admin-feedback-priority-high {
+  background: rgba(220, 38, 38, 0.18);
+  color: #fecaca;
+  border: 1px solid rgba(248, 113, 113, 0.9);
+}
+
+.admin-feedback-replies {
+  margin-top: 8px;
+  border-top: 1px solid rgba(30, 64, 175, 0.6);
+  padding-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.admin-feedback-reply {
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.85);
+  padding: 6px 8px;
+  font-size: 11px;
+}
+
+.admin-feedback-reply .reply-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.admin-feedback-reply .reply-author {
+  font-weight: 600;
+}
+
+.admin-feedback-reply .reply-time {
+  color: rgba(148, 163, 184, 0.9);
+}
+
+.admin-feedback-reply .reply-content {
+  color: #e5e7eb;
+}
+
+.admin-feedback-reply-editor {
+  margin-top: 8px;
+  display: flex;
+  gap: 6px;
+}
+
+.admin-feedback-reply-textarea {
+  flex: 1;
+  resize: vertical;
+  border-radius: 8px;
+  border: 1px solid rgba(51, 65, 85, 0.9);
+  background: rgba(15, 23, 42, 0.95);
+  color: #e5e7eb;
+  font-size: 12px;
+  padding: 4px 6px;
+}
+
+.admin-feedback-reply-button {
+  flex-shrink: 0;
+  border-radius: 999px;
+  border: none;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #f9fafb;
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+  box-shadow: 0 6px 14px rgba(16, 185, 129, 0.45);
+}
+
+/* 反馈列表 + 详情布局 */
+.admin-feedback-layout {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.5fr);
+  gap: 12px;
+}
+
+.admin-feedback-table {
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(51, 65, 85, 0.9);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.admin-feedback-table-header-row {
+  display: grid;
+  grid-template-columns: 60px 120px 120px minmax(0, 1fr) 110px;
+  align-items: center;
+  font-size: 12px;
+  color: rgba(209, 213, 219, 0.96);
+  padding: 4px 2px 6px;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.9);
+}
+
+.admin-feedback-table-header-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.admin-feedback-table-header-cell.sortable {
+  cursor: pointer;
+}
+
+.admin-feedback-table-header-cell.sortable:hover {
+  color: #e5e7eb;
+}
+
+.sort-arrow {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.admin-feedback-table-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 360px;
+  overflow: auto;
+}
+
+.admin-feedback-table-row {
+  display: grid;
+  grid-template-columns: 60px 120px 120px minmax(0, 1fr) 110px;
+  align-items: center;
+  padding: 6px 4px;
+  border-radius: 8px;
+  border: 1px solid rgba(30, 41, 59, 0.9);
+  background: rgba(15, 23, 42, 0.8);
+  color: #e5e7eb;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease-out;
+}
+
+.admin-feedback-table-row:hover {
+  border-color: rgba(96, 165, 250, 0.9);
+  background: rgba(30, 64, 175, 0.55);
+}
+
+.admin-feedback-table-row-active {
+  border-color: rgba(129, 140, 248, 1);
+  box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.6);
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(30, 64, 175, 0.95));
+}
+
+.admin-feedback-col.index {
+  font-variant-numeric: tabular-nums;
+  color: rgba(209, 213, 219, 0.96);
+}
+
+.admin-feedback-col.user {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-feedback-col.type {
+  font-size: 11px;
+  color: rgba(191, 219, 254, 0.96);
+}
+
+.admin-feedback-col.content {
+  font-size: 12px;
+  color: rgba(209, 213, 219, 0.96);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-feedback-col.status {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.admin-feedback-status-pill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+}
+
+.admin-feedback-status-pill.status-pending {
+  background: rgba(59, 130, 246, 0.18);
+  color: #bfdbfe;
+}
+
+.admin-feedback-status-pill.status-investigating {
+  background: rgba(234, 179, 8, 0.2);
+  color: #fef3c7;
+}
+
+.admin-feedback-status-pill.status-urgent {
+  background: rgba(220, 38, 38, 0.25);
+  color: #fecaca;
+}
+
+.admin-feedback-status-pill.status-later {
+  background: rgba(107, 114, 128, 0.35);
+  color: #e5e7eb;
+}
+
+.admin-feedback-status-pill.status-resolved {
+  background: rgba(16, 185, 129, 0.24);
+  color: #bbf7d0;
+}
+
+.admin-feedback-detail {
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid rgba(51, 65, 85, 0.9);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-feedback-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.admin-feedback-detail-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.admin-feedback-detail-subtitle {
+  margin-top: 2px;
+  font-size: 11px;
+  color: rgba(148, 163, 184, 0.96);
+}
+
+.admin-feedback-detail-url {
+  color: rgba(129, 140, 248, 0.96);
+}
+
+.admin-feedback-detail-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.admin-feedback-detail-status .label {
+  color: rgba(148, 163, 184, 0.96);
+}
+
+.admin-feedback-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 2px;
+}
+
+.admin-feedback-detail-content {
+  margin-top: 4px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(51, 65, 85, 0.9);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .admin-placeholder {
   margin-top: 4px;
   font-size: 13px;

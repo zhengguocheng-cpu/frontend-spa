@@ -379,13 +379,19 @@
 
 .result-score.win {
   color: #ffffff; /* +分统一使用亮橙金色气泡 */
-  background: linear-gradient(135deg, #f97316, #fdba74);
+  background: linear-gradient(135deg,
+    rgba(249, 115, 22, 0.92),
+    rgba(253, 186, 116, 0.82)
+  );
   box-shadow: 0 4px 10px rgba(248, 181, 85, 0.55);
 }
 
 .result-score.lose {
   color: #e5e7eb; /* -分统一使用蓝紫色气泡 */
-  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  background: linear-gradient(135deg,
+    rgba(124, 58, 237, 0.9),
+    rgba(168, 85, 247, 0.8)
+  );
   box-shadow: 0 4px 10px rgba(129, 140, 248, 0.45);
 }
 
@@ -470,7 +476,7 @@
   align-items: center;
   justify-content: center;
   flex-wrap: wrap; /* 允许换行，方便游戏结束时显示多张剩余手牌 */
-  max-width: 600px; /* 限制最大宽度，超过后自动换行 */
+  max-width: 600px; /* 默认最大宽度，remaining-cards 会在下面单独收紧 */
   gap: 0; /* 保持牌之间的重叠效果 */
   row-gap: 8px; /* 行与行之间的间距 */
   pointer-events: none;
@@ -527,6 +533,7 @@
   grid-auto-rows: auto;
   overflow: visible; /* 允许牌稍微溢出容器 */
   row-gap: 4px; /* 行间距 */
+  max-width: 240px; /* 每侧亮牌区域整体宽度锁在 10 张牌内，避免左右两家在中间连成一条 */
 }
 
 /* 左侧玩家剩余牌向左对齐 */
@@ -757,8 +764,8 @@
 /* 当前玩家信息 - 固定在桌面左下角（绝对定位），头像在上，金币在下 */
 .current-player-info {
   position: absolute; /* 相对于 .game-table 定位 */
-  left: 18px;
-  bottom: 20px; /* 再往下移动约 50px，更贴近桌边 */
+  left: 3px;   /* 整体再向左平移 15px，更贴近左下角 */
+  bottom: 10px; /* 整体再向下平移 10px，更贴近桌边 */
   display: flex;
   flex-direction: column; /* 垂直布局：头像在上，金币在下 */
   align-items: center;
@@ -1518,12 +1525,18 @@
 }
 
 .player-score-value.positive {
-  background: linear-gradient(135deg, #f97316, #fdba74);
+  background: linear-gradient(135deg,
+    rgba(249, 115, 22, 0.92),
+    rgba(253, 186, 116, 0.82)
+  );
   box-shadow: 0 4px 10px rgba(248, 181, 85, 0.55);
 }
 
 .player-score-value.negative {
-  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  background: linear-gradient(135deg,
+    rgba(124, 58, 237, 0.9),
+    rgba(168, 85, 247, 0.8)
+  );
   box-shadow: 0 4px 10px rgba(129, 140, 248, 0.45);
 }
 
@@ -1871,8 +1884,7 @@
     width: 100%;
   }
 
-  .player-level,
-  .player-coins {
+  .player-level {
     font-size: 16px;
     color: #ffffff;
     font-weight: 600;
@@ -1881,6 +1893,19 @@
     padding: 2px 6px;
     border-radius: 999px;
     background: rgba(0, 0, 0, 0.7);
+    letter-spacing: 0.4px;
+  }
+
+  /* 底部玩家金币与上方玩家保持一致：仅保留金色文字和金币圆形图标，不要整块黑色背景 */
+  .player-coins {
+    font-size: 13px;
+    color: #ffd700;
+    font-weight: 600;
+    white-space: nowrap;
+    text-align: center;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
     letter-spacing: 0.4px;
   }
 

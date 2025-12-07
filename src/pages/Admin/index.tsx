@@ -2,6 +2,13 @@ import { useState, useEffect } from 'react'
 import { Toast } from 'antd-mobile'
 import './style.css'
 
+interface FeedbackReply {
+  id: string
+  author: string
+  content: string
+  createdAt: string
+}
+
 interface FeedbackItem {
   id: string
   userName: string
@@ -16,8 +23,12 @@ interface FeedbackItem {
   }[]
   timestamp: string
   createdAt: string
+  updatedAt?: string
   userAgent?: string
   url?: string
+  status?: string
+  priority?: string
+  replies?: FeedbackReply[]
 }
 
 interface GameLogPlayerSummary {
@@ -53,6 +64,22 @@ const FEEDBACK_TYPE_LABELS: Record<string, string> = {
   other: '其他',
 }
 
+const FEEDBACK_STATUS_OPTIONS: { value: string; label: string }[] = [
+  { value: 'pending', label: '待排查' },
+  { value: 'investigating', label: '排查中' },
+  { value: 'urgent', label: '需紧急解决' },
+  { value: 'later', label: '后续优化' },
+  { value: 'resolved', label: '已解决' },
+]
+
+const FEEDBACK_STATUS_ORDER: Record<string, number> = {
+  urgent: 0,
+  pending: 1,
+  investigating: 2,
+  later: 3,
+  resolved: 4,
+}
+
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<'feedback' | 'settings' | 'games'>('feedback')
   const [loading, setLoading] = useState(false)
@@ -61,6 +88,11 @@ export default function AdminPage() {
   const [games, setGames] = useState<GameLogSummary[]>([])
   const [selectedGame, setSelectedGame] = useState<any | null>(null)
   const [gameDetailLoading, setGameDetailLoading] = useState(false)
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({})
+  const [selectedFeedbackId, setSelectedFeedbackId] = useState<string | null>(null)
+  const [feedbackSortKey, setFeedbackSortKey] = useState<'index' | 'user' | 'status' | 'type'>('status')
+  const [feedbackSortDir, setFeedbackSortDir] = useState<'asc' | 'desc'>('asc')
+  const [feedbackView, setFeedbackView] = useState<'list' | 'detail'>('list')
 
   useEffect(() => {
     if (activeTab === 'feedback') {
@@ -69,6 +101,17 @@ export default function AdminPage() {
       void fetchGameLogs()
     }
   }, [activeTab])
+
+  useEffect(() => {
+    if (activeTab !== 'feedback') return
+    if (!feedbackList.length) {
+      setSelectedFeedbackId(null)
+      return
+    }
+    if (!selectedFeedbackId || !feedbackList.some((f) => f.id === selectedFeedbackId)) {
+      setSelectedFeedbackId(feedbackList[0].id)
+    }
+  }, [activeTab, feedbackList, selectedFeedbackId])
 
   const fetchFeedbackList = async () => {
     try {
@@ -99,6 +142,130 @@ export default function AdminPage() {
     return window.location.hostname === 'localhost'
       ? 'http://localhost:3000'
       : window.location.origin
+  }
+
+  const handleOpenFeedbackDetail = (id: string) => {
+    setSelectedFeedbackId(id)
+    setFeedbackView('detail')
+  }
+
+  const handleBackToFeedbackList = () => {
+    setFeedbackView('list')
+  }
+
+  const handleFeedbackSortChange = (key: 'index' | 'user' | 'status' | 'type') => {
+    setFeedbackSortKey((prevKey) => {
+      if (prevKey === key) {
+        setFeedbackSortDir((prevDir) => (prevDir === 'asc' ? 'desc' : 'asc'))
+        return prevKey
+      }
+      setFeedbackSortDir('asc')
+      return key
+    })
+  }
+
+  const getSortArrow = (key: 'index' | 'user' | 'status' | 'type') => {
+    if (feedbackSortKey !== key) return ''
+    return feedbackSortDir === 'asc' ? '↑' : '↓'
+  }
+
+  const getSortedFeedbacks = () => {
+    const list = [...feedbackList]
+    list.sort((a, b) => {
+      let diff = 0
+
+      if (feedbackSortKey === 'status') {
+        const sa = FEEDBACK_STATUS_ORDER[a.status || 'pending'] ?? 99
+        const sb = FEEDBACK_STATUS_ORDER[b.status || 'pending'] ?? 99
+        diff = sa - sb
+        if (diff !== 0) {
+          return feedbackSortDir === 'asc' ? diff : -diff
+        }
+        const ta = new Date(a.timestamp || a.createdAt).getTime() || 0
+        const tb = new Date(b.timestamp || b.createdAt).getTime() || 0
+        const timeDiff = tb - ta // 同一状态内，默认按时间倒序
+        return feedbackSortDir === 'asc' ? -timeDiff : timeDiff
+      }
+
+      if (feedbackSortKey === 'index') {
+        const ta = new Date(a.timestamp || a.createdAt).getTime() || 0
+        const tb = new Date(b.timestamp || b.createdAt).getTime() || 0
+        diff = ta - tb
+      } else if (feedbackSortKey === 'user') {
+        const na = a.userName || ''
+        const nb = b.userName || ''
+        diff = na.localeCompare(nb, 'zh-CN')
+      } else if (feedbackSortKey === 'type') {
+        const ta = FEEDBACK_TYPE_LABELS[a.feedbackType] || a.feedbackType || ''
+        const tb = FEEDBACK_TYPE_LABELS[b.feedbackType] || b.feedbackType || ''
+        diff = ta.localeCompare(tb, 'zh-CN')
+      }
+
+      if (diff === 0) return 0
+      return feedbackSortDir === 'asc' ? diff : -diff
+    })
+    return list
+  }
+
+  const getStatusLabel = (status?: string) => {
+    const found = FEEDBACK_STATUS_OPTIONS.find((opt) => opt.value === status)
+    return found ? found.label : '待排查'
+  }
+
+  const getContentPreview = (text: string) => {
+    if (!text) return ''
+    const firstLine = text.split(/\r?\n/)[0].trim()
+    if (firstLine.length <= 20) return firstLine
+    return `${firstLine.slice(0, 20)}…`
+  }
+
+  const handleUpdateFeedbackStatus = async (id: string, status: string) => {
+    try {
+      const baseUrl = buildBaseUrl()
+      const res = await fetch(`${baseUrl}/api/feedback/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.message || `更新状态失败（${res.status}）`)
+      }
+
+      const updated: FeedbackItem = json.feedback
+      setFeedbackList((prev) => prev.map((f) => (f.id === id ? { ...f, ...updated } : f)))
+    } catch (err: any) {
+      console.error('更新反馈状态失败:', err)
+      Toast.show({ content: err?.message || '更新状态失败', icon: 'fail' })
+    }
+  }
+
+  const handleSubmitReply = async (id: string) => {
+    const content = (replyDrafts[id] || '').trim()
+    if (!content) {
+      Toast.show({ content: '请输入回复内容', icon: 'info' })
+      return
+    }
+
+    try {
+      const baseUrl = buildBaseUrl()
+      const res = await fetch(`${baseUrl}/api/feedback/${encodeURIComponent(id)}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, author: '管理员' }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.message || `回复失败（${res.status}）`)
+      }
+
+      const updated: FeedbackItem = json.feedback
+      setFeedbackList((prev) => prev.map((f) => (f.id === id ? { ...f, ...updated } : f)))
+      setReplyDrafts((prev) => ({ ...prev, [id]: '' }))
+    } catch (err: any) {
+      console.error('提交回复失败:', err)
+      Toast.show({ content: err?.message || '回复失败', icon: 'fail' })
+    }
   }
 
   const formatTime = (value?: string) => {
@@ -189,62 +356,199 @@ export default function AdminPage() {
   }
 
   const renderFeedbackTab = () => {
+    const sorted = getSortedFeedbacks()
+    const selected =
+      (selectedFeedbackId && sorted.find((f) => f.id === selectedFeedbackId)) || null
+
     return (
       <div className="admin-section">
         <div className="admin-section-header">
           <h2 className="admin-section-title">用户反馈</h2>
-          <button
-            type="button"
-            className="admin-refresh-button"
-            onClick={() => fetchFeedbackList()}
-            disabled={loading}
-          >
-            {loading ? '加载中...' : '刷新'}
-          </button>
+          <div className="admin-feedback-header-actions">
+            {feedbackView === 'detail' && (
+              <button
+                type="button"
+                className="admin-refresh-button"
+                onClick={handleBackToFeedbackList}
+              >
+                返回列表
+              </button>
+            )}
+            <button
+              type="button"
+              className="admin-refresh-button"
+              onClick={() => fetchFeedbackList()}
+              disabled={loading}
+            >
+              {loading ? '加载中...' : '刷新'}
+            </button>
+          </div>
         </div>
 
-        {feedbackList.length === 0 ? (
+        {sorted.length === 0 ? (
           <div className="admin-empty">暂无反馈记录</div>
+        ) : feedbackView === 'list' ? (
+          <div className="admin-feedback-table">
+            <div className="admin-feedback-table-header-row">
+              <div
+                className="admin-feedback-table-header-cell sortable"
+                onClick={() => handleFeedbackSortChange('index')}
+              >
+                <span>序号</span>
+                <span className="sort-arrow">{getSortArrow('index')}</span>
+              </div>
+              <div
+                className="admin-feedback-table-header-cell sortable"
+                onClick={() => handleFeedbackSortChange('user')}
+              >
+                <span>玩家</span>
+                <span className="sort-arrow">{getSortArrow('user')}</span>
+              </div>
+              <div
+                className="admin-feedback-table-header-cell sortable"
+                onClick={() => handleFeedbackSortChange('type')}
+              >
+                <span>标题</span>
+                <span className="sort-arrow">{getSortArrow('type')}</span>
+              </div>
+              <div className="admin-feedback-table-header-cell">反馈内容</div>
+              <div
+                className="admin-feedback-table-header-cell sortable"
+                onClick={() => handleFeedbackSortChange('status')}
+              >
+                <span>处理状态</span>
+                <span className="sort-arrow">{getSortArrow('status')}</span>
+              </div>
+            </div>
+
+            <div className="admin-feedback-table-body">
+              {sorted.map((item, index) => {
+                const isActive = selected && selected.id === item.id
+                const statusLabel = getStatusLabel(item.status)
+                const preview = getContentPreview(item.feedbackContent)
+                const typeLabel =
+                  FEEDBACK_TYPE_LABELS[item.feedbackType] || item.feedbackType || '其他'
+
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={
+                      'admin-feedback-table-row' +
+                      (isActive ? ' admin-feedback-table-row-active' : '')
+                    }
+                    onClick={() => handleOpenFeedbackDetail(item.id)}
+                  >
+                    <div className="admin-feedback-col index">{index + 1}</div>
+                    <div className="admin-feedback-col user">{item.userName || '匿名用户'}</div>
+                    <div className="admin-feedback-col type">{typeLabel}</div>
+                    <div className="admin-feedback-col content">{preview}</div>
+                    <div className="admin-feedback-col status">
+                      <span
+                        className={
+                          'admin-feedback-status-pill status-' + (item.status || 'pending')
+                        }
+                      >
+                        {statusLabel}
+                      </span>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
         ) : (
-          <div className="admin-feedback-list">
-            {feedbackList.map((item) => (
-              <div key={item.id} className="admin-feedback-item">
-                <div className="admin-feedback-header-row">
-                  <div className="admin-feedback-user">
-                    <span className="admin-feedback-user-name">{item.userName || '匿名用户'}</span>
-                    <span className={`admin-feedback-type admin-feedback-type-${item.feedbackType || 'other'}`}>
-                      {FEEDBACK_TYPE_LABELS[item.feedbackType] || item.feedbackType || '其他'}
-                    </span>
+          <div className="admin-feedback-detail">
+            {!selected ? (
+              <div className="admin-empty">未找到该反馈记录。</div>
+            ) : (
+              <>
+                <div className="admin-feedback-detail-header">
+                  <div>
+                    <div className="admin-feedback-detail-title">
+                      {selected.userName || '匿名用户'}
+                    </div>
+                    <div className="admin-feedback-detail-subtitle">
+                      {formatTime(selected.timestamp || selected.createdAt)}
+                      {selected.url && (
+                        <span className="admin-feedback-detail-url">
+                          {' '}
+                          · {selected.url}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="admin-feedback-time">
-                    {item.timestamp || item.createdAt}
+                  <div className="admin-feedback-detail-status">
+                    <span className="label">处理状态</span>
+                    <select
+                      className="admin-feedback-status-select"
+                      value={selected.status || 'pending'}
+                      onChange={(e) =>
+                        handleUpdateFeedbackStatus(selected.id, e.target.value)
+                      }
+                    >
+                      {FEEDBACK_STATUS_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
-                <div className="admin-feedback-content">{item.feedbackContent}</div>
-
-                <div className="admin-feedback-meta">
-                  {item.contact && (
+                <div className="admin-feedback-detail-meta">
+                  {selected.contact && (
                     <div className="admin-feedback-meta-item">
                       <span className="label">联系方式</span>
-                      <span className="value">{item.contact}</span>
+                      <span className="value">{selected.contact}</span>
                     </div>
                   )}
-                  {item.url && (
+                  {selected.userAgent && (
                     <div className="admin-feedback-meta-item">
-                      <span className="label">页面</span>
-                      <span className="value">{item.url}</span>
-                    </div>
-                  )}
-                  {Array.isArray(item.screenshots) && item.screenshots.length > 0 && (
-                    <div className="admin-feedback-meta-item">
-                      <span className="label">截图</span>
-                      <span className="value">{item.screenshots.length} 张（文件名保存在后端）</span>
+                      <span className="label">设备</span>
+                      <span className="value">{selected.userAgent}</span>
                     </div>
                   )}
                 </div>
-              </div>
-            ))}
+
+                <div className="admin-feedback-detail-content">
+                  {selected.feedbackContent}
+                </div>
+
+                {Array.isArray(selected.replies) && selected.replies.length > 0 && (
+                  <div className="admin-feedback-replies">
+                    {selected.replies.map((reply) => (
+                      <div key={reply.id} className="admin-feedback-reply">
+                        <div className="reply-header">
+                          <span className="reply-author">{reply.author || '管理员'}</span>
+                          <span className="reply-time">{formatTime(reply.createdAt)}</span>
+                        </div>
+                        <div className="reply-content">{reply.content}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="admin-feedback-reply-editor">
+                  <textarea
+                    className="admin-feedback-reply-textarea"
+                    rows={2}
+                    placeholder="回复用户反馈，记录处理进度..."
+                    value={replyDrafts[selected.id] || ''}
+                    onChange={(e) =>
+                      setReplyDrafts((prev) => ({ ...prev, [selected.id]: e.target.value }))
+                    }
+                  />
+                  <button
+                    type="button"
+                    className="admin-feedback-reply-button"
+                    onClick={() => handleSubmitReply(selected.id)}
+                  >
+                    回复
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

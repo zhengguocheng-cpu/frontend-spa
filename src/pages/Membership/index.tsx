@@ -1,7 +1,10 @@
 import { useEffect, useState, useMemo } from 'react'
 import { Toast } from 'antd-mobile'
 import { useAuth } from '@/context/AuthContext'
+import SidebarUserCard from '@/components/SidebarUserCard'
 import { formatScore } from '@/utils/scoreFormatter'
+import '@/styles/avatars.css'
+import '../Profile/style.css'
 import './style.css'
 
 interface RechargeOption {
@@ -115,79 +118,76 @@ export default function Membership() {
   return (
     <div className="membership-page">
       <div className="membership-container">
-        {/* 左侧：用户信息 + 会员等级缩略 */}
+        {/* 左侧：通用用户信息卡片 */}
         <aside className="membership-sidebar">
           <h1 className="membership-title">👑 会员中心</h1>
+          <SidebarUserCard />
 
-          <div className="membership-user">
-            <div className="membership-username">{user.name}</div>
-            <div className="membership-userid">ID: {user.id}</div>
-          </div>
-
-          <div className="membership-level-card">
-            <div className="level-label">当前会员等级</div>
-            <div className="level-main">
-              <span className="level-tag">{currentLevel.name}</span>
-            </div>
-            <div className="level-progress-text">
-              {nextLevel && needForNext != null
-                ? `再获得 ${formatScore(needForNext)} 金币即可升级为 ${nextLevel.name}`
-                : '已是最高等级'}
-            </div>
-            <div className="level-badges">
-              {LEVELS.map((lvl) => (
-                <div
-                  key={lvl.id}
-                  className={`level-badge ${lvl.id === currentLevel.id ? 'active' : ''}`}
-                >
-                  <span className="level-badge-id">{lvl.name}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="membership-rules">
-            <div className="rules-title">会员积分规则</div>
-            <ul className="rules-list">
-              <li>1. 每 1 金币计 1 积分，用于计算会员等级，仅作展示，不影响真实钱包。</li>
-              <li>2. 参与对局赢得的金币将累积到总积分中，输掉的金币会相应扣减。</li>
-              <li>3. 充值获得的金币同样计入会员积分，提升会员等级更快。</li>
-              <li>4. 后续可根据会员等级解锁头像框、特效等装饰（预留）。</li>
-            </ul>
-          </div>
-        </aside>
-
-        {/* 右侧：Tab 切换区 */}
-        <main className="membership-main">
-          <div className="membership-tabs">
+          {/* 左侧导航：等级 / 充值 / 积分，与个人资料页风格保持一致 */}
+          <div className="membership-nav-menu">
             <button
               type="button"
-              className={`membership-tab ${activeTab === 'level' ? 'active' : ''}`}
+              className={
+                'membership-nav-item' + (activeTab === 'level' ? ' active' : '')
+              }
               onClick={() => setActiveTab('level')}
             >
+              <span className="membership-nav-icon">📊</span>
               等级
             </button>
             <button
               type="button"
-              className={`membership-tab ${activeTab === 'recharge' ? 'active' : ''}`}
+              className={
+                'membership-nav-item' + (activeTab === 'recharge' ? ' active' : '')
+              }
               onClick={() => setActiveTab('recharge')}
             >
+              <span className="membership-nav-icon">💰</span>
               充值
             </button>
             <button
               type="button"
-              className={`membership-tab ${activeTab === 'score' ? 'active' : ''}`}
+              className={
+                'membership-nav-item' + (activeTab === 'score' ? ' active' : '')
+              }
               onClick={() => setActiveTab('score')}
             >
+              <span className="membership-nav-icon">📈</span>
               积分
             </button>
           </div>
+        </aside>
 
+        {/* 右侧：Tab 内容区 */}
+        <main className="membership-main">
           {activeTab === 'level' && (
             <>
               <div className="membership-balance-panel">
                 <div className="balance-label">当前金币</div>
                 <div className="balance-value">{displayScore}</div>
+              </div>
+
+              {/* 等级 Tab 内展示当前会员等级卡片 */}
+              <div className="membership-level-card">
+                <div className="level-label">当前会员等级</div>
+                <div className="level-main">
+                  <span className="level-tag">{currentLevel.name}</span>
+                </div>
+                <div className="level-progress-text">
+                  {nextLevel && needForNext != null
+                    ? `再获得 ${formatScore(needForNext)} 金币即可升级为 ${nextLevel.name}`
+                    : '已是最高等级'}
+                </div>
+                <div className="level-badges">
+                  {LEVELS.map((lvl) => (
+                    <div
+                      key={lvl.id}
+                      className={`level-badge ${lvl.id === currentLevel.id ? 'active' : ''}`}
+                    >
+                      <span className="level-badge-id">{lvl.name}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <div className="membership-section-header">
