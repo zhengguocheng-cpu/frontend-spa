@@ -2620,7 +2620,7 @@ useEffect(() => {
           lastPlayedCards.playerId === currentPlayer.id &&
           lastPlayedCards.cards &&
           lastPlayedCards.cards.length > 0 && (
-            <div className="played-cards-container">
+            <div className="played-cards-container bottom-player-played">
               {lastPlayedCards.cards.map((cardStr: string, index: number) => {
                 const { rank, suit, isJoker } = parseCard(cardStr)
                 const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'

@@ -703,6 +703,16 @@
   z-index: 50;
 }
 
+/* 底部玩家最近一手出牌容器：固定在桌面中下方，避免跟顶部 top-players 的 flex 布局混在一起 */
+.played-cards-container.bottom-player-played {
+  position: absolute;
+  left: 50%;
+  bottom: 210px; /* 略高于 .bottom-played-area，位于手牌上方的出牌区 */
+  transform: translateX(-50%);
+  z-index: 40; /* 高于桌面背景，低于操作按钮 */
+  justify-content: center;
+}
+
 /* 底部玩家倒计时 - 在头像右边 */
 .bottom-player-timer {
   width: 36px;
