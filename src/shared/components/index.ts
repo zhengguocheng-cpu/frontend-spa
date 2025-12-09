@@ -5,3 +5,6 @@
 
 export { ChatPanel } from './ChatPanel'
 export type { ChatPanelProps } from './ChatPanel'
+
+export { PlayerArea } from './PlayerArea'
+export type { PlayerAreaProps } from './PlayerArea'

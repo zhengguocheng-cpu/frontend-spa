@@ -224,7 +224,8 @@ src/types/game/
 3. ✅ **Redux Action 参数**: 补充了 playerName 等必需字段
 
 ### 当前成果
-已提取的核心模块：
+
+#### 核心 Hooks 模块
 ```
 src/pages/GameRoom/hooks/
 ├── useGameSocket.ts     (427 行) - Socket 事件管理
@@ -233,12 +234,37 @@ src/pages/GameRoom/hooks/
 └── index.ts             (8 行)   - 统一导出
 ```
 
-总计：**~860 行代码从 GameRoom/index.tsx (3157行) 中提取出来**
+#### 共享 UI 组件（可跨游戏复用）
+```
+src/shared/components/
+├── ChatPanel/
+│   ├── index.tsx        (90 行)  - 聊天面板
+│   └── style.css        (165 行)
+├── PlayerArea/
+│   ├── index.tsx        (135 行) - 玩家信息区
+│   └── style.css        (284 行)
+└── index.ts             (11 行)  - 统一导出
+```
+
+#### 斗地主特定组件
+```
+src/games/doudizhu/components/
+├── BiddingControls/
+│   ├── index.tsx        (44 行)  - 抢地主控制
+│   └── style.css        (141 行)
+└── index.ts             (6 行)   - 统一导出
+```
+
+**总计：已提取约 1300+ 行代码**
+
+### Phase 3 完成情况 ✅
+- ✅ ChatPanel - 聊天面板（共享）
+- ✅ PlayerArea - 玩家信息区（共享）
+- ✅ BiddingControls - 抢地主控制（斗地主特定）
 
 ### 下一步计划
-1. ✅ Phase 3: 开始拆分 UI 组件
-   - 创建共享组件（PlayerArea, ChatPanel）
-   - 创建斗地主特定组件（BiddingControls, LandlordIndicator）
-2. Phase 4: 简化 GameRoom/index.tsx 主文件
+1. Phase 4: 简化 GameRoom/index.tsx 主文件
    - 使用新的 Hooks 替换原有逻辑
-   - 目标：主文件缩减到 < 500 行
+   - 使用新组件替换内联 JSX
+   - 目标：主文件缩减到 < 500 行（当前3157行）
+2. Phase 5: 测试重构后的功能完整性

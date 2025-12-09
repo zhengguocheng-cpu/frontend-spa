@@ -1,0 +1,138 @@
+/**
+ * BiddingControls 样式
+ * 斗地主抢地主控制组件
+ */
+
+.bidding-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  animation: fade-in-scale 0.3s ease;
+}
+
+@keyframes fade-in-scale {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 倒计时圆圈 */
+.bidding-timer {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff8787 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  font-weight: bold;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: 
+    0 4px 12px rgba(255, 107, 107, 0.5),
+    0 0 0 4px rgba(255, 255, 255, 0.2);
+  animation: timer-pulse 1s ease-in-out infinite;
+  position: relative;
+  z-index: 30;
+}
+
+@keyframes timer-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 
+      0 6px 16px rgba(255, 107, 107, 0.6),
+      0 0 0 6px rgba(255, 255, 255, 0.3);
+  }
+}
+
+/* 按钮容器 */
+.bidding-buttons {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  z-index: 25;
+}
+
+.bidding-btn {
+  min-width: 96px;
+  white-space: nowrap;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.bidding-btn:active {
+  transform: scale(0.95);
+}
+
+.bidding-btn-yes {
+  background: linear-gradient(135deg, #ff9500 0%, #ffb347 100%);
+  color: white;
+}
+
+.bidding-btn-no {
+  background: linear-gradient(135deg, #6c757d 0%, #8d9499 100%);
+  color: white;
+}
+
+/* 移动端适配 */
+@media (max-width: 767px) {
+  .bidding-actions {
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .bidding-timer {
+    width: 70px;
+    height: 70px;
+    font-size: 32px;
+  }
+
+  .bidding-buttons {
+    gap: 12px;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .bidding-btn {
+    width: 100%;
+    max-width: 200px;
+  }
+}
+
+/* Meta50 手机特殊适配 */
+@media (max-width: 380px) {
+  .bidding-actions {
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .bidding-timer {
+    width: 60px;
+    height: 60px;
+    font-size: 28px;
+  }
+
+  .bidding-buttons {
+    gap: 8px;
+  }
+
+  .bidding-btn {
+    min-width: 80px;
+    font-size: 14px;
+    padding: 8px 12px;
+  }
+}
