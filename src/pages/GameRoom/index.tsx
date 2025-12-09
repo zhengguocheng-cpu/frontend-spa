@@ -25,6 +25,7 @@ import {
 import { CardHintHelper } from '@/utils/cardHintHelper'
 import * as CardOps from './logic/cardOperations'
 import * as GameFlow from './logic/gameFlow'
+import { parseCard } from './utils'
 import { soundManager } from '@/utils/sound'
 import { getLlmSettings } from '@/utils/llmSettings'
 import { getGameSettings } from '@/utils/gameSettings'
@@ -422,50 +423,7 @@ export default function GameRoom() {
     return <span>{raw || '👤'}</span>
   }
 
-  // 解析卡牌：分离点数和花色，并处理大小王 / JOKER
-  const parseCard = (card: string) => {
-    // 大王：红色 JOKER
-    if (card === '大王' || card === '🃏大王' || card.includes('大王')) {
-      return { rank: 'JOKER', suit: '', isJoker: 'big' as const }
-    }
-    // 小王：黑色 JOKER
-    if (card === '小王' || card === '🃏小王' || card.includes('小王')) {
-      return { rank: 'JOKER', suit: '', isJoker: 'small' as const }
-    }
-    // 其他 JOKER 字样，默认按大王处理
-    if (card.includes('JOKER')) {
-      return { rank: 'JOKER', suit: '', isJoker: 'big' as const }
-    }
-    if (card.includes('joker')) {
-      return { rank: 'JOKER', suit: '', isJoker: 'small' as const }
-    }
-
-    // 普通牌：分离花色和点数
-    const suits = ['♠', '♥', '♦', '♣']
-    let suit = ''
-    let rank = card
-
-    for (const s of suits) {
-      if (card.includes(s)) {
-        suit = s
-        rank = card.replace(s, '')
-        break
-      }
-    }
-
-    const result = { rank, suit, isJoker: null as 'big' | 'small' | null }
-
-    const validRanks = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2', 'JOKER']
-    if (!validRanks.includes(result.rank)) {
-      console.warn('⚠️ [parseCard] 异常牌面', {
-        card,
-        rank: result.rank,
-        suit: result.suit,
-      })
-    }
-
-    return result
-  }
+  // parseCard 已提取到 utils
 
   const RANK_SPOKEN_MAP: Record<string, string> = {
     '3': '三',
