@@ -2022,40 +2022,7 @@ useEffect(() => {
     lastProcessedCardRef.current = null
   }
 
-  // 鍙戦€佽亰澶╂秷鎭?
-  const handleSendChat = () => {
-    const socket = globalSocket.getSocket()
-    if (!socket || !roomId || !user) return
-
-    if (chatMessage.trim()) {
-      socket.emit('send_message', {
-        roomId,
-        userId: user.id,
-        userName: user.name,
-        playerName: user.name,
-        message: chatMessage,
-      })
-      clearChatInput()
-    }
-  }
-
-  // 瑙傚療 gameStatus 鍙樺寲锛堣皟璇曠敤锛?
-  useEffect(() => {
-
-  }, [gameStatus])
-
-  // 瑙傚療 isMyTurn 鍙樺寲锛堣皟璇曠敤锛?
-  useEffect(() => {
-
-  }, [isMyTurn])
-
-  // 瑙傚療 players 鍒楄〃鍙樺寲锛堣皟璇曠敤锛?
-  useEffect(() => {
-
-    players.forEach((p: any) => {
-
-    })
-  }, [players])
+  // handleSendChat 已由ChatPanel组件内部处理
 
   // 鏍规嵁鎵嬬墝鏁伴噺鍜屽鍣ㄥ搴︼紝鍔ㄦ€佽绠楁墜鐗屼箣闂寸殑閲嶅彔
   useEffect(() => {
