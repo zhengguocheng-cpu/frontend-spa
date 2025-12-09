@@ -35,6 +35,9 @@ import { useGameUI, useGameTimer } from './hooks'
 // 导入共享组件
 import { ChatPanel } from '@/shared/components'
 
+// 导入游戏特定组件
+import { BiddingControls } from '@/games/doudizhu/components'
+
 import '@/styles/avatars.css'
 import './style.css'
 import './game.css'
@@ -2740,28 +2743,12 @@ useEffect(() => {
             </div>
           )}
 
-          {/* 抢地主 UI - 抢/不抢按钮 */}
-          {gameStatus === 'bidding' && showBiddingUI && (
-            <div className="bidding-actions" id="biddingActions">
-              <div className="bidding-timer" id="biddingTimer">{biddingTimer}</div>
-              <div className="bidding-buttons bidding-controls">
-                <Button 
-                  color="warning" 
-                  size="large"
-                  onClick={() => handleBid(true)}
-                >
-                  抢地主
-                </Button>
-                <Button 
-                  color="default" 
-                  size="large"
-                  onClick={() => handleBid(false)}
-                >
-                  不抢
-                </Button>
-              </div>
-            </div>
-          )}
+          {/* 抢地主 UI */}
+          <BiddingControls
+            visible={gameStatus === 'bidding' && showBiddingUI}
+            timer={biddingTimer}
+            onBid={handleBid}
+          />
 
           {/* 出牌操作区 */}
           {gameStatus === 'playing' && isMyTurn && (
