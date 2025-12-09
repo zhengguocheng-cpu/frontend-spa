@@ -141,9 +141,30 @@
 
 ## 🐛 已知问题检查
 
-根据之前的 lint 错误，重点检查：
+### ❌ Phase 4.2 重构后的已知问题
 
-### ❌ 可能的错误点
+#### 1. 抢地主 UI 布局变化 ⚠️ 
+
+**问题描述**：
+- 使用 BiddingControls 组件后，布局从**水平**变成了**垂直**
+- 定时器在上方，按钮在下方
+- "不抢"按钮可能被手牌遮挡
+
+**影响**：
+- 视觉效果与原版不一致
+- 用户体验略有下降
+
+**状态**：已发现，待修复
+
+**修复方案**：
+- 方案 A：修改 BiddingControls 样式，改回水平布局
+- 方案 B：调整手牌区域位置，避免遮挡
+
+---
+
+### ✅ 已修复的问题
+
+根据之前的 lint 错误，已全部修复：
 
 1. **setIsDealingAnimation is not defined** (Line 1016)
    - ✅ 已修复：改为 `startDealingAnimation()` / `stopDealingAnimation()`
@@ -164,6 +185,10 @@
 5. **setIsDragSelecting / setDragSelectMode is not defined**
    - ✅ 已修复：改为 `startDragSelect()` / `stopDragSelect()`
    - 测试：拖拽选牌
+
+6. **toggleChat is not defined**
+   - ✅ 已修复：添加到 useGameUI 解构列表
+   - 测试：聊天功能正常
 
 ---
 
