@@ -42,7 +42,6 @@ import { BiddingControls } from '@/games/doudizhu/components'
 
 // 瀵煎叆 GameRoom 瀛愮粍浠?
 import { SettlementPanel, GameActions, AiHintPanel, PlayerDisplay, BottomCards, HandCards } from './components'
-import type { AiHintRecord } from './components/AiHintPanel'
 
 import '@/styles/avatars.css'
 import './style.css'
@@ -426,20 +425,20 @@ export default function GameRoom() {
   // parseCard 宸叉彁鍙栧埌 utils
 
   const RANK_SPOKEN_MAP: Record<string, string> = {
-    '3': '涓?,
-    '4': '鍥?,
-    '5': '浜?,
-    '6': '鍏?,
-    '7': '涓?,
-    '8': '鍏?,
-    '9': '涔?,
-    '10': '鍗?,
+    '3': '三',
+    '4': '四',
+    '5': '五',
+    '6': '六',
+    '7': '七',
+    '8': '八',
+    '9': '九',
+    '10': '十',
     J: 'J',
     Q: 'Q',
     K: 'K',
     A: 'A',
-    '2': '浜?,
-    JOKER: '鐜?,
+    '2': '二',
+    JOKER: '王',
   }
 
   const getSpokenRankFromRank = (rank: string | null | undefined): string => {
@@ -2174,8 +2173,6 @@ useEffect(() => {
     }
   }, [gameStatus, gameState.gameResult, dispatch])
 
-// ...
-
   return (
     <div className="game-room-container">
       {/* 鏁翠釜娓告垙妗岄潰鍖哄煙 */}
@@ -2439,6 +2436,7 @@ useEffect(() => {
           </button>
         </div>
       )}
+      </div>
 
       {/* 缁撶畻闈㈡澘 */}
       <SettlementPanel
