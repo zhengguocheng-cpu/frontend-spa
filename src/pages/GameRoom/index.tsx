@@ -66,6 +66,7 @@ export default function GameRoom() {
     chatVisible,
     chatMessage,
     chatMessages,
+    toggleChat,
     updateChatInput,
     clearChatInput,
     addChatMessage,
