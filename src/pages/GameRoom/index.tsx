@@ -42,6 +42,7 @@ import { BiddingControls } from '@/games/doudizhu/components'
 
 // 瀵煎叆 GameRoom 瀛愮粍浠?
 import { SettlementPanel, GameActions, AiHintPanel, PlayerDisplay, BottomCards, HandCards } from './components'
+import type { AiHintRecord } from './components/AiHintPanel'
 
 import '@/styles/avatars.css'
 import './style.css'
@@ -425,20 +426,20 @@ export default function GameRoom() {
   // parseCard 宸叉彁鍙栧埌 utils
 
   const RANK_SPOKEN_MAP: Record<string, string> = {
-    '3': '三',
-    '4': '四',
-    '5': '五',
-    '6': '六',
-    '7': '七',
-    '8': '八',
-    '9': '九',
-    '10': '十',
+    '3': '涓?,
+    '4': '鍥?,
+    '5': '浜?,
+    '6': '鍏?,
+    '7': '涓?,
+    '8': '鍏?,
+    '9': '涔?,
+    '10': '鍗?,
     J: 'J',
     Q: 'Q',
     K: 'K',
     A: 'A',
-    '2': '二',
-    JOKER: '王',
+    '2': '浜?,
+    JOKER: '鐜?,
   }
 
   const getSpokenRankFromRank = (rank: string | null | undefined): string => {
@@ -2021,7 +2022,40 @@ useEffect(() => {
     lastProcessedCardRef.current = null
   }
 
-  // handleSendChat 已由ChatPanel组件内部处理
+  // 鍙戦€佽亰澶╂秷鎭?
+  const handleSendChat = () => {
+    const socket = globalSocket.getSocket()
+    if (!socket || !roomId || !user) return
+
+    if (chatMessage.trim()) {
+      socket.emit('send_message', {
+        roomId,
+        userId: user.id,
+        userName: user.name,
+        playerName: user.name,
+        message: chatMessage,
+      })
+      clearChatInput()
+    }
+  }
+
+  // 瑙傚療 gameStatus 鍙樺寲锛堣皟璇曠敤锛?
+  useEffect(() => {
+
+  }, [gameStatus])
+
+  // 瑙傚療 isMyTurn 鍙樺寲锛堣皟璇曠敤锛?
+  useEffect(() => {
+
+  }, [isMyTurn])
+
+  // 瑙傚療 players 鍒楄〃鍙樺寲锛堣皟璇曠敤锛?
+  useEffect(() => {
+
+    players.forEach((p: any) => {
+
+    })
+  }, [players])
 
   // 鏍规嵁鎵嬬墝鏁伴噺鍜屽鍣ㄥ搴︼紝鍔ㄦ€佽绠楁墜鐗屼箣闂寸殑閲嶅彔
   useEffect(() => {
@@ -2172,6 +2206,8 @@ useEffect(() => {
       }
     }
   }, [gameStatus, gameState.gameResult, dispatch])
+
+// ...
 
   return (
     <div className="game-room-container">
@@ -2436,7 +2472,6 @@ useEffect(() => {
           </button>
         </div>
       )}
-      </div>
 
       {/* 缁撶畻闈㈡澘 */}
       <SettlementPanel
