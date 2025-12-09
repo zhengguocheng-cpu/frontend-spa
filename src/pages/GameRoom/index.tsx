@@ -23,6 +23,8 @@ import {
   type SettlementPlayerScore,
 } from '@/store/slices/gameSlice'
 import { CardHintHelper } from '@/utils/cardHintHelper'
+import * as CardOps from './logic/cardOperations'
+import * as GameFlow from './logic/gameFlow'
 import { soundManager } from '@/utils/sound'
 import { getLlmSettings } from '@/utils/llmSettings'
 import { getGameSettings } from '@/utils/gameSettings'
@@ -1762,19 +1764,8 @@ useEffect(() => {
 
   // 实际发送出牌请求到服务器
   const doPlayCards = (cardsToPlay: string[]) => {
-    const socket = globalSocket.getSocket()
-    if (!socket || !roomId || !user) {
-      appendSystemMessage('无法连接服务器，无法出牌')
-      return
-    }
-
-    if (cardsToPlay.length === 0) {
-      appendSystemMessage('请选择要出的牌')
-      return
-    }
-
-    if (!isMyTurn) {
-      appendSystemMessage('还没轮到你出牌')
+    if (!roomId || !user || !isMyTurn) {
+      appendSystemMessage(isMyTurn ? '无法连接服务器' : '还没轮到你出牌')
       return
     }
 
@@ -1783,22 +1774,26 @@ useEffect(() => {
       return
     }
 
-    console.log('发送出牌请求:', cardsToPlay)
-
     playPendingRef.current = true
     setPlayPending(true)
 
-    // 发送出牌请求
-    socket.emit('play_cards', {
+    CardOps.playCards({
       roomId,
-      userId: user.id || user.name,
       cards: cardsToPlay,
+      socket: globalSocket.getSocket(),
+      onSuccess: () => {
+        playPendingRef.current = false
+        setPlayPending(false)
+      },
+      onError: (msg) => {
+        appendSystemMessage(msg)
+        playPendingRef.current = false
+        setPlayPending(false)
+      }
     })
 
-    // 超时兜底：3 秒后仍未收到结果则重置 pending 状态
     setTimeout(() => {
       if (playPendingRef.current) {
-        console.warn('出牌超时，重置出牌状态')
         playPendingRef.current = false
         setPlayPending(false)
       }
@@ -1857,31 +1852,22 @@ useEffect(() => {
 
   // 处理抢/不抢按钮点击（bid = true 或 false）
   const handleBid = (bid: boolean) => {
-    const socket = globalSocket.getSocket()
-    if (!socket || !roomId || !user) {
-      appendSystemMessage('无法连接服务器，无法执行抢/不抢')
-      return
-    }
+    if (!roomId || !user) return
 
-    // 停止本地抢地主倒计时
     stopBiddingTimer()
     closeBiddingUI()
 
-    // 如果选择抢，则播放抢地主音效
-    if (bid) {
-      soundManager.playBid()
-    }
+    if (bid) soundManager.playBid()
 
-    // 发送抢地主决策到服务端
-    socket.emit('bid', {
+    GameFlow.bidLandlord({
       roomId,
-      userId: user.id || user.name,
-      bid: bid, // true = 抢, false = 不抢
+      bid,
+      socket: globalSocket.getSocket(),
+      onSuccess: () => {
+        appendSystemMessage(`你选择了：${bid ? '抢地主' : '不抢'}`)
+      },
+      onError: (msg) => appendSystemMessage(msg)
     })
-
-    // 提示抢/不抢结果
-    const bidText = bid ? '抢地主' : '不抢'
-    appendSystemMessage(`你选择了：${bidText}`)
   }
 
   // 出牌提示入口：优先用本地算法，如果开启了 LLM 再走服务端提示
