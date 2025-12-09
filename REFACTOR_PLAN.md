@@ -262,9 +262,22 @@ src/games/doudizhu/components/
 - ✅ PlayerArea - 玩家信息区（共享）
 - ✅ BiddingControls - 抢地主控制（斗地主特定）
 
-### 下一步计划
-1. Phase 4: 简化 GameRoom/index.tsx 主文件
-   - 使用新的 Hooks 替换原有逻辑
-   - 使用新组件替换内联 JSX
-   - 目标：主文件缩减到 < 500 行（当前3157行）
-2. Phase 5: 测试重构后的功能完整性
+### Phase 4: 主文件重构（进行中）🔄
+- ✅ Phase 4.1: 创建重构框架和策略文档
+  - 备份原始文件 `index.backup.tsx`
+  - 创建框架版本 `index.refactored.tsx` (400行)
+  - 编写 `REFACTORING_PROGRESS.md` 策略文档
+- ⏸️ Phase 4.2+: 渐进式重构（暂停，待后续继续）
+  - 步骤 1-4: 低风险替换（ChatPanel, 定时器等）
+  - 步骤 5-6: 中高风险替换（Socket 事件, PlayerArea）
+
+### 暂停原因
+框架版本 `index.refactored.tsx` 仅为示例，缺少完整功能（手牌、出牌逻辑等）。
+为避免引入风险，决定暂停 Phase 4，将已完成模块（Hooks + 组件）作为阶段性成果。
+
+### 下一步计划（后续会话）
+1. **选项A**：完善 `index.refactored.tsx` 为完整可运行版本，测试后替换
+2. **选项B**：采用渐进式重构，在原文件上逐步应用新模块
+3. **选项C**：先在新游戏（如掼蛋）中使用新架构，验证后再改斗地主
+
+**推荐**：选项 B（渐进式），每次改动可测试，风险最低
