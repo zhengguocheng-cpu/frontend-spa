@@ -28,6 +28,10 @@ import { soundManager } from '@/utils/sound'
 import { getLlmSettings } from '@/utils/llmSettings'
 import { getGameSettings } from '@/utils/gameSettings'
 import { motion, AnimatePresence } from 'framer-motion'
+
+// 导入新的 Hooks
+import { useGameUI } from './hooks'
+
 import '@/styles/avatars.css'
 import './style.css'
 import './game.css'
@@ -55,29 +59,55 @@ export default function GameRoom() {
   // 监听 Socket 连接状态，用于控制 UI 和调试流程
   const { connected } = useSocketStatus()
 
-  // Local state
-  const [chatVisible, setChatVisible] = useState(false)
-  const [chatMessage, setChatMessage] = useState('')
-  const [chatMessages, setChatMessages] = useState<Array<{ sender: string; message: string }>>([])
-  const [showSettlement, setShowSettlement] = useState(false)
-  // const [showDealingAnimation, setShowDealingAnimation] = useState(false)
+  // ==================== 使用新的 useGameUI Hook ====================
+  const gameUI = useGameUI()
+  const {
+    // 聊天相关
+    chatVisible,
+    chatMessage,
+    chatMessages,
+    updateChatInput,
+    clearChatInput,
+    addChatMessage,
+    
+    // 结算和抢地主
+    showSettlement,
+    openSettlement,
+    closeSettlement,
+    showBiddingUI,
+    openBiddingUI,
+    closeBiddingUI,
+    
+    // 动画和交互
+    isDealingAnimation,
+    startDealingAnimation,
+    stopDealingAnimation,
+    playPending,
+    setPlayPending,
+    isDragSelecting,
+    dragSelectMode,
+    startDragSelect,
+    stopDragSelect,
+    
+    // 不出标记
+    passedPlayers,
+    markPlayerPassed,
+    clearPlayerPassed,
+    clearAllPassedPlayers,
+    
+    // 回合状态
+    isMyTurn,
+    canPass,
+    setTurnState,
+  } = gameUI
+
+  // 保留的定时器状态（下一步会用 useGameTimer 替换）
   const [biddingTimer, setBiddingTimer] = useState(0)
-  const [showBiddingUI, setShowBiddingUI] = useState(false)
   const biddingTimerRef = useRef<NodeJS.Timeout | null>(null)
-  
-  // 出牌轮次相关状态
-  const [isMyTurn, setIsMyTurn] = useState(false)
-  const [canPass, setCanPass] = useState(false)
   const [turnTimer, setTurnTimer] = useState(0)
   const turnTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const [isDealingAnimation, setIsDealingAnimation] = useState(false)
   const dealAnimationTimeoutRef = useRef<number | null>(null)
   const playPendingRef = useRef(false)
-  const [playPending, setPlayPending] = useState(false)
-  const [isDragSelecting, setIsDragSelecting] = useState(false)
-  // 记录每个玩家是否选择了“不出”
-  const [passedPlayers, setPassedPlayers] = useState<{[playerId: string]: boolean}>({})
-  const [dragSelectMode, setDragSelectMode] = useState<'select' | 'deselect' | null>(null)
   const [walletScore, setWalletScore] = useState<number | null>(null)
   const autoReadySentRef = useRef(false)
   const autoReadyTimerRef = useRef<number | null>(null)
@@ -122,7 +152,7 @@ export default function GameRoom() {
 
   const appendSystemMessage = (text: string) => {
     if (!text) return
-    setChatMessages((prev) => [...prev, { sender: '系统', message: text }])
+    addChatMessage('系统', text)
   }
 
   const formatTimeWithMs = (date: Date) => {
