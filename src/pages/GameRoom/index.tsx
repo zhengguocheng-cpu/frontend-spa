@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Button } from 'antd-mobile'
 import { useAuth } from '@/context/AuthContext'
 import { useAppDispatch, useAppSelector } from '@/hooks/useAppDispatch'
 import { useSocketStatus } from '@/hooks/useSocketStatus'
@@ -39,7 +38,7 @@ import { ChatPanel } from '@/shared/components'
 import { BiddingControls } from '@/games/doudizhu/components'
 
 // 导入 GameRoom 子组件
-import { SettlementPanel } from './components'
+import { SettlementPanel, GameActions } from './components'
 
 import '@/styles/avatars.css'
 import './style.css'
@@ -2754,40 +2753,15 @@ useEffect(() => {
           />
 
           {/* 出牌操作区 */}
-          {gameStatus === 'playing' && isMyTurn && (
-            <div className="game-actions" id="gameActions">
-              <div className="game-buttons">
-                {/* 可以不出 */}
-                {canPass && (
-                  <button
-                    type="button"
-                    className="btn-pass"
-                    onClick={handlePass}
-                  >
-                    不出
-                  </button>
-                )}
-                {turnTimer > 0 && (
-                  <div className="turn-timer">{turnTimer}</div>
-                )}
-                <button
-                  type="button"
-                  className="btn-hint"
-                  onClick={handleHint}
-                >
-                  提示
-                </button>
-                <button
-                  type="button"
-                  className="btn-play"
-                  onClick={handlePlayCards}
-                  disabled={playPending}
-                >
-                  出牌
-                </button>
-              </div>
-            </div>
-          )}
+          <GameActions
+            visible={gameStatus === 'playing' && isMyTurn}
+            canPass={canPass}
+            turnTimer={turnTimer}
+            playPending={playPending}
+            onPass={handlePass}
+            onHint={handleHint}
+            onPlayCards={handlePlayCards}
+          />
         </div>
       </div>
 

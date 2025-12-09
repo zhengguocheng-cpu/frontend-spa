@@ -3,3 +3,4 @@
  */
 
 export { SettlementPanel } from './SettlementPanel'
+export { GameActions } from './GameActions'
