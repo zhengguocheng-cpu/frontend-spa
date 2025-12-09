@@ -5,3 +5,4 @@
 export { SettlementPanel } from './SettlementPanel'
 export { GameActions } from './GameActions'
 export { AiHintPanel } from './AiHintPanel'
+export { PlayerDisplay } from './PlayerDisplay'

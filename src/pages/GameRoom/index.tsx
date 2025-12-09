@@ -38,7 +38,7 @@ import { ChatPanel } from '@/shared/components'
 import { BiddingControls } from '@/games/doudizhu/components'
 
 // 导入 GameRoom 子组件
-import { SettlementPanel, GameActions, AiHintPanel } from './components'
+import { SettlementPanel, GameActions, AiHintPanel, PlayerDisplay } from './components'
 import type { AiHintRecord } from './components/AiHintPanel'
 
 import '@/styles/avatars.css'
@@ -2347,252 +2347,38 @@ useEffect(() => {
         {/* 上方左右两家玩家区域 */}
         <div className="top-players">
           {leftPlayer && (
-            <div className={`player-slot left ${isLeftTurn ? 'turn-active' : ''}`}>
-            {/* 左侧玩家角标（剩余牌数 + 金币） */}
-            <div className="player-badge">
-              {gameStatus !== 'waiting' && (
-                <span className="cards-left">{Math.max(0, leftPlayer.cardCount || 0)}</span>
-              )}
-              <span className="coins">
-                <span className="coin-icon">金</span>
-                {(leftPlayer.score ?? 0) >= 10000
-                  ? `${((leftPlayer.score ?? 0) / 10000).toFixed(1)}万`
-                  : (leftPlayer.score ?? 0)}
-              </span>
-            </div>
-            <div className={`player-info ${landlordId === leftPlayer.id ? 'landlord' : ''}`}>
-              {landlordId === leftPlayer.id && (
-                <div className="landlord-badge" title="地主">👑</div>
-              )}
-              <div className="player-avatar">{renderPlayerAvatar(leftPlayer.avatar)}</div>
-              <div className="player-name">{leftPlayer.name}</div>
-              {gameStatus === 'waiting' && (
-                <div className="player-status">
-                  {leftPlayer.isReady ? '已准备' : '未准备'}
-                </div>
-              )}
-            </div>
-            {gameStatus === 'finished' && leftPlayerScore && (
-              <div
-                className={`result-score ${
-                  leftPlayerScore.finalScore >= 0 ? 'win' : 'lose'
-                }`}
-              >
-                {leftPlayerScore.finalScore > 0
-                  ? `+${leftPlayerScore.finalScore}`
-                  : leftPlayerScore.finalScore}
-              </div>
-            )}
-            <div className="played-cards-area">
-              {/* 左侧玩家的出牌 / 剩余牌展示区 */}
-              {isLeftTurn && turnTimer > 0 && (
-                <div className="area-turn-timer">{turnTimer}</div>
-              )}
-              {gameStatus === 'finished' && leftRemainingCards && leftRemainingCards.length > 0 ? (
-                <div className="played-cards-container remaining-cards">
-                  {leftRemainingCards.map((cardStr: string, index: number) => {
-                    const { rank, suit, isJoker } = parseCard(cardStr)
-                    const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
-                    return (
-                      <div key={index} className={`card ${isRed ? 'red' : 'black'}`}>
-                        <div
-                          className={`card-value ${isJoker ? 'joker-text' : ''}`}
-                          style={
-                            isJoker ? { color: isJoker === 'big' ? '#d32f2f' : '#000' } : undefined
-                          }
-                        >
-                          {rank}
-                        </div>
-                        {!isJoker && <div className="card-suit">{suit}</div>}
-                        {landlordId && (
-                          <div
-                            className={`card-landlord-mark ${
-                              isLeftLandlord ? 'landlord' : 'farmer'
-                            }`}
-                          >
-                            {isLeftLandlord ? '地主' : '农民'}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              ) : passedPlayers[leftPlayer.id] ? (
-                <div className="pass-text">不出</div>
-              ) : (
-                lastPlayedCards &&
-                lastPlayedCards.playerId === leftPlayer.id && (
-                  <div className="played-cards-container last-played">
-                    {lastPlayedCards.cards.map((cardStr: string, index: number) => {
-                      const { rank, suit, isJoker } = parseCard(cardStr)
-                      const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
-                      return (
-                        <motion.div
-                          key={index}
-                          className={`card ${isRed ? 'red' : 'black'}`}
-                          initial={{ opacity: 0, scale: 0.6 }}
-                          animate={{ opacity: 1, scale: 0.85 }}
-                          exit={{ opacity: 0, scale: 0.6, transition: { duration: 0.2 } }}
-                          transition={{
-                            delay: index * 0.03,
-                            type: 'spring',
-                            stiffness: 280,
-                            damping: 20,
-                          }}
-                        >
-                          <div
-                            className={`card-value ${isJoker ? 'joker-text' : ''}`}
-                            style={
-                              isJoker
-                                ? { color: isJoker === 'big' ? '#d32f2f' : '#000' }
-                                : undefined
-                            }
-                          >
-                            {rank}
-                          </div>
-                          {!isJoker && <div className="card-suit">{suit}</div>}
-                          {landlordId && (
-                            <div
-                              className={`card-landlord-mark ${
-                                isLeftLandlord ? 'landlord' : 'farmer'
-                              }`}
-                            >
-                              {isLeftLandlord ? '地主' : '农民'}
-                            </div>
-                          )}
-                        </motion.div>
-                      )
-                    })}
-                  </div>
-                )
-              )}
-            </div>
-          </div>
-        )}
+            <PlayerDisplay
+              position="left"
+              player={leftPlayer}
+              gameStatus={gameStatus}
+              isLandlord={landlordId === leftPlayer.id}
+              isTurn={isLeftTurn}
+              turnTimer={turnTimer}
+              lastPlayed={lastPlayedCards}
+              isPassed={!!passedPlayers[leftPlayer.id]}
+              finalScore={leftPlayerScore?.finalScore}
+              remainingCards={leftRemainingCards || undefined}
+              parseCard={parseCard}
+              renderPlayerAvatar={renderPlayerAvatar}
+            />
+          )}
 
         {rightPlayer && (
-          <div className={`player-slot right ${isRightTurn ? 'turn-active' : ''}`}>
-            {/* 右侧玩家角标（剩余牌数 + 金币） */}
-            <div className="player-badge">
-              {gameStatus !== 'waiting' && (
-                <span className="cards-left">{Math.max(0, rightPlayer.cardCount || 0)}</span>
-              )}
-              <span className="coins">
-                <span className="coin-icon">金</span>
-                {(rightPlayer.score ?? 0) >= 10000
-                  ? `${((rightPlayer.score ?? 0) / 10000).toFixed(1)}万`
-                  : (rightPlayer.score ?? 0)}
-              </span>
-            </div>
-            <div className={`player-info ${landlordId === rightPlayer.id ? 'landlord' : ''}`}>
-              {landlordId === rightPlayer.id && (
-                <div className="landlord-badge" title="地主">👑</div>
-              )}
-              <div className="player-avatar">{renderPlayerAvatar(rightPlayer.avatar)}</div>
-              <div className="player-name">{rightPlayer.name}</div>
-              {gameStatus === 'waiting' && (
-                <div className="player-status">
-                  {rightPlayer.isReady ? '已准备' : '未准备'}
-                </div>
-              )}
-            </div>
-            {gameStatus === 'finished' && rightPlayerScore && (
-              <div
-                className={`result-score ${
-                  rightPlayerScore.finalScore >= 0 ? 'win' : 'lose'
-                }`}
-              >
-                {rightPlayerScore.finalScore > 0
-                  ? `+${rightPlayerScore.finalScore}`
-                  : rightPlayerScore.finalScore}
-              </div>
-            )}
-            <div className="played-cards-area">
-              {/* 右侧玩家的出牌 / 剩余牌展示区 */}
-              {isRightTurn && turnTimer > 0 && (
-                <div className="area-turn-timer">{turnTimer}</div>
-              )}
-              {gameStatus === 'finished' && rightRemainingCards && rightRemainingCards.length > 0 ? (
-                <div className="played-cards-container remaining-cards">
-                  {rightRemainingCards.map((cardStr: string, index: number) => {
-                    const { rank, suit, isJoker } = parseCard(cardStr)
-                    const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
-                    return (
-                      <div key={index} className={`card ${isRed ? 'red' : 'black'}`}>
-                        <div
-                          className={`card-value ${isJoker ? 'joker-text' : ''}`}
-                          style={
-                            isJoker ? { color: isJoker === 'big' ? '#d32f2f' : '#000' } : undefined
-                          }
-                        >
-                          {rank}
-                        </div>
-                        {!isJoker && <div className="card-suit">{suit}</div>}
-                        {landlordId && (
-                          <div
-                            className={`card-landlord-mark ${
-                              isRightLandlord ? 'landlord' : 'farmer'
-                            }`}
-                          >
-                            {isRightLandlord ? '地主' : '农民'}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              ) : passedPlayers[rightPlayer.id] ? (
-                <div className="pass-text">不出</div>
-              ) : (
-                lastPlayedCards &&
-                lastPlayedCards.playerId === rightPlayer.id && (
-                  <div className="played-cards-container last-played">
-                    {lastPlayedCards.cards.map((cardStr: string, index: number) => {
-                      const { rank, suit, isJoker } = parseCard(cardStr)
-                      const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
-                      return (
-                        <motion.div
-                          key={index}
-                          className={`card ${isRed ? 'red' : 'black'}`}
-                          initial={{ opacity: 0, scale: 0.6 }}
-                          animate={{ opacity: 1, scale: 0.85 }}
-                          exit={{ opacity: 0, scale: 0.6, transition: { duration: 0.2 } }}
-                          transition={{
-                            delay: index * 0.03,
-                            type: 'spring',
-                            stiffness: 280,
-                            damping: 20,
-                          }}
-                        >
-                          <div
-                            className={`card-value ${isJoker ? 'joker-text' : ''}`}
-                            style={
-                              isJoker
-                                ? { color: isJoker === 'big' ? '#d32f2f' : '#000' }
-                                : undefined
-                            }
-                          >
-                            {rank}
-                          </div>
-                          {!isJoker && <div className="card-suit">{suit}</div>}
-                          {landlordId && (
-                            <div
-                              className={`card-landlord-mark ${
-                                isRightLandlord ? 'landlord' : 'farmer'
-                              }`}
-                            >
-                              {isRightLandlord ? '地主' : '农民'}
-                            </div>
-                          )}
-                        </motion.div>
-                      )
-                    })}
-                  </div>
-                )
-              )}
-            </div>
-          </div>
-        )}
+            <PlayerDisplay
+              position="right"
+              player={rightPlayer}
+              gameStatus={gameStatus}
+              isLandlord={landlordId === rightPlayer.id}
+              isTurn={isRightTurn}
+              turnTimer={turnTimer}
+              lastPlayed={lastPlayedCards}
+              isPassed={!!passedPlayers[rightPlayer.id]}
+              finalScore={rightPlayerScore?.finalScore}
+              remainingCards={rightRemainingCards || undefined}
+              parseCard={parseCard}
+              renderPlayerAvatar={renderPlayerAvatar}
+            />
+          )}
 
         {currentPlayer &&
           lastPlayedCards &&
