@@ -1779,6 +1779,7 @@ useEffect(() => {
 
     CardOps.playCards({
       roomId,
+      userId: user.id || user.name,
       cards: cardsToPlay,
       socket: globalSocket.getSocket(),
       onSuccess: () => {
@@ -1861,6 +1862,7 @@ useEffect(() => {
 
     GameFlow.bidLandlord({
       roomId,
+      userId: user.id || user.name,
       bid,
       socket: globalSocket.getSocket(),
       onSuccess: () => {

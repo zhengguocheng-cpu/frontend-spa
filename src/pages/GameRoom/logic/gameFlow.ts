@@ -93,21 +93,22 @@ export function leaveRoom(params: {
  */
 export function bidLandlord(params: {
   roomId: string
+  userId: string | number
   bid: boolean
   socket: Socket | null
   onSuccess?: () => void
   onError?: (msg: string) => void
 }) {
-  const { roomId, bid, socket, onSuccess, onError } = params
+  const { roomId, userId, bid, socket, onSuccess, onError } = params
 
   if (!socket) {
     onError?.('Socket未连接')
     return
   }
 
-  console.log('[Bid] 发送抢地主请求', { roomId, bid })
+  console.log('[Bid] 发送抢地主请求', { roomId, userId, bid })
 
-  socket.emit('bid', { roomId, bid }, (response: any) => {
+  socket.emit('bid', { roomId, userId, bid }, (response: any) => {
     if (response?.success) {
       onSuccess?.()
     } else {

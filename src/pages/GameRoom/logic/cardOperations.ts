@@ -11,12 +11,13 @@ import type { Socket } from 'socket.io-client'
  */
 export function playCards(params: {
   roomId: string
+  userId: string | number
   cards: string[]
   socket: Socket | null
   onSuccess?: () => void
   onError?: (msg: string) => void
 }) {
-  const { roomId, cards, socket, onSuccess, onError } = params
+  const { roomId, userId, cards, socket, onSuccess, onError } = params
 
   if (!socket) {
     onError?.('Socket未连接')
@@ -28,9 +29,9 @@ export function playCards(params: {
     return
   }
 
-  console.log('[PlayCards] 发送出牌请求', { roomId, cards })
+  console.log('[PlayCards] 发送出牌请求', { roomId, userId, cards })
 
-  socket.emit('play_cards', { roomId, cards }, (response: any) => {
+  socket.emit('play_cards', { roomId, userId, cards }, (response: any) => {
     if (response?.success) {
       onSuccess?.()
     } else {
