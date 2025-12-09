@@ -1080,7 +1080,7 @@ export default function GameRoom() {
               clearInterval(biddingTimerRef.current)
               biddingTimerRef.current = null
             }
-            setShowBiddingUI(false)
+            closeBiddingUI()
             // 超时未操作，自动选择不抢
             handleBid(false)
           }
@@ -2882,7 +2882,7 @@ useEffect(() => {
       {chatVisible && (
         <div
           className="chat-overlay"
-          onClick={() => setChatVisible(false)}
+          onClick={toggleChat}
         />
       )}
 
@@ -2893,7 +2893,7 @@ useEffect(() => {
           <Button 
             size="small" 
             fill="none"
-            onClick={() => setChatVisible(false)}
+            onClick={toggleChat}
             style={{ padding: '4px 8px' }}
           >
             关
@@ -3047,7 +3047,7 @@ useEffect(() => {
           {/* 打开聊天侧边栏 */}
           <button 
             className="chat-toggle-btn"
-            onClick={() => setChatVisible(true)}
+            onClick={toggleChat}
             title="打开聊天"
           >
             💬
