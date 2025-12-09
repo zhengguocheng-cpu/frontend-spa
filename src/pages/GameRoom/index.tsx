@@ -26,7 +26,7 @@ import { CardHintHelper } from '@/utils/cardHintHelper'
 import { soundManager } from '@/utils/sound'
 import { getLlmSettings } from '@/utils/llmSettings'
 import { getGameSettings } from '@/utils/gameSettings'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 
 // 导入新的 Hooks
 import { useGameUI, useGameTimer } from './hooks'
@@ -38,7 +38,7 @@ import { ChatPanel } from '@/shared/components'
 import { BiddingControls } from '@/games/doudizhu/components'
 
 // 导入 GameRoom 子组件
-import { SettlementPanel, GameActions, AiHintPanel, PlayerDisplay, BottomCards } from './components'
+import { SettlementPanel, GameActions, AiHintPanel, PlayerDisplay, BottomCards, HandCards } from './components'
 import type { AiHintRecord } from './components/AiHintPanel'
 
 import '@/styles/avatars.css'
@@ -2437,65 +2437,18 @@ useEffect(() => {
         )}
 
         {/* 玩家底部手牌区域（新版前端实现） */}
-        {myCards.length > 0 && (
-          <div
-            className="player-hand-section"
-            onPointerUp={handleHandPointerUp}
-            onPointerLeave={handleHandPointerUp}
-            onPointerMove={handleHandPointerMove}
-          >
-            <div className="player-hand">
-              <AnimatePresence initial={false}>
-                {myCards.map((cardStr: string, index: number) => {
-                  const { rank, suit, isJoker } = parseCard(cardStr)
-                  const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
-                  const isSelected = selectedCards.some((c: any) => c === cardStr)
-                  const targetY = isSelected ? -26 : 0
-
-                  return (
-                    <motion.div
-                      key={`${cardStr}-${index}`}
-                      data-card={cardStr}
-                      className={`card ${isRed ? 'red' : 'black'} ${
-                        isSelected ? 'selected' : ''
-                      }`}
-                      style={{ zIndex: index + 1 }}
-                      onPointerDown={(ev) => handleCardPointerDown(cardStr, ev)}
-                      onPointerEnter={(ev) => handleCardPointerEnter(cardStr, ev)}
-                      layout
-                      initial={
-                        isDealingAnimation
-                          ? { opacity: 0, y: -160, scale: 0.6, rotate: -6 }
-                          : false
-                      }
-                      animate={{ opacity: 1, y: targetY, scale: 1, rotate: 0 }}
-                      exit={{ opacity: 0, y: 40, scale: 0.9, rotate: 6 }}
-                    >
-                      <div
-                        className={`card-value ${isJoker ? 'joker-text' : ''}`}
-                        style={
-                          isJoker ? { color: isJoker === 'big' ? '#d32f2f' : '#000' } : undefined
-                        }
-                      >
-                        {rank}
-                      </div>
-                      {!isJoker && <div className="card-suit">{suit}</div>}
-                      {landlordId && (
-                        <div
-                          className={`card-landlord-mark ${
-                            isBottomLandlord ? 'landlord' : 'farmer'
-                          }`}
-                        >
-                          {isBottomLandlord ? '地主' : '农民'}
-                        </div>
-                      )}
-                    </motion.div>
-                  )
-                })}
-              </AnimatePresence>
-            </div>
-          </div>
-        )}
+        <HandCards
+          cards={myCards}
+          selectedCards={selectedCards}
+          isDealingAnimation={isDealingAnimation}
+          landlordId={landlordId}
+          isBottomLandlord={isBottomLandlord}
+          parseCard={parseCard}
+          onCardPointerDown={handleCardPointerDown}
+          onCardPointerEnter={handleCardPointerEnter}
+          onHandPointerUp={handleHandPointerUp}
+          onHandPointerMove={handleHandPointerMove}
+        />
 
         {/* 底部控制区 */}
         <div className="game-controls">
