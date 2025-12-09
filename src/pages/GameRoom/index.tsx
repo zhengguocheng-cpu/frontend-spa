@@ -38,7 +38,7 @@ import { ChatPanel } from '@/shared/components'
 import { BiddingControls } from '@/games/doudizhu/components'
 
 // 导入 GameRoom 子组件
-import { SettlementPanel, GameActions, AiHintPanel, PlayerDisplay } from './components'
+import { SettlementPanel, GameActions, AiHintPanel, PlayerDisplay, BottomCards } from './components'
 import type { AiHintRecord } from './components/AiHintPanel'
 
 import '@/styles/avatars.css'
@@ -2267,44 +2267,18 @@ useEffect(() => {
     <div className="game-room-container">
       {/* 整个游戏桌面区域 */}
       <div className="game-table">
-        {/* 底牌展示区 - 显示地主三张底牌及基数/倍数信息 */}
+        {/* 底牌展示区 */}
         {landlordId && (
-          <div className="bottom-cards-display">
-            <div className="bottom-info-bar">
-              {/* 底牌卡牌列表 */}
-              {!hideBottomCards && landlordCards.length > 0 && (
-                <div className="bottom-cards-container">
-                  {landlordCards.map((cardStr: string, index: number) => {
-                    const { rank, suit, isJoker } = parseCard(cardStr)
-                    const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
-
-                    return (
-                      <div key={index} className={`bottom-card ${isRed ? 'red' : 'black'}`}>
-                        <div
-                          className={`card-value ${isJoker ? 'joker-text' : ''}`}
-                          style={
-                            isJoker ? { color: isJoker === 'big' ? '#d32f2f' : '#000' } : undefined
-                          }
-                        >
-                          {rank}
-                        </div>
-                        {!isJoker && <div className="card-suit">{suit}</div>}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-            {/* 底牌基数/倍数展示区域 */}
-            <div className="bottom-meta compact">
-              <span>基数: {settlementScore?.baseScore ?? 5000}</span>
-              <span>
-                倍数:{' '}
-                {bottomPlayerScore?.multipliers?.total ??
-                  Math.max(1, Math.pow(3, currentBombCount) * Math.pow(8, currentRocketCount))}
-              </span>
-            </div>
-          </div>
+          <BottomCards
+            visible={!hideBottomCards}
+            cards={landlordCards}
+            baseScore={settlementScore?.baseScore ?? 5000}
+            multiplier={
+              bottomPlayerScore?.multipliers?.total ??
+              Math.max(1, Math.pow(3, currentBombCount) * Math.pow(8, currentRocketCount))
+            }
+            parseCard={parseCard}
+          />
         )}
 
         {/* 中央结算结果 + 再来一局 / 返回大厅按钮（图2 布局） */}
