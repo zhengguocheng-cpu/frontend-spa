@@ -30,7 +30,7 @@ import { getGameSettings } from '@/utils/gameSettings'
 import { motion, AnimatePresence } from 'framer-motion'
 
 // 导入新的 Hooks
-import { useGameUI } from './hooks'
+import { useGameUI, useGameTimer } from './hooks'
 
 // 导入共享组件
 import { ChatPanel } from '@/shared/components'
@@ -105,11 +105,16 @@ export default function GameRoom() {
     setTurnState,
   } = gameUI
 
-  // 保留的定时器状态（下一步会用 useGameTimer 替换）
-  const [biddingTimer, setBiddingTimer] = useState(0)
-  const biddingTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const [turnTimer, setTurnTimer] = useState(0)
-  const turnTimerRef = useRef<NodeJS.Timeout | null>(null)
+  // ==================== 使用新的 useGameTimer Hook ====================
+  const gameTimer = useGameTimer()
+  const {
+    biddingTimer,
+    startBiddingTimer,
+    stopBiddingTimer,
+    turnTimer,
+    startTurnTimer,
+    stopTurnTimer,
+  } = gameTimer
   const dealAnimationTimeoutRef = useRef<number | null>(null)
   const playPendingRef = useRef(false)
   const [walletScore, setWalletScore] = useState<number | null>(null)
@@ -840,34 +845,12 @@ export default function GameRoom() {
         if (isMyBidTurn) {
           console.log('[GameStateRestored] 抢地主阶段断线重连，轮到我抢地主')
           openBiddingUI()
-
-          // 重置并启动本地 15 秒抢地主倒计时
-          if (biddingTimerRef.current) {
-            clearInterval(biddingTimerRef.current)
-          }
-          let timeLeft = 15
-          setBiddingTimer(timeLeft)
-          biddingTimerRef.current = setInterval(() => {
-            timeLeft -= 1
-            setBiddingTimer(timeLeft)
-            if (timeLeft <= 0) {
-              if (biddingTimerRef.current) {
-                clearInterval(biddingTimerRef.current)
-                biddingTimerRef.current = null
-              }
-              closeBiddingUI()
-              // 超时未操作，自动选择不抢
-              handleBid(false)
-            }
-          }, 1000)
+          // 启动 15 秒抢地主倒计时
+          startBiddingTimer(15)
         } else {
           console.log('[GameStateRestored] 抢地主阶段断线重连，轮到其他玩家抢地主')
           closeBiddingUI()
-          if (biddingTimerRef.current) {
-            clearInterval(biddingTimerRef.current)
-            biddingTimerRef.current = null
-          }
-          setBiddingTimer(0)
+          stopBiddingTimer()
         }
 
         // 抢地主阶段不应恢复出牌回合，直接返回
@@ -1066,29 +1049,8 @@ export default function GameRoom() {
       if (isMyTurn) {
         console.log('[Bidding] 轮到我抢地主')
         openBiddingUI()
-        
-        // 启动首轮抢地主倒计时（15 秒）
-        let timeLeft = 15
-        setBiddingTimer(timeLeft)
-        
-        if (biddingTimerRef.current) {
-          clearInterval(biddingTimerRef.current)
-        }
-
-        biddingTimerRef.current = setInterval(() => {
-          timeLeft--
-          setBiddingTimer(timeLeft)
-          
-          if (timeLeft <= 0) {
-            if (biddingTimerRef.current) {
-              clearInterval(biddingTimerRef.current)
-              biddingTimerRef.current = null
-            }
-            closeBiddingUI()
-            // 超时未操作，自动选择不抢
-            handleBid(false)
-          }
-        }, 1000)
+        // 启动 15 秒抢地主倒计时
+        startBiddingTimer(15)
       }
     }
 
@@ -1103,10 +1065,7 @@ export default function GameRoom() {
       
       // 关闭本地抢地主 UI
       closeBiddingUI()
-      if (biddingTimerRef.current) {
-        clearInterval(biddingTimerRef.current)
-        biddingTimerRef.current = null
-      }
+      stopBiddingTimer()
       
       // 如果还有下一位抢地主玩家，延迟一秒后切换 UI
       if (data.nextBidderId) {
@@ -1115,24 +1074,8 @@ export default function GameRoom() {
           if (data.nextBidderId === currentUserId) {
             console.log('[Bidding] 轮到我抢地主（nextBidder）')
             openBiddingUI()
-            setBiddingTimer(15)
-            
-            // 重置倒计时为 15 秒，重新开始计时
-            if (biddingTimerRef.current) {
-              clearInterval(biddingTimerRef.current)
-            }
-            biddingTimerRef.current = setInterval(() => {
-              setBiddingTimer(prev => {
-                if (prev <= 1) {
-                  clearInterval(biddingTimerRef.current!)
-                  biddingTimerRef.current = null
-                  // 倒计时结束仍未操作，自动选择不抢
-                  handleBid(false)
-                  return 0
-                }
-                return prev - 1
-              })
-            }, 1000)
+            // 启动 15 秒抢地主倒计时
+            startBiddingTimer(15)
           } else {
             console.log('[Bidding] 轮到其他玩家抢地主...')
           }
@@ -1153,10 +1096,7 @@ export default function GameRoom() {
       if (data.landlordId) {
         // 关闭抢地主 UI
         closeBiddingUI()
-        if (biddingTimerRef.current) {
-          clearInterval(biddingTimerRef.current)
-          biddingTimerRef.current = null
-        }
+        stopBiddingTimer()
         
         // 判断当前玩家是否为地主
         const isLandlord = data.landlordId === user?.id || 
@@ -1242,20 +1182,7 @@ export default function GameRoom() {
           typeof data.remainingTime === 'number' && data.remainingTime > 0
             ? data.remainingTime
             : 30
-        setTurnTimer(initialTime)
-        if (turnTimerRef.current) {
-          clearInterval(turnTimerRef.current)
-        }
-        turnTimerRef.current = setInterval(() => {
-          setTurnTimer((prev) => {
-            if (prev <= 1) {
-              clearInterval(turnTimerRef.current!)
-              turnTimerRef.current = null
-              return 0
-            }
-            return prev - 1
-          })
-        }, 1000)
+        startTurnTimer(initialTime)
       }
     }
 
@@ -1351,11 +1278,7 @@ export default function GameRoom() {
       }
 
       // 清理本轮出牌倒计时
-      if (turnTimerRef.current) {
-        clearInterval(turnTimerRef.current)
-        turnTimerRef.current = null
-      }
-      setTurnTimer(0)
+      stopTurnTimer()
 
       // 出牌后清空本地选中状态
       dispatch(clearSelection())
@@ -1415,10 +1338,7 @@ export default function GameRoom() {
       )
       
       // 清理出牌倒计时
-      if (turnTimerRef.current) {
-        clearInterval(turnTimerRef.current)
-        turnTimerRef.current = null
-      }
+      stopTurnTimer()
       
       // 停止本地“轮到我”状态
       setTurnState(false, false)
@@ -1682,17 +1602,22 @@ useEffect(() => {
   })
 }, [isMyTurn, canPass, myCards, lastPlayedCards, dispatch])
 
-// 自动出牌
+// 抢地主倒计时超时处理
+useEffect(() => {
+  if (biddingTimer !== 0) return
+  if (!showBiddingUI) return
+
+  console.log('[AutoBidTimeout] 抢地主超时，自动选择不抢')
+  closeBiddingUI()
+  handleBid(false)
+}, [biddingTimer, showBiddingUI])
+
+// 自动出牌（出牌倒计时超时）
 useEffect(() => {
   if (!isMyTurn) return
   if (turnTimer !== 0) return
 
   console.log('[AutoTurnTimeout] 自动出牌超时，当前状态：isMyTurn=true, canPass=', canPass)
-
-  if (turnTimerRef.current) {
-    clearInterval(turnTimerRef.current)
-    turnTimerRef.current = null
-  }
 
   if (canPass) {
     console.log('可以选择不出...')
@@ -1918,10 +1843,7 @@ useEffect(() => {
     })
 
     // 停止本轮倒计时
-    if (turnTimerRef.current) {
-      clearInterval(turnTimerRef.current)
-      turnTimerRef.current = null
-    }
+    stopTurnTimer()
 
     // 标记本地为非出牌方
     setTurnState(false, false)
@@ -1936,12 +1858,8 @@ useEffect(() => {
     }
 
     // 停止本地抢地主倒计时
-    if (biddingTimerRef.current) {
-      clearInterval(biddingTimerRef.current)
-      biddingTimerRef.current = null
-    }
+    stopBiddingTimer()
     closeBiddingUI()
-    setBiddingTimer(0)
 
     // 如果选择抢，则播放抢地主音效
     if (bid) {
