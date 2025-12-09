@@ -416,10 +416,34 @@ export default function GameRoom() {
         return <div className={`avatar-sprite avatar-${id} avatar-sprite-small`} />
       }
     }
-    // 兼容旧的 emoji / 字符头像
     return <span>{raw || '👤'}</span>
   }
 
+  const parseCard = (card: string) => {
+    if (card === '大王' || card === '🃏大王' || card.includes('大王')) {
+      return { rank: 'JOKER', suit: '', isJoker: 'big' as const }
+    }
+    if (card === '小王' || card === '🃏小王' || card.includes('小王')) {
+      return { rank: 'JOKER', suit: '', isJoker: 'small' as const }
+    }
+    if (card.includes('JOKER')) {
+      return { rank: 'JOKER', suit: '', isJoker: 'big' as const }
+    }
+    if (card.includes('joker')) {
+      return { rank: 'JOKER', suit: '', isJoker: 'small' as const }
+    }
+    const suits = ['♠', '♥', '♦', '♣']
+    let suit = ''
+    let rank = card
+    for (const s of suits) {
+      if (card.includes(s)) {
+        suit = s
+        rank = card.replace(s, '')
+        break
+      }
+    }
+    return { rank, suit, isJoker: null as 'big' | 'small' | null }
+  }
 
   const RANK_SPOKEN_MAP: Record<string, string> = {
     '3': '三',
@@ -672,11 +696,8 @@ export default function GameRoom() {
     const socket = globalSocket.getSocket()
     if (!socket) return
     
-    console.log('[Socket] 连接已就绪，Socket ID:', socket.id)
-
     // 房间加入事件
     const handleRoomJoined = (data: any) => {
-      console.log('[Room] room_joined 事件:', data)
       appendSystemMessage('已进入房间，等待其他玩家...')
       const now = Date.now()
       quickFlowRef.current.roomJoinedAt = now
@@ -685,7 +706,6 @@ export default function GameRoom() {
 
     // 加入游戏成功
     const handleJoinGameSuccess = (data: any) => {
-      console.log('[Room] join_game_success 事件:', data)
       appendDebugMessage('ROOM', '收到 join_game_success 事件')
 
       // 重置上一局的前端状态，为新一局做准备
@@ -693,8 +713,7 @@ export default function GameRoom() {
       
       // 对齐旧版 frontend 的 onJoinGameSuccess 行为
       if (data.room && data.room.players) {
-        console.log('[JoinGame] 使用 room.players 初始化玩家列表:', data.room.players)
-        // 兼容 ready 字段到 isReady，并补充 cardCount / score
+          // 兼容 ready 字段到 isReady，并补充 cardCount / score
         const players = data.room.players.map((p: any) => ({
           ...p,
           id: p.id || p.userId || p.name,
@@ -702,13 +721,11 @@ export default function GameRoom() {
           cardCount: p.cardCount || p.cards?.length || 0,
           score: p.score ?? p.totalScore ?? null, // 兼容不同字段，统一使用 score
         }))
-        console.log('[JoinGame] 归一化后的玩家列表(room.players):', players)
         dispatch(initGame({
           roomId: data.room.id,
           players: players,
         }))
       } else if (data.players) {
-        console.log('[JoinGame] 使用 data.players 初始化玩家列表:', data.players)
         // 兼容旧版前端仅返回 players 数组的情况
         const players = data.players.map((p: any) => ({
           ...p,
@@ -717,14 +734,12 @@ export default function GameRoom() {
           cardCount: p.cardCount || p.cards?.length || 0,
           score: p.score ?? p.totalScore ?? null, // 兼容不同字段，统一使用 score
         }))
-        console.log('[JoinGame] 归一化后的玩家列表(data.players):', players)
         dispatch(updatePlayers(players))
       }
     }
 
     // 恢复牌局状态（断线重连 / 刷新）
     const handleGameStateRestored = (data: any) => {
-      console.log('[Room] game_state_restored 事件:', data)
       appendSystemMessage('已恢复牌局状态，继续上一局')
 
       if (!data) return
@@ -734,12 +749,8 @@ export default function GameRoom() {
 
       // 恢复玩家列表和手牌数量
       if (data.players && Array.isArray(data.players)) {
-        console.log('[GameStateRestored] 恢复玩家列表:', data.players)
         const players = data.players.map((p: any) => {
           const cardCount = p.cardCount || p.cards?.length || 0
-          console.log(
-            `[GameStateRestored] 玩家 ${p.name}: cardCount=${p.cardCount}, cards.length=${p.cards?.length}, 使用值=${cardCount}`
-          )
           return {
             ...p,
             id: p.id || p.userId || p.name,
@@ -764,9 +775,6 @@ export default function GameRoom() {
       )
       if (currentPlayerState && Array.isArray(currentPlayerState.cards)) {
         dispatch(startGame({ myCards: currentPlayerState.cards }))
-        console.log(
-          `[GameStateRestored] 恢复我的手牌，共 ${currentPlayerState.cards.length} 张`
-        )
       }
 
       // 恢复地主与底牌
@@ -777,7 +785,6 @@ export default function GameRoom() {
             landlordCards: data.bottomCards || [],
           })
         )
-        console.log('[GameStateRestored] 已恢复地主和底牌信息')
       }
 
       // 恢复上一手出牌
@@ -792,10 +799,8 @@ export default function GameRoom() {
           cards: data.lastPlay.cards,
           type: data.lastPlay.type,
         }
-        console.log('[GameStateRestored] 恢复上一手出牌:', lastPlay)
         dispatch(setLastPlayedFromState(lastPlay))
       } else {
-        console.log('[GameStateRestored] 当前没有上一手出牌记录')
       }
 
       // 如果当前仍处于抢地主阶段，依据 biddingState 恢复“轮到谁抢”的本地 UI
@@ -805,12 +810,10 @@ export default function GameRoom() {
           !!currentUserId && biddingState.currentBidderId === currentUserId
 
         if (isMyBidTurn) {
-          console.log('[GameStateRestored] 抢地主阶段断线重连，轮到我抢地主')
           openBiddingUI()
           // 启动 15 秒抢地主倒计时
           startBiddingTimer(15)
         } else {
-          console.log('[GameStateRestored] 抢地主阶段断线重连，轮到其他玩家抢地主')
           closeBiddingUI()
           stopBiddingTimer()
         }
@@ -845,7 +848,6 @@ export default function GameRoom() {
 
     // 玩家加入
     const handlePlayerJoined = (data: any) => {
-      console.log('[Player] player_joined 事件:', data)
 
       // 系统提示：有新玩家进入房间
       if (data.playerName && data.playerName !== user?.name) {
@@ -866,7 +868,6 @@ export default function GameRoom() {
 
     // 玩家离开
     const handlePlayerLeft = (data: any) => {
-      console.log('[Player] player_left 事件:', data)
       // 系统提示：有玩家离开
       addChatMessage('系统', `${data.playerName || '玩家'} 离开了房间`)
 
@@ -890,7 +891,6 @@ export default function GameRoom() {
 
     // 玩家准备
     const handlePlayerReady = (data: any) => {
-      console.log('[Player] player_ready 事件:', data)
       
       // 系统提示：某位玩家已准备
       if (data.playerName) {
@@ -920,7 +920,6 @@ export default function GameRoom() {
 
     // 游戏开始
     const handleGameStarted = (data: any) => {
-      console.log('[Game] game_started 事件:', data)
       const now = Date.now()
       const joinedAt = quickFlowRef.current.roomJoinedAt
       if (joinedAt) {
@@ -937,7 +936,6 @@ export default function GameRoom() {
 
     // 发牌完成（所有玩家）
     const handleDealCardsAll = (data: any) => {
-      console.log('[Game] deal_cards_all 事件:', data)
       const now = Date.now()
       const startedAt = quickFlowRef.current.gameStartedAt
       if (startedAt) {
@@ -980,7 +978,6 @@ export default function GameRoom() {
             score: typeof p.score === 'number' ? p.score : undefined,
           }))
           dispatch(updatePlayers(playersWithInfo))
-          console.log('[Game] deal_cards_all 后同步玩家列表:', playersWithInfo)
         }
 
         appendSystemMessage('发牌完成，进入抢地主阶段')
@@ -992,7 +989,6 @@ export default function GameRoom() {
 
     // 抢地主开始
     const handleBiddingStart = (data: any) => {
-      console.log('[Bidding] bidding_start 事件:', data)
       const now = Date.now()
       const dealAt = quickFlowRef.current.dealCardsAt
       if (dealAt) {
@@ -1018,8 +1014,6 @@ export default function GameRoom() {
 
     // 抢地主结果（bid_result）- 对齐旧版 frontend 行为
     const handleBidResult = (data: any) => {
-      console.log('[Bidding] bid_result 事件:', data)
-      
       // 文本化抢/不抢结果
       const bidText = data.bid ? '抢地主' : '不抢'
       appendDebugMessage('BID', `bid_result: ${data.userName || '玩家'} 选择${bidText}`)
@@ -1047,10 +1041,6 @@ export default function GameRoom() {
 
     // 地主确定
     const handleLandlordDetermined = (data: any) => {
-      console.log('[Bidding] landlord_determined 事件:', data)
-      console.log('[Bidding] 地主ID:', data.landlordId)
-      console.log('[Bidding] 地主名称:', data.landlordName)
-      console.log('[Bidding] 底牌:', data.bottomCards)
       console.log('[Bidding] 当前用户ID:', user?.id)
       console.log('[Bidding] 当前用户名:', user?.name)
       appendDebugMessage('BID', '收到 landlord_determined 事件')
@@ -1092,14 +1082,10 @@ export default function GameRoom() {
 
     // 游戏状态增量更新（目前仅用于调试）
     const handleGameStateUpdated = (data: any) => {
-      console.log('[Game] game_state_updated 事件:', data)
     }
 
     // 轮到某位玩家出牌 - 对齐旧版 frontend 行为，并驱动本地出牌 UI
     const handleTurnToPlay = (data: any) => {
-      console.log('[Turn] turn_to_play 事件:', data)
-      console.log('[Turn] 当前用户ID:', user?.id)
-      console.log('[Turn] 轮到的玩家ID:', data.playerId)
       console.log('[Turn] 当前 gameStatus:', gameStatus)
       
       if (data.playerId) {
@@ -1149,7 +1135,6 @@ export default function GameRoom() {
     }
 
     const handlePlayCardsFailed = (data: { error?: string }) => {
-      console.log('[PlayCards] 收到 play_cards_failed 事件')
       console.warn('[PlayCards] 出牌失败:', data)
       playPendingRef.current = false
       setPlayPending(false)
@@ -1173,7 +1158,6 @@ export default function GameRoom() {
 
     // 当前出牌权玩家发生变更
     const handleTurnChanged = (data: any) => {
-      console.log('[Turn] turn_changed 事件:', data)
       if (data.currentPlayerId) {
         dispatch(setCurrentPlayer(data.currentPlayerId))
       }
@@ -1181,9 +1165,6 @@ export default function GameRoom() {
 
     // 有玩家出牌 - 对齐旧版 frontend 行为
     const handleCardsPlayed = (data: any) => {
-      console.log('[Play] cards_played 事件:', data)
-      console.log('[Play] 出牌玩家:', data.playerName, '(', data.playerId, ')')
-      console.log('[Play] 出的牌:', data.cards)
       console.log('[Play] 牌型信息:', data.cardType)
 
       appendDebugMessage(
@@ -1275,7 +1256,6 @@ export default function GameRoom() {
 
     // 有玩家选择“不出”
     const handlePlayerPassed = (data: any) => {
-      console.log('[Play] player_passed 事件:', data)
       if (!data.playerId) return
 
       // 播放“不出”音效
@@ -1290,7 +1270,6 @@ export default function GameRoom() {
 
     // 游戏结束（game_over / game_ended）- 对齐旧版 frontend 行为
     const handleGameEnded = (data: any) => {
-      console.log('[Game] game_over / game_ended 事件:', data)
 
       appendDebugMessage(
         'FLOW',
@@ -1341,7 +1320,6 @@ export default function GameRoom() {
 
     // 聊天消息
     const handleChatMessage = (data: any) => {
-      console.log('[Chat] message_received 事件:', data)
       if (data.playerName && data.message) {
         addChatMessage(data.playerName, data.message)
       }
