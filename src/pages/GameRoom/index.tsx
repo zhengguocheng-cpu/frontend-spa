@@ -38,7 +38,8 @@ import { ChatPanel } from '@/shared/components'
 import { BiddingControls } from '@/games/doudizhu/components'
 
 // 导入 GameRoom 子组件
-import { SettlementPanel, GameActions } from './components'
+import { SettlementPanel, GameActions, AiHintPanel } from './components'
+import type { AiHintRecord } from './components/AiHintPanel'
 
 import '@/styles/avatars.css'
 import './style.css'
@@ -2776,103 +2777,15 @@ useEffect(() => {
       />
 
       {/* AI 出牌记录侧边面板 */}
-      {showAiPanel && (
-        <>
-          {/* 点击遮罩关闭 AI 面板 */}
-          <div 
-            className="ai-panel-overlay"
-            onClick={() => setShowAiPanel(false)}
-          />
-          <aside className="ai-panel">
-          <div className="ai-panel-header">
-            <h3>AI 出牌分析</h3>
-            <div className="ai-panel-actions">
-              {aiHintHistory.length > 0 && (
-                <button 
-                  className="ai-clear-btn"
-                  onClick={() => {
-                    setAiHintHistory([])
-                    aiHintCounterRef.current = 0
-                  }}
-                  title="清空出牌记录"
-                >
-                  清空
-                </button>
-              )}
-              <button 
-                className="ai-close-btn"
-                onClick={() => setShowAiPanel(false)}
-                title="关闭 AI 面板"
-              >
-                关闭
-              </button>
-            </div>
-          </div>
-          <div className="ai-panel-content">
-            {aiHintHistory.length === 0 ? (
-              <div className="ai-empty-state">
-                <div className="ai-empty-icon">🤖</div>
-                <p>暂无 AI 出牌记录</p>
-                <p className="ai-empty-hint">打完一手牌后点击提示，这里会显示 AI 的分析结果</p>
-              </div>
-            ) : (
-              <div className="ai-history-list">
-                {aiHintHistory.map((record) => (
-                  <div key={record.id} className="ai-hint-card">
-                    <div className="ai-hint-header">
-                      <span className="ai-hint-number">#{record.id}</span>
-                      <span className="ai-hint-time">{record.timestamp}</span>
-                    </div>
-                    
-                    {record.analysis && (
-                      <div className="ai-hint-section">
-                        <div className="ai-section-title">分析内容</div>
-                        <div className="ai-section-content">{record.analysis}</div>
-                      </div>
-                    )}
-                    
-                    {typeof record.winRate === 'number' && (
-                      <div className="ai-hint-section">
-                        <div className="ai-section-title">胜率估计</div>
-                        <div className="ai-winrate-bar">
-                          <div 
-                            className="ai-winrate-fill"
-                            style={{ width: `${record.winRate}%` }}
-                          />
-                          <span className="ai-winrate-text">{record.winRate}%</span>
-                        </div>
-                      </div>
-                    )}
-                    
-                    <div className="ai-hint-section">
-                      <div className="ai-section-title">最近出牌记录</div>
-                      <div className="ai-section-content">
-                        {record.isPass ? (
-                          <span className="ai-pass-tag">不出 (PASS)</span>
-                        ) : (
-                          <div className="ai-cards-display">
-                            {record.cards.map((card, idx) => (
-                              <span key={idx} className="ai-mini-card">{card}</span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {record.reason && (
-                      <div className="ai-hint-footer">
-                        <span className="ai-reason-label">理由</span>
-                        <span className="ai-reason-text">{record.reason}</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </aside>
-        </>
-      )}
+      <AiHintPanel
+        visible={showAiPanel}
+        history={aiHintHistory}
+        onClose={() => setShowAiPanel(false)}
+        onClear={() => {
+          setAiHintHistory([])
+          aiHintCounterRef.current = 0
+        }}
+      />
 
       {/* 右下角：AI 面板 + 聊天按钮 */}
       {!chatVisible && !showAiPanel && (
