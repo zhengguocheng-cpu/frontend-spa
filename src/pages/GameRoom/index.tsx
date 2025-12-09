@@ -835,7 +835,7 @@ export default function GameRoom() {
 
         if (isMyBidTurn) {
           console.log('[GameStateRestored] 抢地主阶段断线重连，轮到我抢地主')
-          setShowBiddingUI(true)
+          openBiddingUI()
 
           // 重置并启动本地 15 秒抢地主倒计时
           if (biddingTimerRef.current) {
@@ -851,14 +851,14 @@ export default function GameRoom() {
                 clearInterval(biddingTimerRef.current)
                 biddingTimerRef.current = null
               }
-              setShowBiddingUI(false)
+              closeBiddingUI()
               // 超时未操作，自动选择不抢
               handleBid(false)
             }
           }, 1000)
         } else {
           console.log('[GameStateRestored] 抢地主阶段断线重连，轮到其他玩家抢地主')
-          setShowBiddingUI(false)
+          closeBiddingUI()
           if (biddingTimerRef.current) {
             clearInterval(biddingTimerRef.current)
             biddingTimerRef.current = null
@@ -978,7 +978,7 @@ export default function GameRoom() {
         appendDebugMessage('FLOW', `room_joined → game_started 耗时 ${now - joinedAt}ms`)
       }
       quickFlowRef.current.gameStartedAt = now
-      setShowSettlement(false)
+      closeSettlement()
       dispatch(prepareNextGame())
       // 重置炸弹 / 火箭统计等局内状态
       setCurrentBombCount(0)
@@ -1013,9 +1013,9 @@ export default function GameRoom() {
         if (dealAnimationTimeoutRef.current) {
           clearTimeout(dealAnimationTimeoutRef.current)
         }
-        setIsDealingAnimation(true)
+        startDealingAnimation()
         dealAnimationTimeoutRef.current = window.setTimeout(() => {
-          setIsDealingAnimation(false)
+          stopDealingAnimation()
         }, Math.min(1500, myCards.cards.length * 120 + 500))
         
         // 同步所有玩家的基础信息与手牌数量
@@ -1061,7 +1061,7 @@ export default function GameRoom() {
 
       if (isMyTurn) {
         console.log('[Bidding] 轮到我抢地主')
-        setShowBiddingUI(true)
+        openBiddingUI()
         
         // 启动首轮抢地主倒计时（15 秒）
         let timeLeft = 15
@@ -1098,7 +1098,7 @@ export default function GameRoom() {
       addChatMessage('系统', `${data.userName || '玩家'} ${bidText}`)
       
       // 关闭本地抢地主 UI
-      setShowBiddingUI(false)
+      closeBiddingUI()
       if (biddingTimerRef.current) {
         clearInterval(biddingTimerRef.current)
         biddingTimerRef.current = null
@@ -1110,7 +1110,7 @@ export default function GameRoom() {
           const currentUserId = user?.id || user?.name
           if (data.nextBidderId === currentUserId) {
             console.log('[Bidding] 轮到我抢地主（nextBidder）')
-            setShowBiddingUI(true)
+            openBiddingUI()
             setBiddingTimer(15)
             
             // 重置倒计时为 15 秒，重新开始计时
@@ -1148,7 +1148,7 @@ export default function GameRoom() {
       
       if (data.landlordId) {
         // 关闭抢地主 UI
-        setShowBiddingUI(false)
+        closeBiddingUI()
         if (biddingTimerRef.current) {
           clearInterval(biddingTimerRef.current)
           biddingTimerRef.current = null
@@ -1423,8 +1423,8 @@ export default function GameRoom() {
       dispatch(endGame(data))
 
       // 记录我们已经请求显示结算
-      setShowSettlement(true)
-      appendDebugMessage('FLOW', '已调用 setShowSettlement(true)，等待结算 UI 渲染')
+      openSettlement()
+      appendDebugMessage('FLOW', '已调用 openSettlement()，等待结算 UI 渲染')
 
       // 播放胜负音效
       const myId = user?.id || user?.name
@@ -1936,7 +1936,7 @@ useEffect(() => {
       clearInterval(biddingTimerRef.current)
       biddingTimerRef.current = null
     }
-    setShowBiddingUI(false)
+    closeBiddingUI()
     setBiddingTimer(0)
 
     // 如果选择抢，则播放抢地主音效
@@ -2106,8 +2106,7 @@ useEffect(() => {
     const isSelected = selectedCards.includes(cardStr)
     const mode: 'select' | 'deselect' = isSelected ? 'deselect' : 'select'
 
-    setIsDragSelecting(true)
-    setDragSelectMode(mode)
+    startDragSelect(mode)
     lastProcessedCardRef.current = cardStr
     updateCardSelection(cardStr, mode === 'select')
   }
@@ -2145,8 +2144,7 @@ useEffect(() => {
   // 拖拽结束时，清理拖拽选择状态
   const handleHandPointerUp = () => {
     if (!isDragSelecting) return
-    setIsDragSelecting(false)
-    setDragSelectMode(null)
+    stopDragSelect()
     lastProcessedCardRef.current = null
   }
 
@@ -2288,7 +2286,7 @@ useEffect(() => {
   // 一局结束且有结算结果时，显示结算面板
   useEffect(() => {
     if (gameStatus === 'finished' && gameState.gameResult) {
-      setShowSettlement(true)
+      openSettlement()
     }
   }, [gameStatus, gameState.gameResult])
 
@@ -3107,7 +3105,7 @@ useEffect(() => {
                     color="primary"
                     onClick={() => {
                       dispatch(prepareNextGame())
-                      setShowSettlement(false)
+                      closeSettlement()
                       handleStartGame() // 再来一局
                     }}
                   >
@@ -3117,7 +3115,7 @@ useEffect(() => {
                     color="default"
                     onClick={() => {
                       dispatch(prepareNextGame())
-                      setShowSettlement(false)
+                      closeSettlement()
                       doLeaveRoom()
                     }}
                   >
