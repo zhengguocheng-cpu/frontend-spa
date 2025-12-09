@@ -1,5 +1,15 @@
 import { useState, useEffect } from 'react'
 import { Toast } from 'antd-mobile'
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  LabelList,
+} from 'recharts'
 import './style.css'
 
 interface FeedbackReply {
@@ -57,6 +67,32 @@ interface GameLogSummary {
   players?: GameLogPlayerSummary[]
 }
 
+interface AdminUserSummary {
+  userId: string
+  username: string
+  totalScore: number
+  gamesPlayed: number
+  gamesWon: number
+  winRate: number
+  createdAt: string
+  lastPlayedAt?: string | null
+  isBot: boolean
+  totalPlayTimeSeconds: number
+}
+
+interface UsageTrendPoint {
+  date: string
+  activeUsers: number
+  totalPlayTimeSeconds: number
+}
+
+interface SystemStats {
+  totalPlayers: number
+  totalGames: number
+  totalScoreChanges: number
+  lastUpdated: string
+}
+
 const FEEDBACK_TYPE_LABELS: Record<string, string> = {
   bug: 'BUG / 故障',
   experience: '玩法体验',
@@ -81,7 +117,10 @@ const FEEDBACK_STATUS_ORDER: Record<string, number> = {
 }
 
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState<'feedback' | 'settings' | 'games'>('feedback')
+  const [activeTab, setActiveTab] = useState<'feedback' | 'settings' | 'games' | 'analytics'>(
+    'feedback',
+  )
+  const [analyticsView, setAnalyticsView] = useState<'overview' | 'trend'>('overview')
   const [loading, setLoading] = useState(false)
   const [feedbackList, setFeedbackList] = useState<FeedbackItem[]>([])
   const [gamesLoading, setGamesLoading] = useState(false)
@@ -93,12 +132,18 @@ export default function AdminPage() {
   const [feedbackSortKey, setFeedbackSortKey] = useState<'index' | 'user' | 'status' | 'type'>('status')
   const [feedbackSortDir, setFeedbackSortDir] = useState<'asc' | 'desc'>('asc')
   const [feedbackView, setFeedbackView] = useState<'list' | 'detail'>('list')
+  const [analyticsLoading, setAnalyticsLoading] = useState(false)
+  const [users, setUsers] = useState<AdminUserSummary[]>([])
+  const [usageTrend, setUsageTrend] = useState<UsageTrendPoint[]>([])
+  const [systemStats, setSystemStats] = useState<SystemStats | null>(null)
 
   useEffect(() => {
     if (activeTab === 'feedback') {
       void fetchFeedbackList()
     } else if (activeTab === 'games') {
       void fetchGameLogs()
+    } else if (activeTab === 'analytics') {
+      void fetchAnalytics()
     }
   }, [activeTab])
 
@@ -284,6 +329,19 @@ export default function AdminPage() {
     return `${minutes}m ${remainSeconds}s`
   }
 
+  const formatSecondsToHms = (totalSeconds: number) => {
+    if (!totalSeconds || totalSeconds <= 0) return ''
+    const hours = Math.floor(totalSeconds / 3600)
+    const minutes = Math.floor((totalSeconds % 3600) / 60)
+    const seconds = Math.floor(totalSeconds % 60)
+    if (hours > 0) {
+      if (minutes > 0) return `${hours}h${minutes}m`
+      return `${hours}h`
+    }
+    if (minutes > 0) return `${minutes}m`
+    return `${seconds}s`
+  }
+
   const fetchGameLogs = async () => {
     try {
       setGamesLoading(true)
@@ -328,6 +386,55 @@ export default function AdminPage() {
       Toast.show({ content: err?.message || '加载对局详情失败', icon: 'fail' })
     } finally {
       setGameDetailLoading(false)
+    }
+  }
+
+  const fetchAnalytics = async () => {
+    try {
+      setAnalyticsLoading(true)
+
+      const baseUrl = buildBaseUrl()
+      const [usersRes, trendRes, statsRes] = await Promise.all([
+        fetch(`${baseUrl}/api/admin/users`),
+        fetch(`${baseUrl}/api/admin/analytics/usage-trend?days=30`),
+        fetch(`${baseUrl}/api/score/system/stats`),
+      ])
+
+      const [usersJson, trendJson, statsJson] = await Promise.all([
+        usersRes
+          .json()
+          .catch(() => ({ success: false })),
+        trendRes
+          .json()
+          .catch(() => ({ success: false })),
+        statsRes
+          .json()
+          .catch(() => ({ success: false })),
+      ])
+
+      if (!usersRes.ok || !usersJson?.success) {
+        throw new Error(usersJson?.message || `加载用户列表失败（${usersRes.status}）`)
+      }
+
+      if (!trendRes.ok || !trendJson?.success) {
+        throw new Error(trendJson?.message || `加载趋势数据失败（${trendRes.status}）`)
+      }
+
+      setUsers(Array.isArray(usersJson.users) ? (usersJson.users as AdminUserSummary[]) : [])
+      setUsageTrend(
+        Array.isArray(trendJson.points) ? (trendJson.points as UsageTrendPoint[]) : [],
+      )
+
+      if (statsRes.ok && statsJson?.success && statsJson.data) {
+        setSystemStats(statsJson.data as SystemStats)
+      } else {
+        setSystemStats(null)
+      }
+    } catch (err: any) {
+      console.error('加载用户分析数据失败:', err)
+      Toast.show({ content: err?.message || '加载用户分析数据失败', icon: 'fail' })
+    } finally {
+      setAnalyticsLoading(false)
     }
   }
 
@@ -394,7 +501,7 @@ export default function AdminPage() {
                 className="admin-feedback-table-header-cell sortable"
                 onClick={() => handleFeedbackSortChange('index')}
               >
-                <span>序号</span>
+                <span>时间</span>
                 <span className="sort-arrow">{getSortArrow('index')}</span>
               </div>
               <div
@@ -422,7 +529,7 @@ export default function AdminPage() {
             </div>
 
             <div className="admin-feedback-table-body">
-              {sorted.map((item, index) => {
+              {sorted.map((item) => {
                 const isActive = selected && selected.id === item.id
                 const statusLabel = getStatusLabel(item.status)
                 const preview = getContentPreview(item.feedbackContent)
@@ -439,7 +546,9 @@ export default function AdminPage() {
                     }
                     onClick={() => handleOpenFeedbackDetail(item.id)}
                   >
-                    <div className="admin-feedback-col index">{index + 1}</div>
+                    <div className="admin-feedback-col index">
+                      {formatTime(item.timestamp || item.createdAt)}
+                    </div>
                     <div className="admin-feedback-col user">{item.userName || '匿名用户'}</div>
                     <div className="admin-feedback-col type">{typeLabel}</div>
                     <div className="admin-feedback-col content">{preview}</div>
@@ -514,6 +623,35 @@ export default function AdminPage() {
                 <div className="admin-feedback-detail-content">
                   {selected.feedbackContent}
                 </div>
+
+                {Array.isArray(selected.screenshots) && selected.screenshots.length > 0 && (
+                  <div className="admin-feedback-screenshots">
+                    <div className="admin-feedback-screenshots-title">用户截图</div>
+                    <div className="admin-feedback-screenshots-grid">
+                      {selected.screenshots.map((shot) => {
+                        const baseUrl = buildBaseUrl()
+                        const url = `${baseUrl}/uploads/feedback/${encodeURIComponent(
+                          shot.filename,
+                        )}`
+                        return (
+                          <a
+                            key={shot.filename}
+                            className="admin-feedback-screenshot-item"
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <img
+                              src={url}
+                              alt={shot.originalname || shot.filename}
+                              className="admin-feedback-screenshot-thumb"
+                            />
+                          </a>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {Array.isArray(selected.replies) && selected.replies.length > 0 && (
                   <div className="admin-feedback-replies">
@@ -705,6 +843,269 @@ export default function AdminPage() {
     )
   }
 
+  const renderAnalyticsTab = () => {
+    const sortedUsers = [...users].sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0))
+
+    const maxActive = usageTrend.reduce((max, p) => Math.max(max, p.activeUsers), 0)
+    const maxPlay = usageTrend.reduce(
+      (max, p) => Math.max(max, p.totalPlayTimeSeconds),
+      0,
+    )
+
+    const latestPoint = usageTrend.length > 0 ? usageTrend[usageTrend.length - 1] : null
+    const avgActive =
+      usageTrend.length > 0
+        ? usageTrend.reduce((sum, p) => sum + p.activeUsers, 0) / usageTrend.length
+        : 0
+
+    const xTickInterval =
+      usageTrend.length > 0 ? Math.max(1, Math.floor(usageTrend.length / 8)) : 1
+
+    return (
+      <div className="admin-section">
+        <div className="admin-section-header">
+          <h2 className="admin-section-title">用户分析</h2>
+          <button
+            type="button"
+            className="admin-refresh-button"
+            onClick={() => fetchAnalytics()}
+            disabled={analyticsLoading}
+          >
+            {analyticsLoading ? '加载中...' : '刷新'}
+          </button>
+        </div>
+
+        <div className="admin-analytics-subtabs">
+          <button
+            type="button"
+            className={
+              'admin-analytics-subtab' +
+              (analyticsView === 'overview' ? ' admin-analytics-subtab-active' : '')
+            }
+            onClick={() => setAnalyticsView('overview')}
+          >
+            用户概览
+          </button>
+          <button
+            type="button"
+            className={
+              'admin-analytics-subtab' +
+              (analyticsView === 'trend' ? ' admin-analytics-subtab-active' : '')
+            }
+            onClick={() => setAnalyticsView('trend')}
+          >
+            活跃趋势
+          </button>
+        </div>
+
+        {!analyticsLoading && sortedUsers.length === 0 && usageTrend.length === 0 ? (
+          <div className="admin-empty">暂无用户数据，请先完成几局游戏。</div>
+        ) : null}
+
+        <div className="admin-analytics-layout">
+          <div className="admin-analytics-summary-card">
+            <div className="admin-analytics-summary-title">总体数据</div>
+            <div className="admin-analytics-summary-grid">
+              <div className="admin-analytics-summary-item">
+                <div className="label">总玩家数</div>
+                <div className="value">
+                  {systemStats?.totalPlayers ?? sortedUsers.length}
+                </div>
+              </div>
+              <div className="admin-analytics-summary-item">
+                <div className="label">总对局数</div>
+                <div className="value">{systemStats?.totalGames ?? '-'}</div>
+              </div>
+              <div className="admin-analytics-summary-item">
+                <div className="label">最近活跃日期</div>
+                <div className="value">
+                  {usageTrend.length > 0
+                    ? usageTrend[usageTrend.length - 1]?.date
+                    : '-'}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {analyticsView === 'overview' ? (
+            <div className="admin-analytics-users-card">
+              <div className="admin-analytics-card-header">
+                <div className="title">玩家列表</div>
+                <div className="subtitle">按金币从高到低排序</div>
+              </div>
+              {sortedUsers.length === 0 ? (
+                <div className="admin-empty">暂无玩家记录。</div>
+              ) : (
+                <div className="admin-analytics-users-table">
+                  <div className="admin-analytics-users-header-row">
+                    <div>玩家</div>
+                    <div>金币</div>
+                    <div>局数</div>
+                    <div>胜率</div>
+                    <div>总在线时长</div>
+                    <div>最近上线</div>
+                  </div>
+                  <div className="admin-analytics-users-body">
+                    {sortedUsers.map((u) => (
+                      <div key={u.userId} className="admin-analytics-users-row">
+                        <div className="col name">
+                          {u.username || u.userId}
+                          {u.isBot && <span className="tag-bot">机器人</span>}
+                        </div>
+                        <div className="col score">{u.totalScore.toLocaleString()}</div>
+                        <div className="col games">{u.gamesPlayed}</div>
+                        <div className="col winrate">
+                          {u.gamesPlayed > 0 ? `${u.winRate.toFixed(1)}%` : '-'}
+                        </div>
+                        <div className="col playtime">
+                          {formatSecondsToHms(u.totalPlayTimeSeconds)}
+                        </div>
+                        <div className="col last">
+                          {u.lastPlayedAt ? formatTime(u.lastPlayedAt) : ''}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="admin-analytics-chart-card">
+                <div className="admin-analytics-card-header">
+                  <div className="title">每日活跃用户折线图</div>
+                  <div className="subtitle">横轴为日期，纵轴为当天登录过的玩家总人数</div>
+                </div>
+                {usageTrend.length === 0 || maxActive === 0 ? (
+                  <div className="admin-empty">暂无活跃数据。</div>
+                ) : (
+                  <>
+                    <div className="admin-analytics-line-chart">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart
+                          data={usageTrend}
+                          margin={{ top: 16, right: 16, bottom: 8, left: 8 }}
+                        >
+                          <CartesianGrid
+                            stroke="rgba(30, 64, 175, 0.35)"
+                            strokeDasharray="3 3"
+                            vertical={false}
+                          />
+                          <XAxis
+                            dataKey="date"
+                            interval={xTickInterval}
+                            tick={{ fill: 'rgba(148, 163, 184, 0.96)', fontSize: 10 }}
+                            tickLine={false}
+                            axisLine={{ stroke: 'rgba(148, 163, 184, 0.4)' }}
+                          />
+                          <YAxis
+                            allowDecimals={false}
+                            tick={{ fill: 'rgba(148, 163, 184, 0.96)', fontSize: 10 }}
+                            tickLine={false}
+                            axisLine={{ stroke: 'rgba(148, 163, 184, 0.4)' }}
+                          />
+                          <Tooltip
+                            contentStyle={{
+                              background: 'rgba(15, 23, 42, 0.95)',
+                              border: '1px solid rgba(51, 65, 85, 0.9)',
+                              borderRadius: 8,
+                              padding: 8,
+                              fontSize: 11,
+                              color: '#e5e7eb',
+                            }}
+                            labelStyle={{
+                              color: 'rgba(191, 219, 254, 0.96)',
+                              marginBottom: 4,
+                            }}
+                            cursor={{
+                              stroke: 'rgba(148, 163, 184, 0.4)',
+                              strokeWidth: 1,
+                            }}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="activeUsers"
+                            stroke="#60a5fa"
+                            strokeWidth={2}
+                            dot={{
+                              r: 3,
+                              stroke: '#1d4ed8',
+                              strokeWidth: 1.5,
+                              fill: '#93c5fd',
+                            }}
+                            activeDot={{ r: 4 }}
+                          >
+                            <LabelList
+                              dataKey="activeUsers"
+                              position="top"
+                              fill="rgba(191, 219, 254, 0.96)"
+                              fontSize={10}
+                            />
+                          </Line>
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="admin-analytics-chart-summary">
+                      <span>
+                        最近一天：
+                        {latestPoint
+                          ? `${latestPoint.date} · ${latestPoint.activeUsers} 人`
+                          : '-'}
+                      </span>
+                      <span>30天峰值：{maxActive} 人</span>
+                      <span>
+                        30天日均：
+                        {avgActive > 0 ? `${avgActive.toFixed(1)} 人` : '-'}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="admin-analytics-trend-card">
+                <div className="admin-analytics-card-header">
+                  <div className="title">最近30天活跃趋势</div>
+                  <div className="subtitle">按天统计活跃玩家数和总在线时长</div>
+                </div>
+                {usageTrend.length === 0 ? (
+                  <div className="admin-empty">暂无趋势数据。</div>
+                ) : (
+                  <div className="admin-analytics-trend-list">
+                    {usageTrend.map((p) => {
+                      const activeRatio = maxActive > 0 ? p.activeUsers / maxActive : 0
+                      const timeRatio = maxPlay > 0 ? p.totalPlayTimeSeconds / maxPlay : 0
+                      return (
+                        <div key={p.date} className="admin-analytics-trend-row">
+                          <div className="col date">{p.date}</div>
+                          <div className="col metrics">
+                            <span className="metric">活跃 {p.activeUsers}</span>
+                            <span className="metric">
+                              时长 {formatSecondsToHms(p.totalPlayTimeSeconds)}
+                            </span>
+                          </div>
+                          <div className="col bars">
+                            <div
+                              className="bar bar-active"
+                              style={{ width: `${(activeRatio || 0) * 100}%` }}
+                            />
+                            <div
+                              className="bar bar-time"
+                              style={{ width: `${(timeRatio || 0) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="admin-page">
       <header className="admin-header">
@@ -737,12 +1138,20 @@ export default function AdminPage() {
           >
             对局记录
           </button>
+          <button
+            type="button"
+            className={`admin-tab ${activeTab === 'analytics' ? 'admin-tab-active' : ''}`}
+            onClick={() => setActiveTab('analytics')}
+          >
+            用户分析
+          </button>
         </aside>
 
         <main className="admin-main">
           {activeTab === 'feedback' && renderFeedbackTab()}
           {activeTab === 'settings' && renderSettingsTab()}
           {activeTab === 'games' && renderGamesTab()}
+          {activeTab === 'analytics' && renderAnalyticsTab()}
         </main>
       </div>
     </div>

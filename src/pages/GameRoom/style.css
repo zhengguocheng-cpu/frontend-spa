@@ -311,7 +311,7 @@
   justify-content: center;
   gap: 16px;
   padding: 16px;
-  z-index: 5;
+  z-index: 80;
   pointer-events: none; /* 让点击穿透到下层，不阻挡手牌交互 */
   position: relative;
 }
@@ -776,7 +776,7 @@
   width: auto;
   min-width: 0;
   height: auto;
-  z-index: 1; /* 降低优先级，让牌面能够覆盖 */
+  z-index: auto; /* 高于手牌区域，确保结算分数气泡不被遮挡 */
   pointer-events: none; /* 不拦截鼠标/触摸事件，底部手牌可以完全点击 */
   transition: all 0.3s ease;
 }
@@ -849,6 +849,7 @@
   min-width: 140px;
   text-align: center;
   text-shadow: 0 4px 10px rgba(0, 0, 0, 0.85);
+  z-index: 80;
 }
 
 .current-player-info .result-score-bottom.win {
@@ -1954,13 +1955,11 @@
 
   /* 叫地主/抢地主按钮（缩小） */
   .bidding-controls {
-    position: absolute;
-    left: 50%;
-    top: 42%;
-    transform: translate(-50%, -50%);
+    position: static; /* 不再单独绝对定位，避免与倒计时圆圈重叠 */
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     gap: 10px;
+    margin-top: 12px; /* 与上方大圆圈留出间距 */
     z-index: 20;
   }
 

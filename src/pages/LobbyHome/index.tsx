@@ -124,7 +124,7 @@ export default function LobbyHome() {
     return () => {
       controller.abort()
     }
-  }, [user])
+  }, [user?.id])
 
   // 同步当前积分到 sessionStorage，供其他页面（如房间列表）做积分校验
   useEffect(() => {

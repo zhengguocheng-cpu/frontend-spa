@@ -493,26 +493,34 @@ const findAllTripleWithPairs = (hand: Card[]): Card[][] => {
     if (cardsOfValue.length === 3) {
       const triple = sortCardsAsc(cardsOfValue).slice(0, 3)
 
-      const pairCandidates = entries.filter(([pairValue, pairCards]) => {
-        if (pairValue === value) return false
-        // 带的对子只从2张或3张中取，避免从炸弹拆对子
-        return pairCards.length === 2 || pairCards.length === 3
-      })
+      const rawPairCandidates = entries
+        .filter(([pairValue, pairCards]) => {
+          if (pairValue === value) return false
+          // 带的对子只从2张或3张中取，避免从炸弹拆对子
+          if (pairCards.length !== 2 && pairCards.length !== 3) return false
+          return true
+        })
+        .map(([pairValue, pairCards]) => ({ pairValue, pairCards }))
+        .sort((a, b) => a.pairValue - b.pairValue)
 
-      if (pairCandidates.length === 0) continue
+      if (rawPairCandidates.length === 0) continue
 
-      if (pairCandidates.length > 1) {
-        // 有不止一个对子时，直接用最小的对子
-        const [, smallPairCards] = pairCandidates[0]
-        const sortedPair = sortCardsAsc(smallPairCards)
+      const safePairs = rawPairCandidates.filter((c) => c.pairValue < RANK_VALUES['2'])
+      const strongPairs = rawPairCandidates.filter((c) => c.pairValue >= RANK_VALUES['2'])
+
+      const pushTripleWithPair = (candidate: { pairValue: number; pairCards: Card[] }) => {
+        const sortedPair = sortCardsAsc(candidate.pairCards)
         results.push([...triple, sortedPair[0], sortedPair[1]])
-      } else {
-        // 只有一个对子时，如果出完这手后牌已经很少，可以接受用这个对子；否则交给三带一去用小单
-        const [, onlyPairCards] = pairCandidates[0]
+      }
+
+      if (safePairs.length > 0) {
+        // 优先使用点数较小的普通对子作为翅膀
+        pushTripleWithPair(safePairs[0])
+      } else if (strongPairs.length > 0) {
+        // 只有 2 / 王 这类超强对子可用时，仅在剩余牌很少时才考虑带出去
         const remainingAfterTriplePair = totalLen - 5
         if (remainingAfterTriplePair <= 3) {
-          const sortedPair = sortCardsAsc(onlyPairCards)
-          results.push([...triple, sortedPair[0], sortedPair[1]])
+          pushTripleWithPair(strongPairs[0])
         }
       }
     }
@@ -1202,6 +1210,9 @@ const findBiggerTripleWithPairs = (hand: Card[], minTripleValue: number): Card[]
 
     for (const [pairValue, pairCards] of entries) {
       if (pairValue === value || pairCards.length < 2) continue
+
+      // 避免用 2 / 王 这种超强对子做三带二的翅膀，尽量保留到最后使用
+      if (pairValue >= RANK_VALUES['2']) continue
 
       const sortedPair = sortCardsAsc(pairCards)
       const pair: Card[] = [sortedPair[0], sortedPair[1]]

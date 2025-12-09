@@ -237,6 +237,45 @@ export default function GameRoom() {
   // 记录已经为哪些玩家拉取过金币，避免重复请求
   const fetchedScorePlayerIdsRef = useRef<Set<string>>(new Set())
 
+  const refreshWalletScore = async (): Promise<number | null> => {
+    if (!user) {
+      setWalletScore(null)
+      return null
+    }
+
+    try {
+      const baseUrl =
+        window.location.hostname === 'localhost'
+          ? 'http://localhost:3000'
+          : window.location.origin
+
+      const res = await fetch(
+        `${baseUrl}/api/score/${encodeURIComponent(user.id)}`,
+      )
+
+      let json: any = null
+      try {
+        json = await res.json()
+      } catch {
+      }
+
+      if (!res.ok || !json?.success || !json.data) {
+        console.warn('GameRoom 刷新钱包积分失败:', res.status, json?.message)
+        setWalletScore(0)
+        return 0
+      }
+
+      const data = json.data
+      const scoreValue = typeof data.totalScore === 'number' ? data.totalScore : 0
+      setWalletScore(scoreValue)
+      return scoreValue
+    } catch (err: any) {
+      console.error('GameRoom 刷新钱包积分异常:', err)
+      setWalletScore(0)
+      return 0
+    }
+  }
+
   // 当上方左右玩家的 score 为空 / 非正数时，临时从 /api/score/<playerId> 拉一次钱包积分
   useEffect(() => {
     const candidates = [leftPlayer, rightPlayer].filter(
@@ -1416,8 +1455,14 @@ export default function GameRoom() {
           message: `本局结束：${winnerName}（${role}）获胜`,
         },
       ])
-
-      // TODO: 这里可以继续扩展结算结束后的逻辑（例如更多动画或统计）
+      ;(async () => {
+        const newScore = await refreshWalletScore()
+        if (typeof newScore === 'number' && newScore <= 0) {
+          appendSystemMessage('本局结束后你的积分已用尽，将自动返回大厅进行充值')
+          dispatch(prepareNextGame())
+          doLeaveRoom()
+        }
+      })()
     }
 
     // 聊天消息
@@ -1669,38 +1714,37 @@ useEffect(() => {
     if (myCards.length === 0) {
       console.warn('没有牌可以出...')
       return
-        return
-      }
+    }
 
-      const lastCards: string[] | null =
-        lastPlayedCards && lastPlayedCards.cards && lastPlayedCards.cards.length > 0
-          ? lastPlayedCards.cards
-          : null
+    const lastCards: string[] | null =
+      lastPlayedCards && lastPlayedCards.cards && lastPlayedCards.cards.length > 0
+        ? lastPlayedCards.cards
+        : null
 
-      const autoHint = CardHintHelper.getHint(myCards, lastCards)
-      console.log('自动提示结果:', autoHint)
-      
-      if (autoHint && autoHint.length > 0) {
-        console.log('自动出牌:', autoHint)
-        doPlayCards(autoHint)
-        appendSystemMessage('已为你自动出一手推荐牌')
+    const autoHint = CardHintHelper.getHint(myCards, lastCards)
+    console.log('自动提示结果:', autoHint)
+    
+    if (autoHint && autoHint.length > 0) {
+      console.log('自动出牌:', autoHint)
+      doPlayCards(autoHint)
+      appendSystemMessage('已为你自动出一手推荐牌')
+    } else {
+      // 推荐失败，兜底出最小的一张
+      console.error('没有推荐出牌，兜底出最小的一张牌')
+      const minCard = myCards[0]
+      if (minCard) {
+        console.log('兜底出牌:', minCard)
+        doPlayCards([minCard])
+        setChatMessages(prev => [
+          ...prev,
+          { sender: '系统', message: '已为你自动出一张最小的牌' },
+        ])
       } else {
-        // 推荐失败，兜底出最小的一张
-        console.error('没有推荐出牌，兜底出最小的一张牌')
-        const minCard = myCards[0]
-        if (minCard) {
-          console.log('兜底出牌:', minCard)
-          doPlayCards([minCard])
-          setChatMessages(prev => [
-            ...prev,
-            { sender: '系统', message: '已为你自动出一张最小的牌' },
-          ])
-        } else {
-          console.error('已经没有可以出的牌')
-          appendSystemMessage('已为你自动判定为没有可出的牌')
-        }
+        console.error('已经没有可以出的牌')
+        appendSystemMessage('已为你自动判定为没有可出的牌')
       }
     }
+  }
   }, [turnTimer, isMyTurn, canPass])
 
   // 自动“没有可出牌时帮点不出”：如果所有提示都失败，延迟 1 秒自动执行不出
@@ -2230,7 +2274,6 @@ useEffect(() => {
     }
   }, [myCards]) // 手牌变化时重新计算重叠
 
-  // 加载当前用户的钱包积分，用于在房间内显示金币
   useEffect(() => {
     if (!user) {
       setWalletScore(null)
@@ -2239,44 +2282,14 @@ useEffect(() => {
 
     const controller = new AbortController()
 
-    const loadWallet = async () => {
+    const run = async () => {
       try {
-        const baseUrl =
-          window.location.hostname === 'localhost'
-            ? 'http://localhost:3000'
-            : window.location.origin
-
-        const res = await fetch(
-          `${baseUrl}/api/score/${encodeURIComponent(user.id)}`,
-          {
-            signal: controller.signal,
-          },
-        )
-
-        let json: any = null
-        try {
-          json = await res.json()
-        } catch {
-          // ignore body parse error
-        }
-
-        if (!res.ok || !json?.success || !json.data) {
-          console.warn('GameRoom 加载钱包积分失败:', res.status, json?.message)
-          setWalletScore(0)
-          return
-        }
-
-        const data = json.data
-        const scoreValue = typeof data.totalScore === 'number' ? data.totalScore : 0
-        setWalletScore(scoreValue)
-      } catch (err: any) {
-        if (err?.name === 'AbortError') return
-        console.error('GameRoom 加载钱包积分异常:', err)
-        setWalletScore(0)
+        await refreshWalletScore()
+      } catch {
       }
     }
 
-    loadWallet()
+    run()
 
     return () => {
       controller.abort()
