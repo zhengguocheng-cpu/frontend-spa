@@ -38,6 +38,9 @@ import { ChatPanel } from '@/shared/components'
 // 导入游戏特定组件
 import { BiddingControls } from '@/games/doudizhu/components'
 
+// 导入 GameRoom 子组件
+import { SettlementPanel } from './components'
+
 import '@/styles/avatars.css'
 import './style.css'
 import './game.css'
@@ -2924,78 +2927,23 @@ useEffect(() => {
         </div>
       )}
 
-      {/* 结算遮罩层 - 整个页面覆盖层 */}
-      {false && showSettlement && gameState.gameResult && (
-        <div className="settlement-overlay">
-          <div className="settlement-root">
-            <div className="settlement-layout">
-              <div className="settlement-panel">
-                <div className="settlement-header">
-                  <div
-                    className={`settlement-result-badge ${
-                      gameState.gameResult.landlordWin ? 'landlord-win' : 'farmer-win'
-                    }`}
-                  >
-                    {gameState.gameResult.landlordWin ? '地主胜利' : '农民胜利'}
-                  </div>
-                </div>
-
-                {gameState.gameResult.score && (
-                  <div className="players-score">
-                    <h3 className="section-title">本局得分</h3>
-                    <div className="players-score-list">
-                      {settlementPlayerScores.map((ps: SettlementPlayerScore) => {
-                        const isWinner = ps.isWinner
-                        const isMe = ps.playerId === (user?.id || user?.name)
-                        const scoreValue = ps.finalScore > 0 ? `+${ps.finalScore}` : ps.finalScore
-                        const roleLabel = ps.role === 'landlord' ? '地主' : '农民'
-                        return (
-                          <div
-                            key={ps.playerId}
-                            className={`player-score-row ${isWinner ? 'winner' : ''} ${isMe ? 'me' : ''}`}
-                          >
-                            <div className="player-info">
-                              <span className="player-name">
-                                {ps.playerName}（{roleLabel}）
-                              </span>
-                            </div>
-                            <span className={`player-score-value ${ps.finalScore >= 0 ? 'positive' : 'negative'}`}>
-                              {scoreValue}
-                            </span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                <div className="settlement-actions">
-                  <Button
-                    color="primary"
-                    onClick={() => {
-                      dispatch(prepareNextGame())
-                      closeSettlement()
-                      handleStartGame() // 再来一局
-                    }}
-                  >
-                    再来一局
-                  </Button>
-                  <Button
-                    color="default"
-                    onClick={() => {
-                      dispatch(prepareNextGame())
-                      closeSettlement()
-                      doLeaveRoom()
-                    }}
-                  >
-                    返回大厅
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 结算面板 */}
+      <SettlementPanel
+        visible={false && showSettlement && !!gameState.gameResult}
+        landlordWin={gameState.gameResult?.landlordWin || false}
+        playerScores={settlementPlayerScores}
+        currentUserId={user?.id || user?.name}
+        onPlayAgain={() => {
+          dispatch(prepareNextGame())
+          closeSettlement()
+          handleStartGame()
+        }}
+        onLeaveRoom={() => {
+          dispatch(prepareNextGame())
+          closeSettlement()
+          doLeaveRoom()
+        }}
+      />
     </div>
   )
 }
