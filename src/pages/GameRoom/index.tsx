@@ -32,6 +32,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 // 导入新的 Hooks
 import { useGameUI } from './hooks'
 
+// 导入共享组件
+import { ChatPanel } from '@/shared/components'
+
 import '@/styles/avatars.css'
 import './style.css'
 import './game.css'
@@ -2880,55 +2883,15 @@ useEffect(() => {
         </div>
       </div>
 
-      {chatVisible && (
-        <div
-          className="chat-overlay"
-          onClick={toggleChat}
-        />
-      )}
-
-      {/* 聊天侧边栏 */}
-      <aside className={`chat-sidebar ${chatVisible ? 'visible' : 'hidden'}`}>
-        <div className="chat-header">
-          <h3>房间聊天</h3>
-          <Button 
-            size="small" 
-            fill="none"
-            onClick={toggleChat}
-            style={{ padding: '4px 8px' }}
-          >
-            关
-          </Button>
-        </div>
-        <div className="chat-messages">
-          {chatMessages.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#999', marginTop: '20px' }}>
-              暂无聊天消息
-            </div>
-          ) : (
-            chatMessages.map((msg, index) => (
-              <div key={index} className="chat-message">
-                <div className="chat-message-sender">{msg.sender}</div>
-                <div>{msg.message}</div>
-              </div>
-            ))
-          )}
-        </div>
-        <div className="chat-input-area">
-          <div className="chat-input-container">
-            <input
-              type="text"
-              placeholder="输入聊天内容..."
-              value={chatMessage}
-              onChange={(e) => updateChatInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSendChat()}
-            />
-            <Button color="primary" onClick={handleSendChat}>
-              发送
-            </Button>
-          </div>
-        </div>
-      </aside>
+      {/* 聊天面板 */}
+      <ChatPanel
+        visible={chatVisible}
+        messages={chatMessages}
+        currentMessage={chatMessage}
+        onClose={toggleChat}
+        onMessageChange={updateChatInput}
+        onSend={handleSendChat}
+      />
 
       {/* AI 出牌记录侧边面板 */}
       {showAiPanel && (
