@@ -104,20 +104,19 @@
 
   .bidding-buttons {
     gap: 12px;
-    flex-direction: column;
-    width: 100%;
+    flex-direction: row;
   }
 
   .bidding-btn {
-    width: 100%;
-    max-width: 200px;
+    min-width: 90px;
+    font-size: 15px;
   }
 }
 
 /* Meta50 手机特殊适配 */
 @media (max-width: 380px) {
   .bidding-actions {
-    gap: 10px;
+    gap: 8px;
     padding: 12px;
   }
 
@@ -129,11 +128,12 @@
 
   .bidding-buttons {
     gap: 8px;
+    flex-direction: row;
   }
 
   .bidding-btn {
-    min-width: 80px;
+    min-width: 75px;
     font-size: 14px;
-    padding: 8px 12px;
+    padding: 8px 10px;
   }
 }
