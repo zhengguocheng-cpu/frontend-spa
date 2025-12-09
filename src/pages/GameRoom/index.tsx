@@ -900,10 +900,7 @@ export default function GameRoom() {
 
       // 系统提示：有新玩家进入房间
       if (data.playerName && data.playerName !== user?.name) {
-        setChatMessages((prev) => [
-          ...prev,
-          { sender: '系统', message: `${data.playerName} 加入了房间` },
-        ])
+        addChatMessage('系统', `${data.playerName} 加入了房间`)
       }
 
       // 如果服务端下发了完整玩家列表，则以该列表为准刷新本地状态
@@ -922,10 +919,7 @@ export default function GameRoom() {
     const handlePlayerLeft = (data: any) => {
       console.log('[Player] player_left 事件:', data)
       // 系统提示：有玩家离开
-      setChatMessages((prev) => [
-        ...prev,
-        { sender: '系统', message: `${data.playerName || '玩家'} 离开了房间` },
-      ])
+      addChatMessage('系统', `${data.playerName || '玩家'} 离开了房间`)
 
       // 对齐旧版 frontend 的 onPlayerLeft 行为
       // 如果返回了完整 players 列表，则直接覆盖
@@ -951,10 +945,7 @@ export default function GameRoom() {
       
       // 系统提示：某位玩家已准备
       if (data.playerName) {
-        setChatMessages((prev) => [
-          ...prev,
-          { sender: '系统', message: `${data.playerName} 已准备` },
-        ])
+        addChatMessage('系统', `${data.playerName} 已准备`)
       }
       
       // 对齐旧版 frontend 的 onPlayerReady 行为
@@ -1059,10 +1050,7 @@ export default function GameRoom() {
         appendDebugMessage('FLOW', `deal_cards_all → bidding_start 耗时 ${now - dealAt}ms`)
       }
       quickFlowRef.current.biddingStartAt = now
-      setChatMessages(prev => [
-        ...prev,
-        { sender: '系统', message: `开始抢地主，先手玩家：${data.firstBidderName || '玩家'}` },
-      ])
+      addChatMessage('系统', `开始抢地主，先手玩家：${data.firstBidderName || '玩家'}`)
       
       // 判断当前用户是否是首位抢地主的玩家
       const currentUserId = user?.id || user?.name
@@ -1107,10 +1095,7 @@ export default function GameRoom() {
       // 文本化抢/不抢结果
       const bidText = data.bid ? '抢地主' : '不抢'
       appendDebugMessage('BID', `bid_result: ${data.userName || '玩家'} 选择${bidText}`)
-      setChatMessages(prev => [
-        ...prev,
-        { sender: '系统', message: `${data.userName || '玩家'} ${bidText}` }
-      ])
+      addChatMessage('系统', `${data.userName || '玩家'} ${bidText}`)
       
       // 关闭本地抢地主 UI
       setShowBiddingUI(false)
@@ -1187,18 +1172,12 @@ export default function GameRoom() {
         
         console.log('[Bidding] 已派发 setLandlord Redux action，gameStatus 应切换为 playing')
         
-        setChatMessages(prev => [
-          ...prev,
-          { sender: '系统', message: `${data.landlordName || '玩家'} 成为地主` },
-        ])
+        addChatMessage('系统', `${data.landlordName || '玩家'} 成为地主`)
         
         // 如果自己是地主，补充一条底牌获得提示
         if (isLandlord) {
           console.log('[Bidding] 当前玩家是地主，底牌为:', data.bottomCards)
-          setChatMessages(prev => [
-            ...prev,
-            { sender: '系统', message: `地主获得底牌，共 ${data.bottomCards?.length || 3} 张` },
-          ])
+          addChatMessage('系统', `地主获得底牌，共 ${data.bottomCards?.length || 3} 张`)
         }
 
         console.log('[Bidding] 等待服务器发出 turn_to_play 事件...')
@@ -1224,7 +1203,6 @@ export default function GameRoom() {
 
         if (isMe) {
           // 轮到自己出牌
-          setIsMyTurn(true)
           playPendingRef.current = false
           setPlayPending(false)
 
@@ -1237,7 +1215,8 @@ export default function GameRoom() {
           const isFirst = data.isFirst
           const hasLastPattern = Boolean(data.lastPattern)
           const canPassNow = !isFirst && hasLastPattern
-          setCanPass(canPassNow)
+          
+          setTurnState(true, canPassNow)
           
           console.log('[Turn] 本轮是否可以不出(canPass):', canPassNow)
           console.log('[Turn] 是否首手出牌(isFirst):', isFirst)
@@ -1245,20 +1224,13 @@ export default function GameRoom() {
           console.log('[Turn] isMyTurn 已设置为 true')
 
           // 系统提示：轮到自己出牌
-          setChatMessages((prev) => [
-            ...prev,
-            { sender: '系统', message: '轮到你出牌了' },
-          ])
+          addChatMessage('系统', '轮到你出牌了')
         } else {
           // 轮到其他玩家
-          setIsMyTurn(false)
-          setCanPass(false)
+          setTurnState(false, false)
 
           const otherName = data.playerName || '玩家'
-          setChatMessages((prev) => [
-            ...prev,
-            { sender: '系统', message: `轮到 ${otherName} 出牌...` },
-          ])
+          addChatMessage('系统', `轮到 ${otherName} 出牌...`)
         }
 
         // 出牌倒计时初始化
@@ -1296,10 +1268,9 @@ export default function GameRoom() {
         lower.includes('not your turn')
 
       if (notYourTurn) {
-        setIsMyTurn(false)
-        setCanPass(false)
+        setTurnState(false, false)
       } else {
-        setIsMyTurn(true)
+        setTurnState(true, canPass)
         setPlayPending(false)
       }
 
@@ -1370,8 +1341,7 @@ export default function GameRoom() {
         data.playerId === currentUserId || data.playerName === user?.name
 
       if (isCurrentUser) {
-        setIsMyTurn(false)
-        setCanPass(false)
+        setTurnState(false, false)
         playPendingRef.current = false
         setPlayPending(false)
       }
@@ -1387,7 +1357,7 @@ export default function GameRoom() {
       dispatch(clearSelection())
 
       // 出牌后清空所有玩家的“不出”标记
-      setPassedPlayers({})
+      clearAllPassedPlayers()
 
       // 有玩家出牌后，如果底牌区域仍展示，则自动收起
       if (!hideBottomCards) {
@@ -1409,10 +1379,7 @@ export default function GameRoom() {
       if (!isCurrentUser) {
         const cardTypeDesc = data.cardType ? data.cardType.description : ''
         if (cardTypeDesc) {
-          setChatMessages((prev) => [
-            ...prev,
-            { sender: '系统', message: `${data.playerName} 打出 ${cardTypeDesc}` },
-          ])
+          addChatMessage('系统', `${data.playerName} 打出 ${cardTypeDesc}`)
         }
       }
     }
@@ -1427,12 +1394,9 @@ export default function GameRoom() {
 
       dispatch(passAction(data.playerId))
       // 标记该玩家本轮已经选择“不出”
-      setPassedPlayers((prev) => ({ ...prev, [data.playerId]: true }))
+      markPlayerPassed(data.playerId)
       // 系统提示：某位玩家选择不出
-      setChatMessages((prev) => [
-        ...prev,
-        { sender: '系统', message: `${data.playerName || '玩家'} 选择不出` },
-      ])
+      addChatMessage('系统', `${data.playerName || '玩家'} 选择不出`)
     }
 
     // 游戏结束（game_over / game_ended）- 对齐旧版 frontend 行为
@@ -1453,7 +1417,7 @@ export default function GameRoom() {
       }
       
       // 停止本地“轮到我”状态
-      setIsMyTurn(false)
+      setTurnState(false, false)
       
       // 通知 Redux 结束本局游戏
       dispatch(endGame(data))
@@ -1478,17 +1442,11 @@ export default function GameRoom() {
       // 系统提示：本局结束 + 获胜方角色
       const winnerName = data.winnerName || '玩家'
       const role = data.winnerRole === 'landlord' ? '地主' : '农民'
-      setChatMessages((prev) => [
-        ...prev,
-        {
-          sender: '系统',
-          message: `本局结束：${winnerName}（${role}）获胜`,
-        },
-      ])
+      addChatMessage('系统', `本局结束：${winnerName}（${role}）获胜`)
       ;(async () => {
         const newScore = await refreshWalletScore()
         if (typeof newScore === 'number' && newScore <= 0) {
-          appendSystemMessage('本局结束后你的积分已用尽，将自动返回大厅进行充值')
+          addChatMessage('系统', '本局结束后你的积分已用尽，将自动返回大厅进行充值')
           dispatch(prepareNextGame())
           doLeaveRoom()
         }
@@ -1499,10 +1457,7 @@ export default function GameRoom() {
     const handleChatMessage = (data: any) => {
       console.log('[Chat] message_received 事件:', data)
       if (data.playerName && data.message) {
-        setChatMessages(prev => [...prev, {
-          sender: data.playerName,
-          message: data.message
-        }])
+        addChatMessage(data.playerName, data.message)
       }
     }
 
@@ -1757,7 +1712,7 @@ useEffect(() => {
     if (autoHint && autoHint.length > 0) {
       console.log('自动出牌:', autoHint)
       doPlayCards(autoHint)
-      appendSystemMessage('已为你自动出一手推荐牌')
+      addChatMessage('系统', '已为你自动出一手推荐牌')
     } else {
       // 推荐失败，兜底出最小的一张
       console.error('没有推荐出牌，兜底出最小的一张牌')
@@ -1765,13 +1720,10 @@ useEffect(() => {
       if (minCard) {
         console.log('兜底出牌:', minCard)
         doPlayCards([minCard])
-        setChatMessages(prev => [
-          ...prev,
-          { sender: '系统', message: '已为你自动出一张最小的牌' },
-        ])
+        addChatMessage('系统', '已为你自动出一张最小的牌')
       } else {
         console.error('已经没有可以出的牌')
-        appendSystemMessage('已为你自动判定为没有可出的牌')
+        addChatMessage('系统', '已为你自动判定为没有可出的牌')
       }
     }
   }
@@ -1800,10 +1752,7 @@ useEffect(() => {
       setTimeout(() => {
         if (isMyTurn && canPass) {
           handlePass()
-          setChatMessages(prev => [
-            ...prev,
-            { sender: '系统', message: '没有可出的牌，已自动选择不出' },
-          ])
+          addChatMessage('系统', '没有可出的牌，已自动选择不出')
         }
       }, 1000)
     }
@@ -1971,7 +1920,7 @@ useEffect(() => {
     }
 
     // 标记本地为非出牌方
-    setIsMyTurn(false)
+    setTurnState(false, false)
   }
 
   // 处理抢/不抢按钮点击（bid = true 或 false）
@@ -2214,7 +2163,7 @@ useEffect(() => {
         playerName: user.name,
         message: chatMessage,
       })
-      setChatMessage('')
+      clearChatInput()
     }
   }
 
@@ -2972,7 +2921,7 @@ useEffect(() => {
               type="text"
               placeholder="输入聊天内容..."
               value={chatMessage}
-              onChange={(e) => setChatMessage(e.target.value)}
+              onChange={(e) => updateChatInput(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSendChat()}
             />
             <Button color="primary" onClick={handleSendChat}>
