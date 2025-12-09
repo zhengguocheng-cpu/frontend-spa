@@ -60,10 +60,10 @@
 /* 按钮容器 */
 .bidding-buttons {
   display: flex;
+  flex-direction: row !important;
   gap: 16px;
   align-items: center;
   justify-content: center;
-  flex-wrap: wrap;
   z-index: 25;
 }
 
