@@ -5,9 +5,10 @@
 
 .bidding-actions {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 16px;
+  justify-content: center;
+  gap: 20px;
   padding: 20px;
   animation: fade-in-scale 0.3s ease;
 }
