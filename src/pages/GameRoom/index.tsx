@@ -842,8 +842,6 @@ export default function GameRoom() {
 
     // 玩家加入
     const handlePlayerJoined = (data: any) => {
-
-      // 系统提示：有新玩家进入房间
       if (data.playerName && data.playerName !== user?.name) {
         addChatMessage('系统', `${data.playerName} 加入了房间`)
       }
@@ -908,10 +906,7 @@ export default function GameRoom() {
       
       if (myCards && myCards.cards && myCards.cards.length > 0) {
 
-        // 播放发牌音效
         soundManager.playSound('deal')
-        
-        // 初始化我的手牌
         dispatch(startGame({ myCards: myCards.cards }))
 
         if (dealAnimationTimeoutRef.current) {
@@ -922,7 +917,6 @@ export default function GameRoom() {
           stopDealingAnimation()
         }, Math.min(1500, myCards.cards.length * 120 + 500))
         
-        // 同步所有玩家的基础信息与手牌数量
         if (data.players) {
           const playersWithInfo = data.players.map((p: any) => ({
             id: p.playerId || p.id,
@@ -954,7 +948,6 @@ export default function GameRoom() {
       quickFlowRef.current.biddingStartAt = now
       addChatMessage('系统', `开始抢地主，先手玩家：${data.firstBidderName || '玩家'}`)
       
-      // 判断当前用户是否是首位抢地主的玩家
       const currentUserId = user?.id || user?.name
       const currentUserName = user?.name || user?.id
       const isMyTurn =
@@ -1026,16 +1019,13 @@ export default function GameRoom() {
         const isMe = data.playerId === (user?.id || user?.name)
 
         if (isMe) {
-          // 轮到自己出牌
           playPendingRef.current = false
           setPlayPending(false)
 
-          // 重置本局出牌提示相关的自动标记
           CardHintHelper.resetHintIndex()
           autoFullHandPlayedRef.current = false
           autoFollowHintAppliedRef.current = false
           
-          // 计算本轮是否允许不出：非首手且存在上家牌型时才可以不出
           const isFirst = data.isFirst
           const hasLastPattern = Boolean(data.lastPattern)
           const canPassNow = !isFirst && hasLastPattern
@@ -1044,14 +1034,12 @@ export default function GameRoom() {
           
           addChatMessage('系统', '轮到你出牌了')
         } else {
-          // 轮到其他玩家
           setTurnState(false, false)
 
           const otherName = data.playerName || '玩家'
           addChatMessage('系统', `轮到 ${otherName} 出牌...`)
         }
 
-        // 出牌倒计时初始化
         const initialTime =
           typeof data.remainingTime === 'number' && data.remainingTime > 0
             ? data.remainingTime
