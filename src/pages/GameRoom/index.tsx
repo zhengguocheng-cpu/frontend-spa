@@ -34,9 +34,10 @@ import { motion } from 'framer-motion'
 import { useGameUI, useGameTimer } from './hooks'
 
 // 导入helper函数
-import { parseCard, getSpokenRankFromCard } from './logic/helpers'
+import { parseCard } from './logic/helpers'
 import { getPlayVoiceText } from './logic/voiceHelper'
 import { getPlayerPositions, isLandlordPlayer, getAvatarClassName, getRemainingCardsForPlayer } from './logic/playerHelper'
+import { fetchPlayerScore } from './logic/walletHelper'
 
 // 导入共享组件
 import { ChatPanel } from '@/shared/components'
@@ -249,35 +250,9 @@ export default function GameRoom() {
       return null
     }
 
-    try {
-      const baseUrl =
-        window.location.hostname === 'localhost'
-          ? 'http://localhost:3000'
-          : window.location.origin
-
-      const res = await fetch(
-        `${baseUrl}/api/score/${encodeURIComponent(user.id)}`,
-      )
-
-      let json: any = null
-      try {
-        json = await res.json()
-      } catch {
-      }
-
-      if (!res.ok || !json?.success || !json.data) {
-          setWalletScore(0)
-        return 0
-      }
-
-      const data = json.data
-      const scoreValue = typeof data.totalScore === 'number' ? data.totalScore : 0
-      setWalletScore(scoreValue)
-      return scoreValue
-    } catch (err: any) {
-      setWalletScore(0)
-      return 0
-    }
+    const scoreValue = await fetchPlayerScore(user.id)
+    setWalletScore(scoreValue)
+    return scoreValue
   }
 
   // 当上方左右玩家的 score 为空 / 非正数时，临时从 /api/score/<playerId> 拉一次钱包积分
@@ -296,29 +271,12 @@ export default function GameRoom() {
 
     const fetchScores = async () => {
       try {
-        const baseUrl =
-          window.location.hostname === 'localhost'
-            ? 'http://localhost:3000'
-            : window.location.origin
-
         const updatedPlayers = [...players]
 
         for (const p of candidates) {
           try {
             fetchedScorePlayerIdsRef.current.add(p.id)
-            const res = await fetch(`${baseUrl}/api/score/${encodeURIComponent(p.id)}`, {
-              signal: controller.signal,
-            })
-            let json: any = null
-            try {
-              json = await res.json()
-            } catch {
-              // ignore body parse error
-            }
-
-            const record = res.ok && json?.success && json.data ? json.data : null
-            const totalScore =
-              record && typeof record.totalScore === 'number' ? record.totalScore : null
+            const totalScore = await fetchPlayerScore(p.id)
 
             if (totalScore != null) {
               const idx = updatedPlayers.findIndex((x: any) => x.id === p.id)
@@ -330,7 +288,7 @@ export default function GameRoom() {
               }
             }
           } catch {
-            // 网络错误时忽略，保持原来的 0 分显示
+            // 网络错误时忽略
           }
         }
 
