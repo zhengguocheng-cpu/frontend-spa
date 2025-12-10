@@ -693,7 +693,6 @@ export default function GameRoom() {
     const socket = globalSocket.getSocket()
     if (!socket) return
     
-    // 辅助函数：更新玩家数据时保留score
     const mergePlayerData = (newPlayers: any[]) => {
       return newPlayers.map((p: any) => {
         const existingPlayer = players.find((ep: any) => ep.id === p.id || ep.name === p.name)
@@ -704,7 +703,7 @@ export default function GameRoom() {
         }
       })
     }
-    
+
     const handleRoomJoined = () => {
       appendSystemMessage('已进入房间，等待其他玩家...')
       const now = Date.now()
@@ -712,14 +711,12 @@ export default function GameRoom() {
       appendDebugMessage('FLOW', '收到 room_joined 事件')
     }
 
-    // 加入游戏成功
     const handleJoinGameSuccess = (data: any) => {
       appendDebugMessage('ROOM', '收到 join_game_success 事件')
 
       dispatch(prepareNextGame())
       
       if (data.room && data.room.players) {
-          // 兼容 ready 字段到 isReady，并补充 cardCount / score
         const players = data.room.players.map((p: any) => ({
           ...p,
           id: p.id || p.userId || p.name,
@@ -732,13 +729,12 @@ export default function GameRoom() {
           players: players,
         }))
       } else if (data.players) {
-        // 兼容旧版前端仅返回 players 数组的情况
         const players = data.players.map((p: any) => ({
           ...p,
           id: p.id || p.userId || p.name,
           isReady: p.isReady !== undefined ? p.isReady : p.ready,
           cardCount: p.cardCount || p.cards?.length || 0,
-          score: p.score ?? p.totalScore ?? null, // 兼容不同字段，统一使用 score
+          score: p.score ?? p.totalScore ?? null,
         }))
         dispatch(updatePlayers(players))
       }
@@ -840,7 +836,6 @@ export default function GameRoom() {
       }
     }
 
-    // 玩家加入
     const handlePlayerJoined = (data: any) => {
       if (data.playerName && data.playerName !== user?.name) {
         addChatMessage('系统', `${data.playerName} 加入了房间`)
@@ -874,7 +869,6 @@ export default function GameRoom() {
       }
     }
 
-    // 游戏开始
     const handleGameStarted = () => {
       const now = Date.now()
       const joinedAt = quickFlowRef.current.roomJoinedAt
@@ -884,13 +878,11 @@ export default function GameRoom() {
       quickFlowRef.current.gameStartedAt = now
       closeSettlement()
       dispatch(prepareNextGame())
-      // 重置炸弹 / 火箭统计等局内状态
       setCurrentBombCount(0)
       setHideBottomCards(false)
       appendSystemMessage('游戏开始，准备抢地主')
     }
 
-    // 发牌完成（所有玩家）
     const handleDealCardsAll = (data: any) => {
       const now = Date.now()
       const startedAt = quickFlowRef.current.gameStartedAt
@@ -899,7 +891,6 @@ export default function GameRoom() {
       }
       quickFlowRef.current.dealCardsAt = now
       
-      // 找到当前玩家的手牌
       const myCards = data.players?.find((p: any) => 
         p.playerId === user?.id || p.playerId === user?.name
       )
@@ -938,7 +929,6 @@ export default function GameRoom() {
       }
     }
 
-    // 抢地主开始
     const handleBiddingStart = (data: any) => {
       const now = Date.now()
       const dealAt = quickFlowRef.current.dealCardsAt
@@ -1069,7 +1059,6 @@ export default function GameRoom() {
       appendSystemMessage(`出牌失败：${message}`)
     }
 
-    // 当前出牌权玩家发生变更
     const handleTurnChanged = (data: any) => {
       if (data.currentPlayerId) {
         dispatch(setCurrentPlayer(data.currentPlayerId))
@@ -1163,17 +1152,12 @@ export default function GameRoom() {
       }
     }
 
-    // 有玩家选择“不出”
     const handlePlayerPassed = (data: any) => {
       if (!data.playerId) return
 
-      // 播放“不出”音效
       soundManager.playPass()
-
       dispatch(passAction(data.playerId))
-      // 标记该玩家本轮已经选择“不出”
       markPlayerPassed(data.playerId)
-      // 系统提示：某位玩家选择不出
       addChatMessage('系统', `${data.playerName || '玩家'} 选择不出`)
     }
 
