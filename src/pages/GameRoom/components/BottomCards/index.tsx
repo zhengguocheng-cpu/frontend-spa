@@ -13,15 +13,10 @@ interface BottomCardsProps {
 export function BottomCards(props: BottomCardsProps) {
   const { visible, cards, baseScore = 5000, multiplier = 1, parseCard } = props
 
-  // 如果没有底牌数据，不显示整个组件
-  if (cards.length === 0) {
-    return null
-  }
-
   return (
     <div className="bottom-cards-display">
-      {/* 底牌卡牌列表 - 根据visible状态控制显示 */}
-      {visible && (
+      {/* 底牌卡牌列表 - 根据visible状态和cards数据控制显示 */}
+      {visible && cards.length > 0 && (
         <div className="bottom-info-bar">
           <div className="bottom-cards-container">
             {cards.map((cardStr, index) => {
