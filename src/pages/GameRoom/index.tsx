@@ -174,22 +174,7 @@ export default function GameRoom() {
     addChatMessage('系统', text)
   }
 
-  const formatTimeWithMs = (date: Date) => {
-    const base = date.toLocaleTimeString('zh-CN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-    })
-    const ms = date.getMilliseconds().toString().padStart(3, '0')
-    return `${base}.${ms}`
-  }
-
-  const appendDebugMessage = (tag: string, text: string) => {
-    const now = new Date()
-    const ts = formatTimeWithMs(now)
-    appendSystemMessage(`[DEBUG ${tag}] ${ts} ${text}`)
-  }
+  // DEBUG函数已移除，生产环境不需要
 
   const { leftPlayer, rightPlayer, currentPlayer } = getPlayerPositions(players, user)
 
@@ -267,8 +252,6 @@ export default function GameRoom() {
     
     if (!roomId) return
 
-    appendDebugMessage('FLOW', `进入房间，roomId=${roomId}`)
-    
     // 将最近进入的房间信息写入 sessionStorage，方便断线重连
     sessionStorage.setItem('lastRoomId', roomId)
     sessionStorage.setItem('lastRoomTime', Date.now().toString())
@@ -389,34 +372,7 @@ export default function GameRoom() {
   useEffect(() => {
     if (!user || !roomId) return
 
-    try {
-      const clickRaw = sessionStorage.getItem('debug_quick_click')
-      const roomsRaw = sessionStorage.getItem('debug_quick_rooms_resolved')
-      const joinRaw = sessionStorage.getItem('debug_quick_join_emit')
-
-      sessionStorage.removeItem('debug_quick_click')
-      sessionStorage.removeItem('debug_quick_rooms_resolved')
-      sessionStorage.removeItem('debug_quick_join_emit')
-
-      const click = clickRaw ? Number(clickRaw) : NaN
-      const rooms = roomsRaw ? Number(roomsRaw) : NaN
-      const join = joinRaw ? Number(joinRaw) : NaN
-      const now = Date.now()
-
-      if (!Number.isNaN(click)) {
-        const total = now - click
-        appendDebugMessage('QUICK', `从点击匹配到进入房间总耗时 ${total}ms`)
-      }
-
-      if (!Number.isNaN(click) && !Number.isNaN(rooms)) {
-        appendDebugMessage('QUICK', `点击房间列表到房间列表返回耗时 ${rooms - click}ms`)
-      }
-
-      if (!Number.isNaN(rooms) && !Number.isNaN(join)) {
-        appendDebugMessage('QUICK', `房间列表返回到发送 join_game 耗时 ${join - rooms}ms`)
-      }
-    } catch {
-    }
+    // 快速匹配性能统计已移除
   }, [user, roomId])
 
   // 监听游戏相关的 Socket 事件
@@ -439,14 +395,10 @@ export default function GameRoom() {
 
     const handleRoomJoined = () => {
       appendSystemMessage('已进入房间，等待其他玩家...')
-      const now = Date.now()
-      quickFlowRef.current.roomJoinedAt = now
-      appendDebugMessage('FLOW', '收到 room_joined 事件')
+      quickFlowRef.current.roomJoinedAt = Date.now()
     }
 
     const handleJoinGameSuccess = (data: any) => {
-      appendDebugMessage('ROOM', '收到 join_game_success 事件')
-
       dispatch(prepareNextGame())
       
       if (data.room && data.room.players) {
@@ -603,12 +555,7 @@ export default function GameRoom() {
     }
 
     const handleGameStarted = () => {
-      const now = Date.now()
-      const joinedAt = quickFlowRef.current.roomJoinedAt
-      if (joinedAt) {
-        appendDebugMessage('FLOW', `room_joined → game_started 耗时 ${now - joinedAt}ms`)
-      }
-      quickFlowRef.current.gameStartedAt = now
+      quickFlowRef.current.gameStartedAt = Date.now()
       closeSettlement()
       dispatch(prepareNextGame())
       setCurrentBombCount(0)
@@ -617,12 +564,7 @@ export default function GameRoom() {
     }
 
     const handleDealCardsAll = (data: any) => {
-      const now = Date.now()
-      const startedAt = quickFlowRef.current.gameStartedAt
-      if (startedAt) {
-        appendDebugMessage('FLOW', `game_started → deal_cards_all 耗时 ${now - startedAt}ms`)
-      }
-      quickFlowRef.current.dealCardsAt = now
+      quickFlowRef.current.dealCardsAt = Date.now()
       
       const myCards = data.players?.find((p: any) => 
         p.playerId === user?.id || p.playerId === user?.name
@@ -660,12 +602,7 @@ export default function GameRoom() {
     }
 
     const handleBiddingStart = (data: any) => {
-      const now = Date.now()
-      const dealAt = quickFlowRef.current.dealCardsAt
-      if (dealAt) {
-        appendDebugMessage('FLOW', `deal_cards_all → bidding_start 耗时 ${now - dealAt}ms`)
-      }
-      quickFlowRef.current.biddingStartAt = now
+      quickFlowRef.current.biddingStartAt = Date.now()
       addChatMessage('系统', `开始抢地主，先手玩家：${data.firstBidderName || '玩家'}`)
       
       const currentUserId = user?.id || user?.name
@@ -682,7 +619,6 @@ export default function GameRoom() {
 
     const handleBidResult = (data: any) => {
       const bidText = data.bid ? '抢地主' : '不抢'
-      appendDebugMessage('BID', `bid_result: ${data.userName || '玩家'} 选择${bidText}`)
       addChatMessage('系统', `${data.userName || '玩家'} ${bidText}`)
       
       closeBiddingUI()
@@ -701,8 +637,6 @@ export default function GameRoom() {
     }
 
     const handleLandlordDetermined = (data: any) => {
-      appendDebugMessage('BID', '收到 landlord_determined 事件')
-      
       if (data.landlordId) {
         closeBiddingUI()
         stopBiddingTimer()
@@ -796,13 +730,6 @@ export default function GameRoom() {
 
     const handleCardsPlayed = (data: any) => {
 
-      appendDebugMessage(
-        'FLOW',
-        `收到 cards_played：player=${data.playerName || data.playerId || '未知'}，牌数=${
-          Array.isArray(data.cards) ? data.cards.length : 0
-        }`,
-      )
-
       if (!data.playerId || !data.cards) {
         return
       }
@@ -892,13 +819,6 @@ export default function GameRoom() {
 
     // 游戏结束（game_over / game_ended）- 对齐旧版 frontend 行为
     const handleGameEnded = (data: any) => {
-
-      appendDebugMessage(
-        'FLOW',
-        `收到 game_over：winner=${data.winnerName || '未知'}，role=${data.winnerRole}, landlordWin=${
-          data.landlordWin
-        }`,
-      )
       
       // 清理出牌倒计时
       stopTurnTimer()
@@ -909,9 +829,7 @@ export default function GameRoom() {
       // 通知 Redux 结束本局游戏
       dispatch(endGame(data))
 
-      // 记录我们已经请求显示结算
       openSettlement()
-      appendDebugMessage('FLOW', '已调用 openSettlement()，等待结算 UI 渲染')
 
       // 播放胜负音效
       const myId = user?.id || user?.name
@@ -1609,23 +1527,7 @@ useEffect(() => {
     }
   }
 
-  // 观察 gameStatus 变化（调试用）
-  useEffect(() => {
-    console.log('[Debug] gameStatus 变化:', gameStatus)
-  }, [gameStatus])
-
-  // 观察 isMyTurn 变化（调试用）
-  useEffect(() => {
-    console.log('[Debug] isMyTurn 变化:', isMyTurn)
-  }, [isMyTurn])
-
-  // 观察 players 列表变化（调试用）
-  useEffect(() => {
-    console.log('[Debug] players 变化:', players)
-    players.forEach((p: any) => {
-      console.log(`  - ${p.name}: cardCount=${p.cardCount}`)
-    })
-  }, [players])
+  // 调试用useEffect已移除
 
   // 根据手牌数量和容器宽度，动态计算手牌之间的重叠
   useEffect(() => {
