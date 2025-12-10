@@ -33,6 +33,9 @@ import { motion } from 'framer-motion'
 // 导入新的 Hooks
 import { useGameUI, useGameTimer } from './hooks'
 
+// 导入helper函数
+import { parseCard, getSpokenRankFromCard } from './logic/helpers'
+
 // 导入共享组件
 import { ChatPanel } from '@/shared/components'
 
@@ -414,63 +417,6 @@ export default function GameRoom() {
     return <span>{raw || '👤'}</span>
   }
 
-  const parseCard = (card: string) => {
-    if (card === '大王' || card === '🃏大王' || card.includes('大王')) {
-      return { rank: 'JOKER', suit: '', isJoker: 'big' as const }
-    }
-    if (card === '小王' || card === '🃏小王' || card.includes('小王')) {
-      return { rank: 'JOKER', suit: '', isJoker: 'small' as const }
-    }
-    if (card.includes('JOKER')) {
-      return { rank: 'JOKER', suit: '', isJoker: 'big' as const }
-    }
-    if (card.includes('joker')) {
-      return { rank: 'JOKER', suit: '', isJoker: 'small' as const }
-    }
-    const suits = ['♠', '♥', '♦', '♣']
-    let suit = ''
-    let rank = card
-    for (const s of suits) {
-      if (card.includes(s)) {
-        suit = s
-        rank = card.replace(s, '')
-        break
-      }
-    }
-    return { rank, suit, isJoker: null as 'big' | 'small' | null }
-  }
-
-  const RANK_SPOKEN_MAP: Record<string, string> = {
-    '3': '三',
-    '4': '四',
-    '5': '五',
-    '6': '六',
-    '7': '七',
-    '8': '八',
-    '9': '九',
-    '10': '十',
-    J: 'J',
-    Q: 'Q',
-    K: 'K',
-    A: 'A',
-    '2': '二',
-    JOKER: '王',
-  }
-
-  const getSpokenRankFromRank = (rank: string | null | undefined): string => {
-    if (!rank) return ''
-    return RANK_SPOKEN_MAP[rank] || rank
-  }
-
-  const getSpokenRankFromCard = (card: string): string => {
-    const parsed = parseCard(card)
-    if (parsed.isJoker) {
-      if (parsed.isJoker === 'big') return '大王'
-      if (parsed.isJoker === 'small') return '小王'
-      return '王'
-    }
-    return getSpokenRankFromRank(parsed.rank)
-  }
 
   const getPlayVoiceText = (pattern: any, cards: string[]): string | null => {
     const typeRaw = (pattern?.type || pattern?.TYPE || '').toString().toLowerCase()
