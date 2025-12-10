@@ -40,14 +40,16 @@ export class PlayCardsCommand implements GameCommand {
       cards: this.cards
     })
 
-    // 直接使用socket.emit，不经过CardOps
-    // 后端不使用回调模式，实际结果由 cards_played 事件通知
-    // 这里不调用onSuccess，让handleCardsPlayed处理
+    // 发送出牌请求
     socket?.emit('play_cards', {
       roomId: this.roomId,
       userId: this.userId,
       cards: this.cards
     })
+
+    // 立即调用 onSuccess 重置 pending 状态
+    // 实际的出牌结果由 cards_played/play_cards_failed 事件通知
+    this.onSuccess()
   }
 }
 
