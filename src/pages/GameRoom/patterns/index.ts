@@ -38,3 +38,14 @@ export {
   FinishedState,
   GameStateMachine,
 } from './GameStateMachine'
+
+// 观察者模式
+export type { GameObserver, GameEvent } from './GameEventObserver'
+export {
+  ScoreChangeObserver,
+  GameStateObserver,
+  ChatMessageObserver,
+  GameHistoryObserver,
+  GameEventSubject,
+  useGameEventSubject,
+} from './GameEventObserver'

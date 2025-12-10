@@ -155,6 +155,53 @@ if (stateMachine.canPerformAction('bid')) {
 
 ---
 
+### 5. 观察者模式 (Observer Pattern)
+**文件**: `GameEventObserver.ts`
+
+**目的**: 建立对象之间的一对多依赖关系，当一个对象状态改变时，所有依赖它的对象都得到通知。
+
+**使用场景**:
+- 积分变化通知
+- 游戏状态变化
+- 聊天消息广播
+- 牌局历史记录
+
+**优势**:
+- ✅ 松耦合 - 发布者和订阅者相互独立
+- ✅ 动态订阅 - 可以随时添加/移除观察者
+- ✅ 事件队列 - 避免阻塞主线程
+- ✅ 易于扩展 - 添加新观察者不影响现有代码
+
+**使用示例**:
+```typescript
+import { GameEventSubject, ScoreChangeObserver, GameHistoryObserver } from './patterns'
+
+// 创建主题
+const eventSubject = new GameEventSubject()
+
+// 添加积分观察者
+const scoreObserver = new ScoreChangeObserver((playerId, newScore) => {
+  console.log(`玩家 ${playerId} 积分变为: ${newScore}`)
+  updateUI(playerId, newScore)
+})
+eventSubject.attach(scoreObserver)
+
+// 添加历史记录观察者
+const historyObserver = new GameHistoryObserver()
+eventSubject.attach(historyObserver)
+
+// 发布事件
+eventSubject.publishEvent('score_changed', {
+  playerId: 'player1',
+  newScore: 10000
+})
+
+// 查看历史
+console.log(historyObserver.getHistory())
+```
+
+---
+
 ## 🔄 如何集成到现有代码
 
 ### 集成步骤
