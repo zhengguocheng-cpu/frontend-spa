@@ -35,6 +35,8 @@ import { useGameUI, useGameTimer } from './hooks'
 
 // 导入helper函数
 import { parseCard, getSpokenRankFromCard } from './logic/helpers'
+import { getPlayVoiceText } from './logic/voiceHelper'
+import { getPlayerPositions, isLandlordPlayer, getAvatarClassName, getRemainingCardsForPlayer } from './logic/playerHelper'
 
 // 导入共享组件
 import { ChatPanel } from '@/shared/components'
@@ -190,46 +192,7 @@ export default function GameRoom() {
     appendSystemMessage(`[DEBUG ${tag}] ${ts} ${text}`)
   }
 
-  // 根据当前用户，计算左右两侧和自己的玩家位置
-  const getPlayerPositions = () => {
-    if (!user) {
-      return { leftPlayer: null, rightPlayer: null, currentPlayer: null }
-    }
-
-    const filteredPlayers = Array.isArray(players)
-      ? players.filter((p: any) => p && (p.id || p.name))
-      : []
-
-    if (filteredPlayers.length === 0) {
-      return { leftPlayer: null, rightPlayer: null, currentPlayer: null }
-    }
-
-    // 找到当前用户在 players 列表中的索引
-    const myIndex = filteredPlayers.findIndex(
-      (p: any) => p.id === user.id || p.name === user.name
-    )
-
-    if (myIndex === -1) {
-      return { leftPlayer: null, rightPlayer: null, currentPlayer: null }
-    }
-
-    // 当前玩家（自己）
-    const currentPlayer = filteredPlayers[myIndex]
-
-    // 左侧玩家
-    const leftPlayer = filteredPlayers.length >= 2
-      ? filteredPlayers[(myIndex - 1 + filteredPlayers.length) % filteredPlayers.length]
-      : null
-
-    // 右侧玩家
-    const rightPlayer = filteredPlayers.length >= 3
-      ? filteredPlayers[(myIndex + 1) % filteredPlayers.length]
-      : null
-
-    return { leftPlayer, rightPlayer, currentPlayer }
-  }
-
-  const { leftPlayer, rightPlayer, currentPlayer } = getPlayerPositions()
+  const { leftPlayer, rightPlayer, currentPlayer } = getPlayerPositions(players, user)
 
   const currentUserId = user?.id || user?.name
   const isLeftTurn =
@@ -259,11 +222,6 @@ export default function GameRoom() {
       }
     | undefined
 
-  const isLandlordPlayer = (player: any | null): boolean => {
-    if (!player || !landlordId) return false
-    const ids = [player.id, (player as any)?.userId, player.name].filter(Boolean)
-    return ids.includes(landlordId)
-  }
 
   const findPlayerScore = (player: any | null): SettlementPlayerScore | null => {
     if (!player || !settlementPlayerScores.length) return null
@@ -389,64 +347,19 @@ export default function GameRoom() {
     }
   }, [leftPlayer, rightPlayer, players, dispatch])
 
-  const getRemainingCardsForPlayer = (player: any | null): string[] | null => {
-    if (!player || !remainingHandsMap) return null
-    const idsToMatch = [player.id, (player as any)?.userId, player.name].filter(Boolean)
-    for (const id of idsToMatch) {
-      const info = (remainingHandsMap as any)[id]
-      if (info && Array.isArray(info.cards) && info.cards.length > 0) {
-        return info.cards as string[]
-      }
-    }
-    return null
-  }
 
-  const leftRemainingCards = getRemainingCardsForPlayer(leftPlayer)
-  const rightRemainingCards = getRemainingCardsForPlayer(rightPlayer)
-  const isBottomLandlord = isLandlordPlayer(currentPlayer)
+  const leftRemainingCards = getRemainingCardsForPlayer(leftPlayer, remainingHandsMap)
+  const rightRemainingCards = getRemainingCardsForPlayer(rightPlayer, remainingHandsMap)
+  const isBottomLandlord = isLandlordPlayer(currentPlayer, landlordId)
 
   const renderPlayerAvatar = (avatar: string | undefined) => {
-    const raw = (avatar || '').trim()
-    const match = raw.match(/^avatar-(\d+)$/)
-    if (match) {
-      const id = Number(match[1])
-      if (!Number.isNaN(id) && id > 0) {
-        return <div className={`avatar-sprite avatar-${id} avatar-sprite-small`} />
-      }
+    const avatarInfo = getAvatarClassName(avatar)
+    if (avatarInfo.type === 'sprite') {
+      return <div className={avatarInfo.value} />
     }
-    return <span>{raw || '👤'}</span>
+    return <span>{avatarInfo.value}</span>
   }
 
-
-  const getPlayVoiceText = (pattern: any, cards: string[]): string | null => {
-    const typeRaw = (pattern?.type || pattern?.TYPE || '').toString().toLowerCase()
-    const cardList: string[] =
-      Array.isArray(pattern?.cards) && pattern.cards.length > 0
-        ? pattern.cards
-        : Array.isArray(cards)
-        ? cards
-        : []
-
-    if (!cardList.length) {
-      return null
-    }
-
-    switch (typeRaw) {
-      case 'single': {
-        // 单牌：直接读点数
-        return getSpokenRankFromCard(cardList[0])
-      }
-      case 'pair': {
-        // 对子：读“对X”
-        const text = getSpokenRankFromCard(cardList[0])
-        return text ? `对${text}` : null
-      }
-      default: {
-        // 其他牌型暂时不播报
-        return null
-      }
-    }
-  }
 
   // 初始化：进入房间时绑定 Socket，并记录最近房间
   useEffect(() => {
