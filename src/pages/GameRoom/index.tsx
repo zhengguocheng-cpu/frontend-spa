@@ -708,10 +708,8 @@ export default function GameRoom() {
     const handleJoinGameSuccess = (data: any) => {
       appendDebugMessage('ROOM', '收到 join_game_success 事件')
 
-      // 重置上一局的前端状态，为新一局做准备
       dispatch(prepareNextGame())
       
-      // 对齐旧版 frontend 的 onJoinGameSuccess 行为
       if (data.room && data.room.players) {
           // 兼容 ready 字段到 isReady，并补充 cardCount / score
         const players = data.room.players.map((p: any) => ({
@@ -738,7 +736,6 @@ export default function GameRoom() {
       }
     }
 
-    // 恢复牌局状态（断线重连 / 刷新）
     const handleGameStateRestored = (data: any) => {
       appendSystemMessage('已恢复牌局状态，继续上一局')
 
@@ -747,7 +744,6 @@ export default function GameRoom() {
       const phase = (data as any).phase as string | undefined
       const biddingState = (data as any).biddingState
 
-      // 恢复玩家列表和手牌数量
       if (data.players && Array.isArray(data.players)) {
         const players = data.players.map((p: any) => {
           const cardCount = p.cardCount || p.cards?.length || 0
@@ -769,7 +765,6 @@ export default function GameRoom() {
         dispatch(updatePlayers(players))
       }
 
-      // 恢复当前玩家手牌（无论是抢地主阶段还是出牌阶段）
       const currentPlayerState = data.players?.find(
         (p: any) => p.id === user?.id || p.name === user?.name
       )
@@ -777,7 +772,6 @@ export default function GameRoom() {
         dispatch(startGame({ myCards: currentPlayerState.cards }))
       }
 
-      // 恢复地主与底牌
       if (data.landlordId) {
         dispatch(
           setLandlord({
@@ -787,7 +781,6 @@ export default function GameRoom() {
         )
       }
 
-      // 恢复上一手出牌
       if (
         data.lastPlay &&
         data.lastPlay.playerId &&
@@ -800,10 +793,7 @@ export default function GameRoom() {
           type: data.lastPlay.type,
         }
         dispatch(setLastPlayedFromState(lastPlay))
-      } else {
       }
-
-      // 如果当前仍处于抢地主阶段，依据 biddingState 恢复“轮到谁抢”的本地 UI
       if (phase === 'bidding' && biddingState && biddingState.currentBidderId) {
         const currentUserId = user?.id || user?.name
         const isMyBidTurn =
@@ -811,18 +801,15 @@ export default function GameRoom() {
 
         if (isMyBidTurn) {
           openBiddingUI()
-          // 启动 15 秒抢地主倒计时
           startBiddingTimer(15)
         } else {
           closeBiddingUI()
           stopBiddingTimer()
         }
 
-        // 抢地主阶段不应恢复出牌回合，直接返回
         return
       }
 
-      // 仅在处于出牌阶段（或旧版本未带 phase 字段）时，恢复当前出牌权
       if ((!phase || phase === 'playing') && data.currentPlayerId) {
         const currentPlayerInfo = data.players?.find(
           (p: any) =>
@@ -836,7 +823,6 @@ export default function GameRoom() {
         })
       }
 
-      // 最后同步一次 ready 状态
       if (data.players && Array.isArray(data.players)) {
         const players = data.players.map((p: any) => ({
           ...p,
@@ -868,11 +854,8 @@ export default function GameRoom() {
 
     // 玩家离开
     const handlePlayerLeft = (data: any) => {
-      // 系统提示：有玩家离开
       addChatMessage('系统', `${data.playerName || '玩家'} 离开了房间`)
 
-      // 对齐旧版 frontend 的 onPlayerLeft 行为
-      // 如果返回了完整 players 列表，则直接覆盖
       if (data.players && Array.isArray(data.players)) {
         console.log('[Player] player_left 后刷新玩家列表:', data.players)
         // 同步 ready 字段到 isReady
@@ -892,13 +875,10 @@ export default function GameRoom() {
     // 玩家准备
     const handlePlayerReady = (data: any) => {
       
-      // 系统提示：某位玩家已准备
       if (data.playerName) {
         addChatMessage('系统', `${data.playerName} 已准备`)
       }
       
-      // 对齐旧版 frontend 的 onPlayerReady 行为
-      // 如果返回了完整 players 列表，则以该列表为准刷新
       if (data.players && Array.isArray(data.players)) {
         console.log('[Player] player_ready 后刷新玩家列表:')
         // 同步 ready 字段到 isReady
@@ -1007,23 +987,18 @@ export default function GameRoom() {
       if (isMyTurn) {
         console.log('[Bidding] 轮到我抢地主')
         openBiddingUI()
-        // 启动 15 秒抢地主倒计时
         startBiddingTimer(15)
       }
     }
 
-    // 抢地主结果（bid_result）- 对齐旧版 frontend 行为
     const handleBidResult = (data: any) => {
-      // 文本化抢/不抢结果
       const bidText = data.bid ? '抢地主' : '不抢'
       appendDebugMessage('BID', `bid_result: ${data.userName || '玩家'} 选择${bidText}`)
       addChatMessage('系统', `${data.userName || '玩家'} ${bidText}`)
       
-      // 关闭本地抢地主 UI
       closeBiddingUI()
       stopBiddingTimer()
       
-      // 如果还有下一位抢地主玩家，延迟一秒后切换 UI
       if (data.nextBidderId) {
         setTimeout(() => {
           const currentUserId = user?.id || user?.name
@@ -1035,22 +1010,19 @@ export default function GameRoom() {
           } else {
             console.log('[Bidding] 轮到其他玩家抢地主...')
           }
-        }, 1000) // 1 秒后展示下一位抢地主 UI
+        }, 1000)
       }
     }
 
-    // 地主确定
     const handleLandlordDetermined = (data: any) => {
       console.log('[Bidding] 当前用户ID:', user?.id)
       console.log('[Bidding] 当前用户名:', user?.name)
       appendDebugMessage('BID', '收到 landlord_determined 事件')
       
       if (data.landlordId) {
-        // 关闭抢地主 UI
         closeBiddingUI()
         stopBiddingTimer()
         
-        // 判断当前玩家是否为地主
         const isLandlord = data.landlordId === user?.id || 
                           data.landlordId === user?.name ||
                           data.landlordName === user?.name
