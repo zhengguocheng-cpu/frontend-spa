@@ -38,7 +38,6 @@ import { useWalletScore } from './hooks/useWalletScore'
 import { parseCard } from './logic/helpers'
 import { getPlayVoiceText } from './logic/voiceHelper'
 import { getPlayerPositions, isLandlordPlayer, getAvatarClassName, getRemainingCardsForPlayer } from './logic/playerHelper'
-import { fetchPlayerScore } from './logic/walletHelper'
 
 // 导入共享组件
 import { ChatPanel } from '@/shared/components'
@@ -130,7 +129,6 @@ export default function GameRoom() {
   } = gameTimer
   const dealAnimationTimeoutRef = useRef<number | null>(null)
   const playPendingRef = useRef(false)
-  const [walletScore, setWalletScore] = useState<number | null>(null)
   const autoReadySentRef = useRef(false)
   const autoReadyTimerRef = useRef<number | null>(null)
   const settlementAutoLeaveRef = useRef<number | null>(null)
@@ -195,6 +193,9 @@ export default function GameRoom() {
 
   const { leftPlayer, rightPlayer, currentPlayer } = getPlayerPositions(players, user)
 
+  // 使用钱包积分hook
+  const { walletScore, setWalletScore, refreshWalletScore } = useWalletScore(user, leftPlayer, rightPlayer, players)
+
   const currentUserId = user?.id || user?.name
   const isLeftTurn =
     !!currentPlayerId &&
@@ -241,69 +242,7 @@ export default function GameRoom() {
   const bottomCoinValue =
     (currentPlayer as any)?.score ?? walletScore ?? 0
 
-  // 记录已经为哪些玩家拉取过金币，避免重复请求
-  const fetchedScorePlayerIdsRef = useRef<Set<string>>(new Set())
-
-  const refreshWalletScore = async (): Promise<number | null> => {
-    if (!user) {
-      setWalletScore(null)
-      return null
-    }
-
-    const scoreValue = await fetchPlayerScore(user.id)
-    setWalletScore(scoreValue)
-    return scoreValue
-  }
-
-  // 当上方左右玩家的 score 为空 / 非正数时，临时从 /api/score/<playerId> 拉一次钱包积分
-  useEffect(() => {
-    const candidates = [leftPlayer, rightPlayer].filter(
-      (p: any | null) =>
-        p &&
-        p.id &&
-        (!p.score || typeof p.score !== 'number' || p.score <= 0) &&
-        !fetchedScorePlayerIdsRef.current.has(p.id),
-    ) as any[]
-
-    if (!candidates.length) return
-
-    const controller = new AbortController()
-
-    const fetchScores = async () => {
-      try {
-        const updatedPlayers = [...players]
-
-        for (const p of candidates) {
-          try {
-            fetchedScorePlayerIdsRef.current.add(p.id)
-            const totalScore = await fetchPlayerScore(p.id)
-
-            if (totalScore != null) {
-              const idx = updatedPlayers.findIndex((x: any) => x.id === p.id)
-              if (idx >= 0) {
-                updatedPlayers[idx] = {
-                  ...updatedPlayers[idx],
-                  score: totalScore,
-                }
-              }
-            }
-          } catch {
-            // 网络错误时忽略
-          }
-        }
-
-        dispatch(updatePlayers(updatedPlayers as any))
-      } catch {
-        // ignore
-      }
-    }
-
-    fetchScores()
-
-    return () => {
-      controller.abort()
-    }
-  }, [leftPlayer, rightPlayer, players, dispatch])
+  // 钱包积分管理已由useWalletScore hook接管
 
 
   const leftRemainingCards = getRemainingCardsForPlayer(leftPlayer, remainingHandsMap)
