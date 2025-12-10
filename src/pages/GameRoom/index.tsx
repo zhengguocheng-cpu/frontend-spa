@@ -693,7 +693,18 @@ export default function GameRoom() {
     const socket = globalSocket.getSocket()
     if (!socket) return
     
-    // 房间加入事件
+    // 辅助函数：更新玩家数据时保留score
+    const mergePlayerData = (newPlayers: any[]) => {
+      return newPlayers.map((p: any) => {
+        const existingPlayer = players.find((ep: any) => ep.id === p.id || ep.name === p.name)
+        return {
+          ...p,
+          isReady: p.isReady !== undefined ? p.isReady : p.ready,
+          score: p.score !== undefined ? p.score : (existingPlayer?.score !== undefined ? existingPlayer.score : null)
+        }
+      })
+    }
+    
     const handleRoomJoined = () => {
       appendSystemMessage('已进入房间，等待其他玩家...')
       const now = Date.now()
@@ -838,65 +849,29 @@ export default function GameRoom() {
       }
 
       if (data.players && Array.isArray(data.players)) {
-        console.log('[Player] player_joined 后刷新玩家列表:', data.players)
-        const updatedPlayers = data.players.map((p: any) => {
-          const existingPlayer = players.find((ep: any) => ep.id === p.id || ep.name === p.name)
-          return {
-            ...p,
-            isReady: p.isReady !== undefined ? p.isReady : p.ready,
-            score: p.score !== undefined ? p.score : (existingPlayer?.score !== undefined ? existingPlayer.score : null)
-          }
-        })
-        dispatch(updatePlayers(updatedPlayers))
+        dispatch(updatePlayers(mergePlayerData(data.players)))
       }
     }
 
-    // 玩家离开
     const handlePlayerLeft = (data: any) => {
       addChatMessage('系统', `${data.playerName || '玩家'} 离开了房间`)
 
       if (data.players && Array.isArray(data.players)) {
-        console.log('[Player] player_left 后刷新玩家列表:', data.players)
-        const updatedPlayers = data.players.map((p: any) => {
-          const existingPlayer = players.find((ep: any) => ep.id === p.id || ep.name === p.name)
-          return {
-            ...p,
-            isReady: p.isReady !== undefined ? p.isReady : p.ready,
-            score: p.score !== undefined ? p.score : (existingPlayer?.score !== undefined ? existingPlayer.score : null)
-          }
-        })
-        dispatch(updatePlayers(updatedPlayers))
+        dispatch(updatePlayers(mergePlayerData(data.players)))
       } else if (data.playerId) {
-        // 仅返回 playerId 时，从本地 players 列表中过滤掉该玩家
-        console.log('[Player] 根据 playerId 从本地玩家列表中移除:', data.playerId)
         const filtered = (players || []).filter((p: any) => p.id !== data.playerId && p.userId !== data.playerId)
         dispatch(updatePlayers(filtered))
       }
     }
 
-    // 玩家准备
     const handlePlayerReady = (data: any) => {
-      
       if (data.playerName) {
         addChatMessage('系统', `${data.playerName} 已准备`)
       }
       
       if (data.players && Array.isArray(data.players)) {
-        console.log('[Player] player_ready 后刷新玩家列表:')
-        const updatedPlayers = data.players.map((p: any) => {
-          const isReady = p.isReady !== undefined ? p.isReady : p.ready
-          const existingPlayer = players.find((ep: any) => ep.id === p.id || ep.name === p.name)
-          console.log(`  - ${p.name}: ready=${p.ready}, isReady=${isReady}`)
-          return {
-            ...p,
-            isReady: isReady,
-            score: p.score !== undefined ? p.score : (existingPlayer?.score !== undefined ? existingPlayer.score : null)
-          }
-        })
-        dispatch(updatePlayers(updatedPlayers))
+        dispatch(updatePlayers(mergePlayerData(data.players)))
       } else if (data.playerId) {
-        // 仅返回 playerId 时，本地标记该玩家为已准备
-        console.log('[Player] 标记单个玩家已准备:', data.playerId, 'isReady=true')
         dispatch(updatePlayerStatus({ playerId: data.playerId, isReady: true }))
       }
     }
@@ -932,7 +907,6 @@ export default function GameRoom() {
       )
       
       if (myCards && myCards.cards && myCards.cards.length > 0) {
-        console.log('[Game] 当前玩家起始手牌数量:', myCards.cards.length)
 
         // 播放发牌音效
         soundManager.playSound('deal')
@@ -988,7 +962,6 @@ export default function GameRoom() {
         (!!data.firstBidderName && data.firstBidderName === currentUserName)
 
       if (isMyTurn) {
-        console.log('[Bidding] 轮到我抢地主')
         openBiddingUI()
         startBiddingTimer(15)
       }
@@ -1006,20 +979,15 @@ export default function GameRoom() {
         setTimeout(() => {
           const currentUserId = user?.id || user?.name
           if (data.nextBidderId === currentUserId) {
-            console.log('[Bidding] 轮到我抢地主（nextBidder）')
             openBiddingUI()
             // 启动 15 秒抢地主倒计时
             startBiddingTimer(15)
-          } else {
-            console.log('[Bidding] 轮到其他玩家抢地主...')
           }
         }, 1000)
       }
     }
 
     const handleLandlordDetermined = (data: any) => {
-      console.log('[Bidding] 当前用户ID:', user?.id)
-      console.log('[Bidding] 当前用户名:', user?.name)
       appendDebugMessage('BID', '收到 landlord_determined 事件')
       
       if (data.landlordId) {
@@ -1030,8 +998,6 @@ export default function GameRoom() {
                           data.landlordId === user?.name ||
                           data.landlordName === user?.name
         
-        console.log('[Bidding] 当前玩家是否为地主:', isLandlord)
-        
         dispatch(setLandlord({
           landlordId: data.landlordId,
           landlordCards: data.bottomCards || [],
@@ -1041,26 +1007,18 @@ export default function GameRoom() {
           isMe: isLandlord,
         }))
         
-        console.log('[Bidding] 已派发 setLandlord Redux action，gameStatus 应切换为 playing')
-        
         addChatMessage('系统', `${data.landlordName || '玩家'} 成为地主`)
         
-        // 如果自己是地主，补充一条底牌获得提示
         if (isLandlord) {
-          console.log('[Bidding] 当前玩家是地主，底牌为:', data.bottomCards)
           addChatMessage('系统', `地主获得底牌，共 ${data.bottomCards?.length || 3} 张`)
         }
-
-        console.log('[Bidding] 等待服务器发出 turn_to_play 事件...')
       }
     }
 
     const handleGameStateUpdated = () => {
     }
 
-    // 轮到某位玩家出牌 - 对齐旧版 frontend 行为，并驱动本地出牌 UI
     const handleTurnToPlay = (data: any) => {
-      console.log('[Turn] 当前 gameStatus:', gameStatus)
       
       if (data.playerId) {
         dispatch(setCurrentPlayer(data.playerId))
@@ -1084,12 +1042,6 @@ export default function GameRoom() {
           
           setTurnState(true, canPassNow)
           
-          console.log('[Turn] 本轮是否可以不出(canPass):', canPassNow)
-          console.log('[Turn] 是否首手出牌(isFirst):', isFirst)
-          console.log('[Turn] 上家出牌记录(lastPlayedCards):', lastPlayedCards)
-          console.log('[Turn] isMyTurn 已设置为 true')
-
-          // 系统提示：轮到自己出牌
           addChatMessage('系统', '轮到你出牌了')
         } else {
           // 轮到其他玩家
@@ -1126,7 +1078,6 @@ export default function GameRoom() {
         setPlayPending(false)
       }
 
-      console.log('[PlayCards] 出牌失败原因:', message)
       appendSystemMessage(`出牌失败：${message}`)
     }
 
@@ -1137,9 +1088,7 @@ export default function GameRoom() {
       }
     }
 
-    // 有玩家出牌 - 对齐旧版 frontend 行为
     const handleCardsPlayed = (data: any) => {
-      console.log('[Play] 牌型信息:', data.cardType)
 
       appendDebugMessage(
         'FLOW',
@@ -1214,10 +1163,8 @@ export default function GameRoom() {
         .toLowerCase()
       if (typeRawForBomb === 'bomb') {
         setCurrentBombCount((prev) => prev + 1)
-        console.log('[Play] 本局炸弹次数 +1，当前：', currentBombCount + 1)
       } else if (typeRawForBomb === 'rocket') {
         setCurrentRocketCount((prev) => prev + 1)
-        console.log('[Play] 本局王炸次数 +1，当前：', currentRocketCount + 1)
       }
 
       if (!isCurrentUser) {
