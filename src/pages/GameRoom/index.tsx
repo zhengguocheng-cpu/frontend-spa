@@ -38,6 +38,10 @@ import { parseCard } from './logic/helpers'
 import { getPlayVoiceText } from './logic/voiceHelper'
 import { getPlayerPositions, isLandlordPlayer, getAvatarClassName, getRemainingCardsForPlayer } from './logic/playerHelper'
 
+// 导入设计模式
+import { PlayCardsCommand, PassCommand, BidCommand, CommandManager } from './patterns'
+import { AutoPlayStrategyManager, type AutoPlayContext } from './patterns'
+
 // 导入游戏特定组件
 import { BiddingControls } from '@/games/doudizhu/components'
 
@@ -153,6 +157,12 @@ export default function GameRoom() {
   const [hideBottomCards, setHideBottomCards] = useState(false)
   
   // AI面板已移除，提示信息直接输出到聊天
+  
+  // 命令管理器（命令模式）
+  const commandManager = useRef(new CommandManager())
+  
+  // 自动出牌策略管理器（策略模式）
+  const autoPlayManager = useRef(new AutoPlayStrategyManager())
 
   const appendSystemMessage = (text: string) => {
     if (!text) return
@@ -1183,7 +1193,7 @@ useEffect(() => {
     })
   }
 
-  // 实际发送出牌请求到服务器
+  // 实际发送出牌请求到服务器（使用命令模式）
   const doPlayCards = (cardsToPlay: string[]) => {
     if (!roomId || !user || !isMyTurn) {
       appendSystemMessage(isMyTurn ? '无法连接服务器' : '还没轮到你出牌')
@@ -1198,21 +1208,23 @@ useEffect(() => {
     playPendingRef.current = true
     setPlayPending(true)
 
-    CardOps.playCards({
+    // 使用命令模式
+    const command = new PlayCardsCommand(
       roomId,
-      userId: user.id || user.name,
-      cards: cardsToPlay,
-      socket: globalSocket.getSocket(),
-      onSuccess: () => {
+      user.id || user.name,
+      cardsToPlay,
+      () => {
         playPendingRef.current = false
         setPlayPending(false)
       },
-      onError: (msg) => {
+      (msg) => {
         appendSystemMessage(msg)
         playPendingRef.current = false
         setPlayPending(false)
       }
-    })
+    )
+
+    commandManager.current.execute(command)
 
     setTimeout(() => {
       if (playPendingRef.current) {
@@ -1236,10 +1248,9 @@ useEffect(() => {
     doPlayCards(cardsToPlay)
   }
 
-  // 点击“不出”按钮的前端处理
+  // 点击“不出”按钮的前端处理（使用命令模式）
   const handlePass = () => {
-    const socket = globalSocket.getSocket()
-    if (!socket || !roomId || !user) {
+    if (!roomId || !user) {
       appendSystemMessage('无法连接服务器，无法执行不出')
       return
     }
@@ -1249,18 +1260,19 @@ useEffect(() => {
       return
     }
 
-    if (!canPass) {
-      appendSystemMessage('当前轮次不能选择不出')
-      return
-    }
-
     dispatch(clearSelection())
 
-    // 发送 pass_turn 事件给服务端
-    socket.emit('pass_turn', {
+    // 使用命令模式
+    const command = new PassCommand(
       roomId,
-      userId: user.id || user.name,
-    })
+      user.id || user.name,
+      () => {
+        // 不出成功
+      },
+      (msg) => appendSystemMessage(msg)
+    )
+
+    commandManager.current.execute(command)
 
     // 停止本轮倒计时
     stopTurnTimer()
