@@ -4,7 +4,6 @@
  */
 
 import { globalSocket } from '@/services/socket'
-import * as CardOps from '../logic/cardOperations'
 
 // 命令接口
 interface GameCommand {
@@ -33,13 +32,21 @@ export class PlayCardsCommand implements GameCommand {
       return
     }
 
-    CardOps.playCards({
+    const socket = globalSocket.getSocket()
+    
+    console.log('[PlayCardsCommand] 发送出牌请求', {
       roomId: this.roomId,
       userId: this.userId,
-      cards: this.cards,
-      socket: globalSocket.getSocket(),
-      onSuccess: this.onSuccess,
-      onError: this.onError,
+      cards: this.cards
+    })
+
+    // 直接使用socket.emit，不经过CardOps
+    // 后端不使用回调模式，实际结果由 cards_played 事件通知
+    // 这里不调用onSuccess，让handleCardsPlayed处理
+    socket?.emit('play_cards', {
+      roomId: this.roomId,
+      userId: this.userId,
+      cards: this.cards
     })
   }
 }
