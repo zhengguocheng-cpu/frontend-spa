@@ -41,7 +41,6 @@ import { BiddingControls } from '@/games/doudizhu/components'
 
 // 导入 GameRoom 子组件
 import { SettlementPanel, GameActions, AiHintPanel, PlayerDisplay, BottomCards, HandCards } from './components'
-import type { AiHintRecord } from './components/AiHintPanel'
 
 import '@/styles/avatars.css'
 import './style.css'
@@ -104,7 +103,6 @@ export default function GameRoom() {
     // 不出标记
     passedPlayers,
     markPlayerPassed,
-    clearPlayerPassed,
     clearAllPassedPlayers,
     
     // 回合状态
@@ -404,7 +402,6 @@ export default function GameRoom() {
 
   const leftRemainingCards = getRemainingCardsForPlayer(leftPlayer)
   const rightRemainingCards = getRemainingCardsForPlayer(rightPlayer)
-  const isRightLandlord = isLandlordPlayer(rightPlayer)
   const isBottomLandlord = isLandlordPlayer(currentPlayer)
 
   const renderPlayerAvatar = (avatar: string | undefined) => {
@@ -697,7 +694,7 @@ export default function GameRoom() {
     if (!socket) return
     
     // 房间加入事件
-    const handleRoomJoined = (data: any) => {
+    const handleRoomJoined = () => {
       appendSystemMessage('已进入房间，等待其他玩家...')
       const now = Date.now()
       quickFlowRef.current.roomJoinedAt = now
@@ -905,7 +902,7 @@ export default function GameRoom() {
     }
 
     // 游戏开始
-    const handleGameStarted = (data: any) => {
+    const handleGameStarted = () => {
       const now = Date.now()
       const joinedAt = quickFlowRef.current.roomJoinedAt
       if (joinedAt) {
@@ -1058,8 +1055,7 @@ export default function GameRoom() {
       }
     }
 
-    // 游戏状态增量更新（目前仅用于调试）
-    const handleGameStateUpdated = (data: any) => {
+    const handleGameStateUpdated = () => {
     }
 
     // 轮到某位玩家出牌 - 对齐旧版 frontend 行为，并驱动本地出牌 UI
