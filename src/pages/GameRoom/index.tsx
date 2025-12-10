@@ -48,7 +48,6 @@ import { BiddingControls } from '@/games/doudizhu/components'
 import { 
   SettlementPanel, 
   GameActions, 
-  AiHintPanel, 
   BottomCards, 
   HandCards,
   CenterResultPanel,
@@ -60,7 +59,6 @@ import {
 import '@/styles/avatars.css'
 import './style.css'
 import './game.css'
-import './ai-panel.css'
 
 export default function GameRoom() {
   const { roomId } = useParams<{ roomId: string }>()
@@ -160,19 +158,7 @@ export default function GameRoom() {
   // 是否隐藏底牌展示（例如出完牌后收起底牌）
   const [hideBottomCards, setHideBottomCards] = useState(false)
   
-  // AI 出牌提示记录结构
-  interface AiHintRecord {
-    id: number
-    timestamp: string
-    cards: string[]
-    reason?: string
-    analysis?: string
-    winRate?: number
-    isPass: boolean
-  }
-  const [aiHintHistory, setAiHintHistory] = useState<AiHintRecord[]>([])
-  const [showAiPanel, setShowAiPanel] = useState(false)
-  const aiHintCounterRef = useRef(0)
+  // AI面板已移除，提示信息直接输出到聊天
 
   const appendSystemMessage = (text: string) => {
     if (!text) return
@@ -296,30 +282,22 @@ export default function GameRoom() {
           ;(cards as string[]).forEach((card) => {
             dispatch(toggleCardSelection(card))
           })
+          
+          // 将AI提示信息输出到聊天消息框
+          const hintMsg = `出牌: ${cards.join(', ')}`
+          const detailMsg = []
+          if (reason) detailMsg.push(`原因: ${reason}`)
+          if (winRate) detailMsg.push(`胜率: ${(winRate * 100).toFixed(1)}%`)
+          if (analysis) detailMsg.push(`分析: ${analysis}`)
+          
+          addChatMessage('AI助手', hintMsg)
+          if (detailMsg.length > 0) {
+            addChatMessage('AI助手', detailMsg.join(' | '))
+          }
+        } else {
+          addChatMessage('AI助手', '建议不出')
         }
 
-        aiHintCounterRef.current += 1
-        const newRecord: AiHintRecord = {
-          id: aiHintCounterRef.current,
-          timestamp: new Date().toLocaleTimeString('zh-CN', {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-          }),
-          cards: cards as string[],
-          reason,
-          analysis,
-          winRate,
-          isPass: cards.length === 0,
-        }
-        setAiHintHistory((prev) => [...prev, newRecord])
-        setShowAiPanel(true)
-
-        appendSystemMessage(
-          cards.length > 0
-            ? 'AI 提供了一手推荐出牌'
-            : 'AI 提示：当前可以选择不出牌',
-        )
         return
       }
 
@@ -1642,9 +1620,7 @@ useEffect(() => {
   // 对整局结算后的“自动再来一局”逻辑做统一管理（含 30 秒倒计时）
   useEffect(() => {
     if (gameStatus === 'finished' && gameState.gameResult) {
-      // 切换到结算态时，清空本局的 AI 提示，并启动 30 秒自动再来一局倒计时
-      setAiHintHistory([])
-      aiHintCounterRef.current = 0
+      // 切换到结算态时，启动 30 秒自动再来一局倒计时
       setAutoReplayCountdown(30)
 
       if (autoReplayTimerRef.current != null) {
@@ -1818,33 +1794,9 @@ useEffect(() => {
         onSend={handleSendChat}
       />
 
-      {/* AI 出牌记录侧边面板 */}
-      <AiHintPanel
-        visible={showAiPanel}
-        history={aiHintHistory}
-        onClose={() => setShowAiPanel(false)}
-        onClear={() => {
-          setAiHintHistory([])
-          aiHintCounterRef.current = 0
-        }}
-      />
-
-      {/* 右下角：AI 面板 + 聊天按钮 */}
-      {!chatVisible && !showAiPanel && (
+      {/* 右下角：聊天按钮 */}
+      {!chatVisible && (
         <div className="bottom-right-ui">
-          {/* AI 面板入口按钮 */}
-          {aiHintHistory.length > 0 && (
-            <button 
-              className="ai-toggle-btn"
-              onClick={() => setShowAiPanel(true)}
-              title="查看 AI 出牌记录"
-            >
-              AI
-              {aiHintHistory.length > 0 && (
-                <span className="ai-badge">{aiHintHistory.length}</span>
-              )}
-            </button>
-          )}
           {/* 打开聊天侧边栏 */}
           <button 
             className="chat-toggle-btn"
