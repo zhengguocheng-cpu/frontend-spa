@@ -305,8 +305,7 @@ export default function GameRoom() {
       }
 
       if (!res.ok || !json?.success || !json.data) {
-        console.warn('GameRoom 刷新钱包积分失败:', res.status, json?.message)
-        setWalletScore(0)
+          setWalletScore(0)
         return 0
       }
 
@@ -315,7 +314,6 @@ export default function GameRoom() {
       setWalletScore(scoreValue)
       return scoreValue
     } catch (err: any) {
-      console.error('GameRoom 刷新钱包积分异常:', err)
       setWalletScore(0)
       return 0
     }
@@ -507,14 +505,12 @@ export default function GameRoom() {
   // 初始化：进入房间时绑定 Socket，并记录最近房间
   useEffect(() => {
     if (!user) {
-      console.warn('[GameRoom] 未找到用户信息，跳转登录页')
       navigate('/login', { replace: true })
       return
     }
     
     if (!roomId) return
 
-    console.log('[GameRoom] 进入房间:', roomId)
     appendDebugMessage('FLOW', `进入房间，roomId=${roomId}`)
     
     // 将最近进入的房间信息写入 sessionStorage，方便断线重连
@@ -523,7 +519,6 @@ export default function GameRoom() {
 
     const socket = globalSocket.getSocket()
     if (!socket) {
-      console.error('[GameRoom] Socket 未连接，跳转登录页')
       navigate('/login', { replace: true })
       return
     }
@@ -536,9 +531,6 @@ export default function GameRoom() {
     }
 
     const handleConnect = () => {
-      console.log('[Socket] 已连接，准备加入房间')
-      
-      // 首次连接 / 重连时，主动发送加入房间请求
       globalSocket.joinGame({
         roomId,
         userId: user.id,
@@ -547,13 +539,9 @@ export default function GameRoom() {
       })
     }
 
-    const handleDisconnect = () => {
-      console.log('[Socket] 断开连接')
-    }
+    const handleDisconnect = () => {}
 
-    // 处理服务器返回的出牌提示结果
     const handleHintResult = (data: any) => {
-      console.log('[AI Hint] 收到提示结果:', data)
 
       const { success, cards, reason, analysis, winRate, error } = data || {}
 
@@ -596,28 +584,19 @@ export default function GameRoom() {
       const myCardsSnapshot = ctx?.myCards
       const lastCardsSnapshot = ctx?.lastCards ?? null
 
-      console.warn('[AI Hint] 服务器提示失败，尝试本地计算', error)
       if (error) {
         appendSystemMessage(`AI 提示失败：${String(error)}`)
       }
 
-      if (!myCardsSnapshot || myCardsSnapshot.length === 0) {
-        console.log('[AI Hint Fallback] 当前没有手牌快照，无法本地提示')
-        return
-      }
+      if (!myCardsSnapshot || myCardsSnapshot.length === 0) return
 
       const fallbackHint = CardHintHelper.getHint(myCardsSnapshot, lastCardsSnapshot)
-      if (!fallbackHint || fallbackHint.length === 0) {
-        console.log('[AI Hint Fallback] 本地也没有可出的牌')
-        return
-      }
+      if (!fallbackHint || fallbackHint.length === 0) return
 
       dispatch(clearSelection())
       fallbackHint.forEach((card) => {
         dispatch(toggleCardSelection(card))
       })
-
-      console.log('[AI Hint Fallback] 使用本地提示结果:', fallbackHint)
     }
 
     socket.on('connect', handleConnect)
@@ -625,9 +604,7 @@ export default function GameRoom() {
     socket.on('disconnect', handleDisconnect)
     socket.on('hint_result', handleHintResult)
 
-    // 如果 Socket 已连接，直接发送 join_game 请求，避免遗漏房间加入
     if (socket.connected) {
-      console.log('[Socket] 当前已连接，主动发送 join_game 请求')
       globalSocket.joinGame({
         roomId,
         userId: user.id,
@@ -923,9 +900,6 @@ export default function GameRoom() {
         }
 
         appendSystemMessage('发牌完成，进入抢地主阶段')
-      } else {
-        console.error('[Game] 未找到当前玩家的发牌结果，currentPlayerId:', user?.id || user?.name)
-        console.error('[Game] 服务端返回的玩家列表:', data.players)
       }
     }
 
@@ -1039,7 +1013,6 @@ export default function GameRoom() {
     }
 
     const handlePlayCardsFailed = (data: { error?: string }) => {
-      console.warn('[PlayCards] 出牌失败:', data)
       playPendingRef.current = false
       setPlayPending(false)
 
@@ -1294,10 +1267,6 @@ export default function GameRoom() {
 
     if (delayMs <= 0) {
       const playerId = myId
-      console.log('[AutoReady] 立即发送 player_ready 事件', {
-        roomId,
-        userId: myId,
-      })
       socket.emit('player_ready', {
         roomId,
         userId: myId,
@@ -1312,12 +1281,6 @@ export default function GameRoom() {
       autoReadyTimerRef.current = null
     }
 
-    console.log('[AutoReady] 准备启动自动准备计时', {
-      roomId,
-      userId: myId,
-      delayMs,
-    })
-
     autoReadyTimerRef.current = window.setTimeout(() => {
       const latestSocket = globalSocket.getSocket()
       if (!latestSocket) return
@@ -1331,16 +1294,12 @@ export default function GameRoom() {
       }
 
       const playerId = myId
-      console.log('[AutoReady] 延时后仍在房间且未准备，发送 player_ready 事件', {
-        roomId,
-        userId: myId,
-      })
-      dispatch(updatePlayerStatus({ playerId, isReady: true }))
-      latestSocket.emit('player_ready', {
+      socket.emit('player_ready', {
         roomId,
         userId: myId,
         botDelayMs: 0,
       })
+      dispatch(updatePlayerStatus({ playerId, isReady: true }))
     }, delayMs)
   }, [user, roomId, players, gameStatus, dispatch])
 
@@ -1401,7 +1360,6 @@ export default function GameRoom() {
     if (!canPlayFullHand) return
 
     autoFullHandPlayedRef.current = true
-    console.log('[AutoPlay] 满足整手出牌条件，自动整手出牌 fullHandPattern:', fullHandPattern)
 
   setTimeout(() => {
     doPlayCards(fullHandPattern)
@@ -1440,7 +1398,6 @@ useEffect(() => {
   if (biddingTimer !== 0) return
   if (!showBiddingUI) return
 
-  console.log('[AutoBidTimeout] 抢地主超时，自动选择不抢')
   closeBiddingUI()
   handleBid(false)
 }, [biddingTimer, showBiddingUI])
@@ -1450,18 +1407,10 @@ useEffect(() => {
   if (!isMyTurn) return
   if (turnTimer !== 0) return
 
-  console.log('[AutoTurnTimeout] 自动出牌超时，当前状态：isMyTurn=true, canPass=', canPass)
-
   if (canPass) {
-    console.log('可以选择不出...')
     handlePass()
   } else {
-    // 尝试自动出牌
-    console.log('尝试自动出牌...')
-    if (myCards.length === 0) {
-      console.warn('没有牌可以出...')
-      return
-    }
+    if (myCards.length === 0) return
 
     const lastCards: string[] | null =
       lastPlayedCards && lastPlayedCards.cards && lastPlayedCards.cards.length > 0
@@ -1469,22 +1418,16 @@ useEffect(() => {
         : null
 
     const autoHint = CardHintHelper.getHint(myCards, lastCards)
-    console.log('自动提示结果:', autoHint)
     
     if (autoHint && autoHint.length > 0) {
-      console.log('自动出牌:', autoHint)
       doPlayCards(autoHint)
       addChatMessage('系统', '已为你自动出一手推荐牌')
     } else {
-      // 推荐失败，兜底出最小的一张
-      console.error('没有推荐出牌，兜底出最小的一张牌')
       const minCard = myCards[0]
       if (minCard) {
-        console.log('兜底出牌:', minCard)
         doPlayCards([minCard])
         addChatMessage('系统', '已为你自动出一张最小的牌')
       } else {
-        console.error('已经没有可以出的牌')
         addChatMessage('系统', '已为你自动判定为没有可出的牌')
       }
     }
@@ -1507,10 +1450,7 @@ useEffect(() => {
     // 调用 getAllHints 获取所有可行的跟牌方案，用于判断是否彻底没有牌可出
     const allHints = CardHintHelper.getAllHints(myCards, lastCards)
     
-    // 如果完全没有可出的牌，则 1 秒后自动帮玩家点“不出”
     if (!allHints || allHints.length === 0) {
-      console.log('没有找到任何可出的牌')
-      // 1 秒后自动点击“不出”
       setTimeout(() => {
         if (isMyTurn && canPass) {
           handlePass()
@@ -1565,11 +1505,6 @@ useEffect(() => {
     // 参考旧版逻辑：本地切换 ready 状态，然后再通知服务端
     const newReadyState = !currentPlayer?.isReady
     
-    console.log('准备状态改变', { 
-      currentState: currentPlayer?.isReady,
-      newState: newReadyState,
-      playerName: user.name
-    })
     
     // 先在 Redux 中更新自己的准备状态
     const playerId = user.id || user.name
@@ -1577,11 +1512,6 @@ useEffect(() => {
     
     // 然后通过 socket 把准备状态同步给服务端
     socket.emit('player_ready', {
-      roomId,
-      userId: user.id || user.name,
-    })
-    
-    console.log('发送准备状态改变', { 
       roomId,
       userId: user.id || user.name,
     })
@@ -1658,10 +1588,7 @@ useEffect(() => {
       return
     }
 
-    // 清空当前已选中的牌
     dispatch(clearSelection())
-
-    console.log('发送不出消息')
 
     // 发送 pass_turn 事件给服务端
     socket.emit('pass_turn', {
