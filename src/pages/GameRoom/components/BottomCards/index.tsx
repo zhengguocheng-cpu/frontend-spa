@@ -13,34 +13,37 @@ interface BottomCardsProps {
 export function BottomCards(props: BottomCardsProps) {
   const { visible, cards, baseScore = 5000, multiplier = 1, parseCard } = props
 
-  if (!visible || cards.length === 0) {
+  // 如果没有底牌数据，不显示整个组件
+  if (cards.length === 0) {
     return null
   }
 
   return (
     <div className="bottom-cards-display">
-      <div className="bottom-info-bar">
-        {/* 底牌卡牌列表 */}
-        <div className="bottom-cards-container">
-          {cards.map((cardStr, index) => {
-            const { rank, suit, isJoker } = parseCard(cardStr)
-            const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
+      {/* 底牌卡牌列表 - 根据visible状态控制显示 */}
+      {visible && (
+        <div className="bottom-info-bar">
+          <div className="bottom-cards-container">
+            {cards.map((cardStr, index) => {
+              const { rank, suit, isJoker } = parseCard(cardStr)
+              const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
 
-            return (
-              <div key={index} className={`bottom-card ${isRed ? 'red' : 'black'}`}>
-                <div
-                  className={`card-value ${isJoker ? 'joker-text' : ''}`}
-                  style={isJoker ? { color: isJoker === 'big' ? '#d32f2f' : '#000' } : undefined}
-                >
-                  {rank}
+              return (
+                <div key={index} className={`bottom-card ${isRed ? 'red' : 'black'}`}>
+                  <div
+                    className={`card-value ${isJoker ? 'joker-text' : ''}`}
+                    style={isJoker ? { color: isJoker === 'big' ? '#d32f2f' : '#000' } : undefined}
+                  >
+                    {rank}
+                  </div>
+                  {!isJoker && <div className="card-suit">{suit}</div>}
                 </div>
-                {!isJoker && <div className="card-suit">{suit}</div>}
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
-      </div>
-      {/* 底牌基数/倍数展示区域 */}
+      )}
+      {/* 基数/倍数展示区域 - 始终显示 */}
       <div className="bottom-meta compact">
         <span>基数: {baseScore}</span>
         <span>倍数: {multiplier}</span>
