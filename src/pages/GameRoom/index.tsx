@@ -713,8 +713,10 @@ export default function GameRoom() {
     }
 
     const handleCardsPlayed = (data: any) => {
+      console.log('[DEBUG] handleCardsPlayed 被调用', data)
 
       if (!data.playerId || !data.cards) {
+        console.warn('[DEBUG] handleCardsPlayed 数据不完整', data)
         return
       }
 

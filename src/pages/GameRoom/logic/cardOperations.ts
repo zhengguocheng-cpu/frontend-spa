@@ -32,11 +32,9 @@ export function playCards(params: {
   console.log('[PlayCards] 发送出牌请求', { roomId, userId, cards })
 
   // 注意：后端不使用回调模式，而是通过广播事件通知结果
-  // onSuccess和onError由外部通过监听cards_played或play_cards_failed事件处理
+  // 实际的成功/失败由 cards_played 或 play_cards_failed 事件处理
+  // 这里不调用 onSuccess/onError，避免过早重置状态
   socket.emit('play_cards', { roomId, userId, cards })
-  
-  // 立即调用onSuccess，实际结果由服务端事件确认
-  onSuccess?.()
 }
 
 /**
