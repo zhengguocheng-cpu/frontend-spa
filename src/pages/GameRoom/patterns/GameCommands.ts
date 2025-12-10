@@ -64,7 +64,7 @@ export class PassCommand implements GameCommand {
     }
 
     const socket = globalSocket.getSocket()
-    socket?.emit('pass', {
+    socket?.emit('pass_turn', {
       roomId: this.roomId,
       userId: this.userId,
     })

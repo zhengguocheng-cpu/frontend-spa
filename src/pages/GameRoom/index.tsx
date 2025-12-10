@@ -1245,6 +1245,11 @@ useEffect(() => {
       return
     }
 
+    if (!canPass) {
+      appendSystemMessage('当前轮次不能选择不出')
+      return
+    }
+
     dispatch(clearSelection())
 
     // 使用命令模式
