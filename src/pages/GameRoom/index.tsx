@@ -33,7 +33,6 @@ import { motion } from 'framer-motion'
 // 导入新的 Hooks
 import { useGameUI, useGameTimer } from './hooks'
 import { useWalletScore } from './hooks/useWalletScore'
-import { useAutoPlay } from './hooks/useAutoPlay'
 
 // 导入helper函数
 import { parseCard } from './logic/helpers'
@@ -151,7 +150,6 @@ export default function GameRoom() {
   // AI 提示上下文缓存（用于服务端失败时本地兜底）
   const hintContextRef = useRef<{ myCards: string[]; lastCards: string[] | null } | null>(null)
   const autoFullHandPlayedRef = useRef(false)
-  // 是否已经自动应用过“整手出牌”或“跟牌提示”
   const autoFollowHintAppliedRef = useRef(false)
   // 当前局中的炸弹 / 火箭数量统计
   const [currentBombCount, setCurrentBombCount] = useState(0)
