@@ -38,15 +38,11 @@ import { parseCard } from './logic/helpers'
 import { getPlayVoiceText } from './logic/voiceHelper'
 import { getPlayerPositions, isLandlordPlayer, getAvatarClassName, getRemainingCardsForPlayer } from './logic/playerHelper'
 
-// 导入共享组件
-import { ChatPanel } from '@/shared/components'
-
 // 导入游戏特定组件
 import { BiddingControls } from '@/games/doudizhu/components'
 
 // 导入 GameRoom 子组件
 import { 
-  SettlementPanel, 
   GameActions, 
   BottomCards, 
   HandCards,
@@ -54,6 +50,7 @@ import {
   TopPlayersArea,
   BottomPlayerInfo,
   BottomPlayedCards,
+  ChatContainer,
 } from './components'
 
 import '@/styles/avatars.css'
@@ -91,10 +88,7 @@ export default function GameRoom() {
     clearChatInput,
     addChatMessage,
     
-    // 结算和抢地主
-    showSettlement,
-    openSettlement,
-    closeSettlement,
+    // 抢地主
     showBiddingUI,
     openBiddingUI,
     closeBiddingUI,
@@ -539,7 +533,6 @@ export default function GameRoom() {
 
     const handleGameStarted = () => {
       quickFlowRef.current.gameStartedAt = Date.now()
-      closeSettlement()
       dispatch(prepareNextGame())
       setCurrentBombCount(0)
       setHideBottomCards(false)
@@ -811,8 +804,6 @@ export default function GameRoom() {
       
       // 通知 Redux 结束本局游戏
       dispatch(endGame(data))
-
-      openSettlement()
 
       // 播放胜负音效
       const myId = user?.id || user?.name
@@ -1610,12 +1601,7 @@ useEffect(() => {
     }
   }, [walletScore])
 
-  // 一局结束且有结算结果时，显示结算面板
-  useEffect(() => {
-    if (gameStatus === 'finished' && gameState.gameResult) {
-      openSettlement()
-    }
-  }, [gameStatus, gameState.gameResult])
+  // 结算面板已移除，使用CenterResultPanel替代
 
   // 对整局结算后的“自动再来一局”逻辑做统一管理（含 30 秒倒计时）
   useEffect(() => {
@@ -1784,46 +1770,14 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* 聊天面板 */}
-      <ChatPanel
+      {/* 聊天容器（包含面板和按钮） */}
+      <ChatContainer
         visible={chatVisible}
         messages={chatMessages}
         currentMessage={chatMessage}
-        onClose={toggleChat}
+        onToggle={toggleChat}
         onMessageChange={updateChatInput}
         onSend={handleSendChat}
-      />
-
-      {/* 右下角：聊天按钮 */}
-      {!chatVisible && (
-        <div className="bottom-right-ui">
-          {/* 打开聊天侧边栏 */}
-          <button 
-            className="chat-toggle-btn"
-            onClick={toggleChat}
-            title="打开聊天"
-          >
-            💬
-          </button>
-        </div>
-      )}
-
-      {/* 结算面板 */}
-      <SettlementPanel
-        visible={false && showSettlement && !!gameState.gameResult}
-        landlordWin={gameState.gameResult?.landlordWin || false}
-        playerScores={settlementPlayerScores}
-        currentUserId={user?.id || user?.name}
-        onPlayAgain={() => {
-          dispatch(prepareNextGame())
-          closeSettlement()
-          handleStartGame()
-        }}
-        onLeaveRoom={() => {
-          dispatch(prepareNextGame())
-          closeSettlement()
-          doLeaveRoom()
-        }}
       />
     </div>
   )
