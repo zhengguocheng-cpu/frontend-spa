@@ -72,10 +72,7 @@ export default function GameRoom() {
     landlordId = null,
   } = gameState
 
-  // 监听 Socket 连接状态，用于控制 UI 和调试流程
   const { connected } = useSocketStatus()
-
-  // ==================== 使用新的 useGameUI Hook ====================
   const gameUI = useGameUI()
   const {
     // 聊天相关
@@ -117,7 +114,6 @@ export default function GameRoom() {
     setTurnState,
   } = gameUI
 
-  // ==================== 使用新的 useGameTimer Hook ====================
   const gameTimer = useGameTimer()
   const {
     biddingTimer,
@@ -874,7 +870,6 @@ export default function GameRoom() {
     socket.on('player_ready', handlePlayerReady)
     socket.on('game_started', handleGameStarted)
     socket.on('deal_cards_all', handleDealCardsAll)
-    //socket.on('cards_dealt', handleCardsDealt)
     socket.on('bidding_start', handleBiddingStart)
     socket.on('bid_result', handleBidResult)
     socket.on('landlord_determined', handleLandlordDetermined)
@@ -897,7 +892,6 @@ export default function GameRoom() {
       socket.off('player_ready', handlePlayerReady)
       socket.off('game_started', handleGameStarted)
       socket.off('deal_cards_all', handleDealCardsAll)
-      //socket.off('cards_dealt', handleCardsDealt)
       socket.off('bidding_start', handleBiddingStart)
       socket.off('bid_result', handleBidResult)
       socket.off('landlord_determined', handleLandlordDetermined)
