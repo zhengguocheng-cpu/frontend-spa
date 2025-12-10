@@ -23,8 +23,6 @@ import {
   type SettlementPlayerScore,
 } from '@/store/slices/gameSlice'
 import { CardHintHelper } from '@/utils/cardHintHelper'
-import * as CardOps from './logic/cardOperations'
-import * as GameFlow from './logic/gameFlow'
 import { soundManager } from '@/utils/sound'
 import { getLlmSettings } from '@/utils/llmSettings'
 import { getGameSettings } from '@/utils/gameSettings'
@@ -1063,48 +1061,35 @@ useEffect(() => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [biddingTimer, showBiddingUI])
 
-// 自动出牌（出牌倒计时超时）
+// 自动出牌（使用策略模式）
 useEffect(() => {
   if (!isMyTurn) return
   if (turnTimer !== 0) return
 
-  console.log('[AutoPlay] 倒计时到期，准备自动出牌', { 
-    canPass, 
-    myCardsCount: myCards.length,
-    lastPlayedCards 
-  })
+  console.log('[AutoPlay] 倒计时到期，使用策略模式处理')
 
-  if (canPass) {
-    console.log('[AutoPlay] 选择不出')
-    handlePass()
-  } else {
-    if (myCards.length === 0) {
-      console.warn('[AutoPlay] 没有手牌')
-      return
-    }
+  // 构建策略上下文
+  const context: AutoPlayContext = {
+    myCards,
+    lastPlayedCards: lastPlayedCards?.cards || null,
+    canPass,
+    isMyTurn,
+    turnTimer,
+  }
 
-    const lastCards: string[] | null =
-      lastPlayedCards && lastPlayedCards.cards && lastPlayedCards.cards.length > 0
-        ? lastPlayedCards.cards
-        : null
-
-    const autoHint = CardHintHelper.getHint(myCards, lastCards)
-    console.log('[AutoPlay] 自动提示结果:', autoHint)
+  // 使用策略管理器找到合适的策略
+  const result = autoPlayManager.current.execute(context)
+  
+  if (result) {
+    console.log(`[AutoPlay] 使用策略: ${result.strategy.getName()}`)
     
-    if (autoHint && autoHint.length > 0) {
-      console.log('[AutoPlay] 自动出牌:', autoHint)
-      doPlayCards(autoHint)
-      addChatMessage('系统', '已为你自动出一手推荐牌')
+    if (result.cards.length === 0) {
+      // 空数组表示不出
+      handlePass()
+      addChatMessage('系统', '已为你自动选择不出')
     } else {
-      const minCard = myCards[0]
-      if (minCard) {
-        console.log('[AutoPlay] 兜底出最小牌:', minCard)
-        doPlayCards([minCard])
-        addChatMessage('系统', '已为你自动出一张最小的牌')
-      } else {
-        console.error('[AutoPlay] 没有可出的牌')
-        addChatMessage('系统', '已为你自动判定为没有可出的牌')
-      }
+      doPlayCards(result.cards)
+      addChatMessage('系统', `已为你自动出牌: ${result.cards.join(', ')}`)
     }
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1281,7 +1266,7 @@ useEffect(() => {
     setTurnState(false, false)
   }
 
-  // 处理抢/不抢按钮点击（bid = true 或 false）
+  // 处理抢/不抢按钮点击（使用命令模式）
   const handleBid = (bid: boolean) => {
     if (!roomId || !user) return
 
@@ -1290,16 +1275,17 @@ useEffect(() => {
 
     if (bid) soundManager.playBid()
 
-    GameFlow.bidLandlord({
+    // 使用命令模式
+    const command = new BidCommand(
       roomId,
-      userId: user.id || user.name,
+      user.id || user.name,
       bid,
-      socket: globalSocket.getSocket(),
-      onSuccess: () => {
+      () => {
         appendSystemMessage(`你选择了：${bid ? '抢地主' : '不抢'}`)
-      },
-      onError: (msg) => appendSystemMessage(msg)
-    })
+      }
+    )
+
+    commandManager.current.execute(command)
   }
 
   // 出牌提示入口：优先用本地算法，如果开启了 LLM 再走服务端提示
