@@ -28,7 +28,6 @@ import * as GameFlow from './logic/gameFlow'
 import { soundManager } from '@/utils/sound'
 import { getLlmSettings } from '@/utils/llmSettings'
 import { getGameSettings } from '@/utils/gameSettings'
-import { motion } from 'framer-motion'
 
 // 导入新的 Hooks
 import { useGameUI, useGameTimer } from './hooks'
@@ -46,7 +45,17 @@ import { ChatPanel } from '@/shared/components'
 import { BiddingControls } from '@/games/doudizhu/components'
 
 // 导入 GameRoom 子组件
-import { SettlementPanel, GameActions, AiHintPanel, PlayerDisplay, BottomCards, HandCards } from './components'
+import { 
+  SettlementPanel, 
+  GameActions, 
+  AiHintPanel, 
+  BottomCards, 
+  HandCards,
+  CenterResultPanel,
+  TopPlayersArea,
+  BottomPlayerInfo,
+  BottomPlayedCards,
+} from './components'
 
 import '@/styles/avatars.css'
 import './style.css'
@@ -1693,153 +1702,61 @@ useEffect(() => {
           />
         )}
 
-        {/* 中央结算结果 + 再来一局 / 返回大厅按钮（图2 布局） */}
-        {gameStatus === 'finished' && gameState.gameResult && (
-          <div className="center-area">
-            <div
-              className={`center-result-banner ${
-                gameState.gameResult.landlordWin ? 'landlord' : 'farmer'
-              }`}
-            >
-              {gameState.gameResult.landlordWin ? '地主胜利' : '农民获胜'}
-            </div>
-            <div className="settlement-inline-actions">
-              <button
-                type="button"
-                className="btn-replay"
-                onClick={() => {
-                  dispatch(prepareNextGame())
-                  handleStartGame()
-                }}
-              >
-                再来一局
-              </button>
-              <button
-                type="button"
-                className="btn-back-lobby"
-                onClick={() => {
-                  dispatch(prepareNextGame())
-                  doLeaveRoom()
-                }}
-              >
-                {autoReplayCountdown != null
-                  ? `返回大厅（${autoReplayCountdown}秒）`
-                  : '返回大厅'}
-              </button>
-            </div>
-          </div>
-        )}
+        <CenterResultPanel
+          visible={gameStatus === 'finished' && !!gameState.gameResult}
+          landlordWin={gameState.gameResult?.landlordWin ?? false}
+          autoReplayCountdown={autoReplayCountdown}
+          onReplay={() => {
+            dispatch(prepareNextGame())
+            handleStartGame()
+          }}
+          onBackToLobby={() => {
+            dispatch(prepareNextGame())
+            doLeaveRoom()
+          }}
+        />
 
-        {/* 上方左右两家玩家区域 */}
-        <div className="top-players">
-          {leftPlayer && (
-            <PlayerDisplay
-              position="left"
-              player={leftPlayer}
-              gameStatus={gameStatus}
-              isLandlord={landlordId === leftPlayer.id}
-              isTurn={isLeftTurn}
-              turnTimer={turnTimer}
-              lastPlayed={lastPlayedCards}
-              isPassed={!!passedPlayers[leftPlayer.id]}
-              finalScore={leftPlayerScore?.finalScore}
-              remainingCards={leftRemainingCards || undefined}
-              parseCard={parseCard}
-              renderPlayerAvatar={renderPlayerAvatar}
-            />
-          )}
+        <TopPlayersArea
+          leftPlayer={leftPlayer}
+          rightPlayer={rightPlayer}
+          landlordId={landlordId}
+          isLeftTurn={isLeftTurn}
+          isRightTurn={isRightTurn}
+          turnTimer={turnTimer}
+          lastPlayedCards={lastPlayedCards}
+          passedPlayers={passedPlayers}
+          leftPlayerScore={leftPlayerScore}
+          rightPlayerScore={rightPlayerScore}
+          leftRemainingCards={leftRemainingCards}
+          rightRemainingCards={rightRemainingCards}
+          gameStatus={gameStatus}
+          parseCard={parseCard}
+          renderPlayerAvatar={renderPlayerAvatar}
+        />
 
-        {rightPlayer && (
-            <PlayerDisplay
-              position="right"
-              player={rightPlayer}
-              gameStatus={gameStatus}
-              isLandlord={landlordId === rightPlayer.id}
-              isTurn={isRightTurn}
-              turnTimer={turnTimer}
-              lastPlayed={lastPlayedCards}
-              isPassed={!!passedPlayers[rightPlayer.id]}
-              finalScore={rightPlayerScore?.finalScore}
-              remainingCards={rightRemainingCards || undefined}
-              parseCard={parseCard}
-              renderPlayerAvatar={renderPlayerAvatar}
-            />
-          )}
+        <BottomPlayedCards
+          visible={
+            !!currentPlayer &&
+            !!lastPlayedCards &&
+            lastPlayedCards.playerId === currentPlayer.id &&
+            !!lastPlayedCards.cards &&
+            lastPlayedCards.cards.length > 0 &&
+            !!landlordId
+          }
+          cards={lastPlayedCards?.cards || []}
+          isLandlord={isBottomLandlord}
+          parseCard={parseCard}
+        />
 
-        {currentPlayer &&
-          lastPlayedCards &&
-          lastPlayedCards.playerId === currentPlayer.id &&
-          lastPlayedCards.cards &&
-          lastPlayedCards.cards.length > 0 && (
-            <div className="played-cards-container bottom-player-played">
-              {lastPlayedCards.cards.map((cardStr: string, index: number) => {
-                const { rank, suit, isJoker } = parseCard(cardStr)
-                const isRed = suit === '♥' || suit === '♦' || isJoker === 'big'
-                return (
-                  <motion.div
-                    key={`${cardStr}-${index}`}
-                    className={`card ${isRed ? 'red' : 'black'}`}
-                    initial={{ opacity: 0, y: -160, scale: 0.6, rotate: -6 }}
-                    animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }}
-                    exit={{ opacity: 0, y: 40, scale: 0.9, rotate: 6 }}
-                  >
-                    <div
-                      className={`card-value ${isJoker ? 'joker-text' : ''}`}
-                      style={
-                        isJoker ? { color: isJoker === 'big' ? '#d32f2f' : '#000' } : undefined
-                      }
-                    >
-                      {rank}
-                    </div>
-                    {!isJoker && <div className="card-suit">{suit}</div>}
-                    {landlordId && (
-                      <div
-                        className={`card-landlord-mark ${
-                          isBottomLandlord ? 'landlord' : 'farmer'
-                        }`}
-                      >
-                        {isBottomLandlord ? '地主' : '农民'}
-                      </div>
-                    )}
-                  </motion.div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-
-        {currentPlayer && (
-          <div className={`current-player-info ${isBottomTurn ? 'turn-active' : ''}`}>
-            {/* 当前轮到的底部玩家信息 */}
-            <div className="player-avatar-container">
-              {landlordId === currentPlayer.id && (
-                <div className="landlord-badge" title="地主">👑</div>
-              )}
-              <div className="player-avatar">{renderPlayerAvatar(currentPlayer.avatar)}</div>
-            </div>
-            <div className="player-info-below">
-              <div className="player-coins">
-                <span className="player-coins-icon" aria-hidden="true" />
-                <span className="player-coins-text">
-                  {bottomCoinValue >= 10000
-                    ? `${(bottomCoinValue / 10000).toFixed(1)}万`
-                    : bottomCoinValue.toLocaleString()}
-                </span>
-              </div>
-            </div>
-            {gameStatus === 'finished' && bottomPlayerScore && (
-              <div
-                className={`result-score-bottom ${
-                  bottomPlayerScore.finalScore >= 0 ? 'win' : 'lose'
-                }`}
-              >
-                {bottomPlayerScore.finalScore > 0
-                  ? `+${bottomPlayerScore.finalScore}`
-                  : bottomPlayerScore.finalScore}
-              </div>
-            )}
-          </div>
-        )}
+        <BottomPlayerInfo
+          player={currentPlayer}
+          isLandlord={isBottomLandlord}
+          isTurn={isBottomTurn}
+          coinValue={bottomCoinValue}
+          finalScore={bottomPlayerScore?.finalScore}
+          gameStatus={gameStatus}
+          renderPlayerAvatar={renderPlayerAvatar}
+        />
 
         {/* 当前玩家选择不出时，底部显示“不出” */}
         {gameStatus === 'playing' && user && passedPlayers[user.id || user.name || ''] && (
