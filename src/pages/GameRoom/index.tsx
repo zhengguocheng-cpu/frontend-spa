@@ -1182,16 +1182,27 @@ useEffect(() => {
 
   // 实际发送出牌请求到服务器（使用命令模式）
   const doPlayCards = (cardsToPlay: string[]) => {
+    console.log('[doPlayCards] 开始', { 
+      roomId, 
+      userId: user?.id || user?.name, 
+      cards: cardsToPlay,
+      isMyTurn,
+      playPending: playPendingRef.current 
+    })
+
     if (!roomId || !user || !isMyTurn) {
+      console.warn('[doPlayCards] 前置检查失败')
       appendSystemMessage(isMyTurn ? '无法连接服务器' : '还没轮到你出牌')
       return
     }
 
     if (playPendingRef.current) {
+      console.warn('[doPlayCards] 已有pending请求，阻止')
       appendSystemMessage('正在处理上一手出牌，请稍候...')
       return
     }
 
+    console.log('[doPlayCards] 设置pending=true')
     playPendingRef.current = true
     setPlayPending(true)
 
@@ -1201,16 +1212,19 @@ useEffect(() => {
       user.id || user.name,
       cardsToPlay,
       () => {
+        console.log('[doPlayCards] onSuccess回调被调用，重置pending')
         playPendingRef.current = false
         setPlayPending(false)
       },
       (msg) => {
+        console.error('[doPlayCards] onError回调被调用:', msg)
         appendSystemMessage(msg)
         playPendingRef.current = false
         setPlayPending(false)
       }
     )
 
+    console.log('[doPlayCards] 执行命令')
     commandManager.current.execute(command)
 
     setTimeout(() => {
