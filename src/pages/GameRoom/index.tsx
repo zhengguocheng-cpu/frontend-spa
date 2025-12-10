@@ -32,6 +32,7 @@ import { motion } from 'framer-motion'
 
 // 导入新的 Hooks
 import { useGameUI, useGameTimer } from './hooks'
+import { useWalletScore } from './hooks/useWalletScore'
 
 // 导入helper函数
 import { parseCard } from './logic/helpers'
