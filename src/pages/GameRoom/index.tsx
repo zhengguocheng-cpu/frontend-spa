@@ -840,15 +840,17 @@ export default function GameRoom() {
         addChatMessage('系统', `${data.playerName} 加入了房间`)
       }
 
-      // 如果服务端下发了完整玩家列表，则以该列表为准刷新本地状态
       if (data.players && Array.isArray(data.players)) {
         console.log('[Player] player_joined 后刷新玩家列表:', data.players)
-        // 同步 ready 字段到 isReady
-        const players = data.players.map((p: any) => ({
-          ...p,
-          isReady: p.isReady !== undefined ? p.isReady : p.ready,
-        }))
-        dispatch(updatePlayers(players))
+        const updatedPlayers = data.players.map((p: any) => {
+          const existingPlayer = players.find((ep: any) => ep.id === p.id || ep.name === p.name)
+          return {
+            ...p,
+            isReady: p.isReady !== undefined ? p.isReady : p.ready,
+            score: p.score !== undefined ? p.score : (existingPlayer?.score !== undefined ? existingPlayer.score : null)
+          }
+        })
+        dispatch(updatePlayers(updatedPlayers))
       }
     }
 
@@ -858,12 +860,15 @@ export default function GameRoom() {
 
       if (data.players && Array.isArray(data.players)) {
         console.log('[Player] player_left 后刷新玩家列表:', data.players)
-        // 同步 ready 字段到 isReady
-        const players = data.players.map((p: any) => ({
-          ...p,
-          isReady: p.isReady !== undefined ? p.isReady : p.ready
-        }))
-        dispatch(updatePlayers(players))
+        const updatedPlayers = data.players.map((p: any) => {
+          const existingPlayer = players.find((ep: any) => ep.id === p.id || ep.name === p.name)
+          return {
+            ...p,
+            isReady: p.isReady !== undefined ? p.isReady : p.ready,
+            score: p.score !== undefined ? p.score : (existingPlayer?.score !== undefined ? existingPlayer.score : null)
+          }
+        })
+        dispatch(updatePlayers(updatedPlayers))
       } else if (data.playerId) {
         // 仅返回 playerId 时，从本地 players 列表中过滤掉该玩家
         console.log('[Player] 根据 playerId 从本地玩家列表中移除:', data.playerId)
@@ -881,16 +886,17 @@ export default function GameRoom() {
       
       if (data.players && Array.isArray(data.players)) {
         console.log('[Player] player_ready 后刷新玩家列表:')
-        // 同步 ready 字段到 isReady
-        const players = data.players.map((p: any) => {
+        const updatedPlayers = data.players.map((p: any) => {
           const isReady = p.isReady !== undefined ? p.isReady : p.ready
+          const existingPlayer = players.find((ep: any) => ep.id === p.id || ep.name === p.name)
           console.log(`  - ${p.name}: ready=${p.ready}, isReady=${isReady}`)
           return {
             ...p,
-            isReady: isReady
+            isReady: isReady,
+            score: p.score !== undefined ? p.score : (existingPlayer?.score !== undefined ? existingPlayer.score : null)
           }
         })
-        dispatch(updatePlayers(players))
+        dispatch(updatePlayers(updatedPlayers))
       } else if (data.playerId) {
         // 仅返回 playerId 时，本地标记该玩家为已准备
         console.log('[Player] 标记单个玩家已准备:', data.playerId, 'isReady=true')

@@ -449,6 +449,7 @@ const gameSlice = createSlice({
         cardCount: 0,
         cards: [],
         role: undefined,
+        isReady: false,
       }))
     },
     
