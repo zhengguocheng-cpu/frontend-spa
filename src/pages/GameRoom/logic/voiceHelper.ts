@@ -2,7 +2,7 @@
  * Voice and Sound Helper Functions
  */
 
-import { parseCard, getSpokenRankFromCard } from './helpers'
+import { getSpokenRankFromCard } from './helpers'
 
 export function getPlayVoiceText(pattern: any, cards: string[]): string | null {
   const typeRaw = (pattern?.type || pattern?.TYPE || '').toString().toLowerCase()

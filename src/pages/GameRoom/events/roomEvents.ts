@@ -27,7 +27,7 @@ export interface CreateRoomHandlersParams {
  * 创建房间事件处理器
  */
 export function createRoomHandlers(params: CreateRoomHandlersParams): RoomEventHandlers {
-  const { dispatch, roomId, userId, appendSystemMessage, refreshWalletScore, updatePlayers } = params
+  const { roomId, appendSystemMessage, refreshWalletScore, updatePlayers } = params
 
   const handleRoomJoined = (data: any) => {
     console.log('[Room] room_joined 事件:', data)

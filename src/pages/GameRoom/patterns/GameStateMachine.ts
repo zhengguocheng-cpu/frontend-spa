@@ -35,6 +35,7 @@ export class WaitingState implements GameState {
   }
 
   exit(context: GameStateContext): void {
+    void context
     console.log('[State] 离开等待状态')
   }
 
@@ -59,6 +60,7 @@ export class BiddingState implements GameState {
   }
 
   exit(context: GameStateContext): void {
+    void context
     console.log('[State] 离开叫地主状态')
   }
 
@@ -83,6 +85,7 @@ export class PlayingState implements GameState {
   }
 
   exit(context: GameStateContext): void {
+    void context
     console.log('[State] 离开游戏状态')
   }
 
@@ -107,6 +110,7 @@ export class FinishedState implements GameState {
   }
 
   exit(context: GameStateContext): void {
+    void context
     console.log('[State] 离开结算状态')
   }
 

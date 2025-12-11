@@ -96,6 +96,8 @@ export class NoValidCardsStrategy implements AutoPlayStrategy {
   }
 
   getCards(context: AutoPlayContext): string[] | null {
+    // 显式使用 context，避免未使用参数的编译错误
+    void context
     return [] // 空数组表示不出
   }
 

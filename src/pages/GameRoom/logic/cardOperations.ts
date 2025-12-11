@@ -17,7 +17,7 @@ export function playCards(params: {
   onSuccess?: () => void
   onError?: (msg: string) => void
 }) {
-  const { roomId, userId, cards, socket, onSuccess, onError } = params
+  const { roomId, userId, cards, socket, onError } = params
 
   if (!socket) {
     onError?.('Socket未连接')
@@ -114,7 +114,7 @@ export function validatePlayCards(params: {
   lastCards: string[] | null
   canPass: boolean
 }): { valid: boolean; error?: string } {
-  const { selectedCards, myCards, lastCards, canPass } = params
+  const { selectedCards, myCards } = params
 
   // 如果没有选牌，尝试整手出牌
   if (selectedCards.length === 0) {
