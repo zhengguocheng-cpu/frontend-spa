@@ -8,7 +8,7 @@ import {
   setCurrentPlayer,
   updatePlayerStatus,
   startGame,
-  passAction,
+  pass as passAction,
 } from '@/store/slices/gameSlice'
 
 export interface GameEventHandlers {
@@ -103,6 +103,7 @@ export function createGameEventHandlers(params: GameEventHandlerParams): GameEve
   } = params
 
   const handleRoomJoined = (data: any) => {
+    console.log('[Room] room_joined payload:', data)
     appendSystemMessage('已进入房间，等待其他玩家...')
     const now = Date.now()
     quickFlowRef.current.roomJoinedAt = now
@@ -276,6 +277,7 @@ export function createGameEventHandlers(params: GameEventHandlerParams): GameEve
   }
 
   const handleGameStarted = (data: any) => {
+    console.log('[Game] game_started payload:', data)
     const now = Date.now()
     const joinedAt = quickFlowRef.current.roomJoinedAt
     if (joinedAt) {
@@ -417,6 +419,7 @@ export function createGameEventHandlers(params: GameEventHandlerParams): GameEve
 
   const handleGameStateUpdated = (data: any) => {
     // 目前仅用于调试
+    console.log('[Game] game_state_updated 事件:', data)
   }
 
   const handleTurnToPlay = (data: any) => {
